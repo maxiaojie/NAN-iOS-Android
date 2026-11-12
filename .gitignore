@@ -1,0 +1,20 @@
+# Android
+NAN-Android/.gradle/
+NAN-Android/**/build/
+NAN-Android/local.properties
+.idea/
+*.iml
+# Xcode / local signing
+.DS_Store
+DerivedData/
+**/xcuserdata/
+*.xcuserstate
+*.mobileprovision
+*.p12
+*.ipa
+*.apk
+*.xcarchive
+NAN-iOS/Local.xcconfig
+# Test output
+artifacts/
+__pycache__/
