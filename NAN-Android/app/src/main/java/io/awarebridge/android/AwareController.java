@@ -3,7 +3,6 @@ package io.awarebridge.android;
 import android.annotation.SuppressLint;
 import android.content.*;
 import android.net.*;
-import android.net.wifi.OuiKeyedData;
 import android.net.wifi.aware.*;
 import android.os.*;
 import java.io.IOException;
@@ -90,10 +89,6 @@ final class AwareController implements AutoCloseable {
             if (manager.getCharacteristics().isInstantCommunicationModeSupported()) {
                 config.setInstantCommunicationModeEnabled(true, android.net.wifi.ScanResult.WIFI_BAND_5_GHZ);
             }
-            // Retained from the validated configuration; necessity has not been isolated by A/B testing.
-            PersistableBundle data = new PersistableBundle();
-            data.putBoolean("android", false);
-            config.setVendorData(Collections.singletonList(new OuiKeyedData.Builder(0x506f9a, data).build()));
             aware.publish(config.build(), discovery, handler);
         } catch (RuntimeException | LinkageError e) {
             fail("服务发布失败；请核对 ROM 的 Aware 接口支持：" + e.getMessage());

@@ -148,3 +148,7 @@
 源码原注释称其 Required，超出了现有证据，现改为“从已验证配置保留，必要性尚未通过 A/B 测试隔离”。VendorData 是额外厂商参数；`android=false` 在当前厂商实现中的具体解释，不能凭字段名认定为伪装 iOS 或必需开关。也不能把它与 SSI 的 modelName/pairingName/vendorName，或抓包中的所有 Vendor Specific 属性视为同一项。
 
 状态：待验证。不因本次讨论直接删除工作配置；应只移除该调用，保持 SSI、配对、服务名、加密参数不变，在 TB323FU（STA 断开）及 Pixel 9 对照发现、首次 PIN 配对、缓存重连、NDP 和双向心跳；结合厂商 HAL/固件对该 OUI/bundle 的处理，才能判定是否可永久删除。删除调用本身也不等于所有 framework-wifi.jar 编译依赖都已消除。
+
+### P15 后续真机结果：已验证可删除
+
+已删除调用并重新编译安装。TB323FU（STA 断开）与 iPhone 12 通过缓存重连；随后清除两端测试配对，重新发现、输入新 PIN、配对成功，并建立 NDP、双向收发心跳/ACK。保留上面的待验证描述作为历史，当前结论更新为这组设备/条件下不必设置 VendorData。中间一次配对超时也保留记录，详见 [完整验证](vendor-data-removal-validation.md)。

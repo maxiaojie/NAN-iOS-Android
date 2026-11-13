@@ -31,7 +31,7 @@ NAN-iOS-Android/
 - Android 16 / API 36 或更高，硬件及 ROM 支持 Wi-Fi Aware **和 Aware 配对**。
 - 开启 Wi-Fi 和系统定位，授予附近设备、定位权限。
 - JDK **21**、Android SDK 36；Gradle wrapper 8.6、AGP 8.4.0 沿用原 Android 项目。AGP 对 SDK 36 会给出兼容性提示。
-- **当前依赖定制 ROM 的非公开接口**：`setVendorData` 及 AOSP Wi-Fi 编译接口来自原项目 `framework-wifi.jar`，仅用于编译。复制 jar 不会给普通 ROM 解锁这些接口。请先阅读 [Android ROM 条件](docs/android-rom.md)。
+- 编译暂时沿用原项目的 `framework-wifi.jar`，不打进 APK。当前已删除 `setVendorData`，并通过重新配对和数据通信真机验证；尚未单独验证移除编译 jar。不同 ROM 仍需验证配对和数据链路支持，见 [Android ROM 条件](docs/android-rom.md)。
 
 ```sh
 cd NAN-Android

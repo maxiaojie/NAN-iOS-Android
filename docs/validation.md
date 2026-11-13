@@ -42,3 +42,7 @@
 用户于 11 月 13 日明确要求先上传 ROM 问题文档，随后代码及后续验证记录继续推送。发布代码不表示上述已知 ROM 问题已经解决。
 
 完整问题索引与持续记录规则见 [问题台账](problem-log.md)。USB 锁屏事件尚未成功，设备此前仍报告 activeOn；不能以 App 已停止代替完成锁屏。
+
+## 不设置 VendorData 的补充验证
+
+2026-11-13：删除该调用后重新编译安装，TB323FU（普通 Wi-Fi 断开）与 iPhone 12 通过缓存重连；清理两端测试配对后，重新发现、新 PIN 配对成功，并再次建立 NDP 和双向心跳/ACK。详见 [完整记录](vendor-data-removal-validation.md)。本次未验证 Pixel 的无 VendorData 版本。
