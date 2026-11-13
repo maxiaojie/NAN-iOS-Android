@@ -25,6 +25,6 @@
 
 当前 TB323FU / iPhone 12 / STA 断开条件下，不调用 setVendorData 仍能重新发现、全新 PIN 配对、缓存配对重连和交换应用数据，因此该调用不是当前已验证互通路径的必需项，正式代码删除该调用。
 
-此结果不等于所有 ROM 通用，也不证明原先 bundle 在所有厂商固件中均被忽略；没有将删除调用当作修复 STA 并发额外 23 字节的证据。未修改其他服务/配对参数以“凑出”成功。构建暂时保留原编译 jar；是否彻底移除 jar 需另行用标准 SDK 构建验证。
+此结果不等于所有 ROM 通用，也不证明原先 bundle 在所有厂商固件中均被忽略；没有将删除调用当作修复 STA 并发额外 23 字节的证据。未修改其他服务/配对参数以“凑出”成功。本项验证时保留原编译 jar；后续独立测试已用标准 SDK 36 完成 clean 构建及 lint，现已移除 jar 和相关 Gradle 配置，见问题台账 P01 后续。
 
 本机证据文件位于 `/tmp/aware-reverse/`：`no-vendor-build.log`、`no-vendor-status.png`、`re-pair-app.png`、`re-pair-discovery.png`、`re-pair-final.xml`、`re-pair-final-logcat.txt`、`re-pair-data.png` / `.xml`。含 PIN/安全信息的原始文件不上传公开仓库。

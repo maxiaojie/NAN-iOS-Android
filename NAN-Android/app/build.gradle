@@ -14,12 +14,3 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
 }
-// Compile-only AOSP API surface; framework classes must come from the device ROM.
-// See docs/android-rom.md before trying an unmodified production device.
-dependencies { compileOnly files('libs/framework-wifi.jar') }
-// Put the AOSP Wi-Fi API before android.jar so hidden Builder APIs are visible.
-gradle.projectsEvaluated {
-    tasks.withType(JavaCompile).configureEach {
-        options.bootstrapClasspath = files(file('libs/framework-wifi.jar'), options.bootstrapClasspath)
-    }
-}

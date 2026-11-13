@@ -4,9 +4,9 @@
 
 iOS discovery/pairing and Network API usage are adapted from Apple's BuildingPeerToPeerApps sample. The satellite simulation, graphics, and Coder/TLV wire protocol are not included. Apple copyright and license are retained in `NAN-iOS/LICENSE.txt`.
 
-## AOSP Wi-Fi compile-time API jar
+## Historical AOSP Wi-Fi compile-time API jar
 
-`NAN-Android/app/libs/framework-wifi.jar` was copied from the original Android `wifi_aware` project's AOSP-extracted API jar. It is used only at compile time, and is not redistributed inside the application APK. AOSP Android framework code is generally licensed under Apache License 2.0; see `licenses/Apache-2.0.txt`. The input jar does not include source revision or an embedded NOTICE; its exact AOSP revision has not been reconstructed here. See `docs/android-rom.md` for usage and limits. Keep original notices when replacing it with an independently built artifact.
+Earlier commits included an AOSP-extracted `framework-wifi.jar` inherited from the original wifi_aware project. It was a compile-only dependency and was not packaged in the APK. After removing setVendorData, the app builds against the standard Android SDK 36; the jar and its build configuration have been removed. Historical copies remain in Git history. The Apache License 2.0 reference is retained in `licenses/Apache-2.0.txt`; the original jar's exact source revision was not recorded.
 
 ## Build tooling
 

@@ -46,3 +46,7 @@
 ## 不设置 VendorData 的补充验证
 
 2026-11-13：删除该调用后重新编译安装，TB323FU（普通 Wi-Fi 断开）与 iPhone 12 通过缓存重连；清理两端测试配对后，重新发现、新 PIN 配对成功，并再次建立 NDP 和双向心跳/ACK。详见 [完整记录](vendor-data-removal-validation.md)。本次未验证 Pixel 的无 VendorData 版本。
+
+## 移除 framework-wifi.jar 的补充验证
+
+删除 compileOnly、bootstrapClasspath 覆盖及 jar 文件，标准 Android SDK 36 的 clean / assembleDebug / lintDebug 通过。APK 安装 TB323FU 后，与 iPhone 12 缓存配对重连、NDP 和 UDP 双向心跳/ACK 正常，11:38 两端均为 23/23。本项没有再次清除配对做 PIN 流程，Pixel 未重测。

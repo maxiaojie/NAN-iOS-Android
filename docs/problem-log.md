@@ -152,3 +152,9 @@
 ### P15 后续真机结果：已验证可删除
 
 已删除调用并重新编译安装。TB323FU（STA 断开）与 iPhone 12 通过缓存重连；随后清除两端测试配对，重新发现、输入新 PIN、配对成功，并建立 NDP、双向收发心跳/ACK。保留上面的待验证描述作为历史，当前结论更新为这组设备/条件下不必设置 VendorData。中间一次配对超时也保留记录，详见 [完整验证](vendor-data-removal-validation.md)。
+
+### P01 后续：删除 framework-wifi.jar
+
+2026-11-13，在 P15 删除 setVendorData 并通过全新配对验证后，移除 compileOnly 依赖和 javac bootstrapClasspath 覆盖。使用标准 Android SDK 36 执行 `:app:clean :app:assembleDebug :app:lintDebug` 成功（43 个任务实际执行，非沿用旧 class），没有缺失接口。随后删除 jar 文件及无效 import，当前编译不再需要定制 AOSP 接口。原条目保留为历史原因；当前仍不能由“标准 SDK 编译通过”推出所有 ROM 的无线能力均通过。JDK21/source8 与旧版 AGP/D8 的兼容性提示仍存在，此次未扩大范围升级工具链。
+
+删除 jar 的标准 SDK 构建 APK 已覆盖安装到 TB323FU；iPhone 12 缓存配对重连、NDP 及双向 UDP/ACK 实测通过，11:38 两端均发送/接收 23/23、最近接收 0 秒。没有为本项再次清除配对；全新 PIN 流程是在上一项删除 VendorData 的版本验证，不能混写为本项再次验证。证据：本机 `/tmp/aware-reverse/no-framework-jar-build.log`、`no-jar-result.png` / `.xml`。

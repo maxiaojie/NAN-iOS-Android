@@ -1,8 +1,8 @@
 # Android ROM 与 AOSP 编译接口
 
-此仓库沿用 `/wifi_aware` 原项目中已验证的 Android 发布/配对配置，目的是保留在当前测试设备上的互通路径，并未把它包装成通用 Android SDK 功能。
+此仓库源自 `/wifi_aware` 的发布/配对实验。当前已经移除非公开的 setVendorData 调用，使用标准 Android SDK 36 编译；设备仍须支持 Wi-Fi Aware 及配对能力。
 
-`NAN-Android/app/libs/framework-wifi.jar` 为原项目提取并调整 API 可见性的 AOSP Wi-Fi 编译 jar。它仅作为 `compileOnly` 和 javac bootstrap classpath 使用，**不会打包进 APK，也不会替换设备 ROM 的 Wi-Fi 模块**。
+原项目曾使用提取的 `framework-wifi.jar` 及 bootstrap classpath 覆盖，让编译器看到非公开接口。删除 setVendorData 后，当前剩余调用均能由标准 SDK 36 编译。2026-11-13 已删除 jar 文件、compileOnly 依赖及 bootstrap classpath 配置，并通过 clean + assembleDebug + lintDebug；不再需要用该 jar 解锁编译接口。
 
 当前发布配置使用：
 
@@ -18,6 +18,6 @@
 
 固定 passphrase 仅为复现已验证实验配置，不是 PIN，不提供应用身份认证，也不适合直接作为公开产品的共享秘密。不要据此声称所有 Android 16/17 设备都支持 iOS 互通。
 
-构建需要 JDK 21 读取该 jar 的 class file 65。Java 源码/目标设为 8，确保 AOSP Wi-Fi API 在 javac bootstrap classpath 中先于 Android SDK stub 被解析；这些是编译配置，与设备运行时权限相互独立。
+本机使用 JDK 21 完成构建，Java source/target 暂沿用 8。删除 jar 后，已不存在读取其 class file 65 的要求；未另行验证其他 JDK 版本。
 
-2026-11-13 已验证删除 `setVendorData` 后，TB323FU（STA 断开）↔ iPhone 12 仍能全新 PIN 配对和建立数据链路，详见 [删除验证](vendor-data-removal-validation.md)。原编译 jar 暂时保留；尚未以标准 SDK 完成去除 jar 的独立构建验证。
+2026-11-13 已验证删除 `setVendorData` 后，TB323FU（STA 断开）↔ iPhone 12 仍能全新 PIN 配对和建立数据链路，详见 [删除验证](vendor-data-removal-validation.md)。后续又以标准 SDK 完成移除 jar 的全量编译验证，jar 现已删除。
