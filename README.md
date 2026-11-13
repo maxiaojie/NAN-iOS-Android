@@ -85,3 +85,5 @@ xcodebuild -project NAN-iOS/AwareBridge.xcodeproj -scheme AwareBridge \
 ## 许可
 
 本项目新增代码采用 MIT；Apple 示例派生部分保留 [Apple 示例许可](NAN-iOS/LICENSE.txt)。AOSP 编译 jar 的说明及许可见 [第三方说明](THIRD_PARTY_NOTICES.md)。
+
+当前真机状态与已知问题见 [验证记录](docs/validation.md) 和 [TB323FU STA/NAN 并发问题](docs/tb323fu-sta-nan-issue.md)。完整双向心跳验收仍在进行中。
