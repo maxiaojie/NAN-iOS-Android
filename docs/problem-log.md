@@ -158,3 +158,13 @@
 2026-11-13，在 P15 删除 setVendorData 并通过全新配对验证后，移除 compileOnly 依赖和 javac bootstrapClasspath 覆盖。使用标准 Android SDK 36 执行 `:app:clean :app:assembleDebug :app:lintDebug` 成功（43 个任务实际执行，非沿用旧 class），没有缺失接口。随后删除 jar 文件及无效 import，当前编译不再需要定制 AOSP 接口。原条目保留为历史原因；当前仍不能由“标准 SDK 编译通过”推出所有 ROM 的无线能力均通过。JDK21/source8 与旧版 AGP/D8 的兼容性提示仍存在，此次未扩大范围升级工具链。
 
 删除 jar 的标准 SDK 构建 APK 已覆盖安装到 TB323FU；iPhone 12 缓存配对重连、NDP 及双向 UDP/ACK 实测通过，11:38 两端均发送/接收 23/23、最近接收 0 秒。没有为本项再次清除配对；全新 PIN 流程是在上一项删除 VendorData 的版本验证，不能混写为本项再次验证。证据：本机 `/tmp/aware-reverse/no-framework-jar-build.log`、`no-jar-result.png` / `.xml`。
+
+## P16：Ubuntu 恢复 managed 并连上 Wi-Fi 后无法上网
+
+2026-11-13。Ubuntu 192.168.31.211 无线 wlp3s0 已恢复 managed，连接 lenovo-internet，地址 10.114.202.145/21、网关 10.114.207.254、DNS 10.10.8.211。有线 enx0826ae3b55dd 保留 192.168.31.211/24，供 SSH 使用。
+
+检查发现两个独立问题：默认有线路由 metric 20100 优先于 Wi-Fi 的 20600，`ip route get 223.5.5.5` 实际走 192.168.31.1；有线网关可 ping，但外网 ICMP 无响应、HTTPS TCP 失败。绑定 wlp3s0 的 HTTP 请求能收到响应，却是 Aruba portal 的 meta refresh（`cmd=redirect&arubalp=12345`），HTTPS 报主机名与证书不符，表明 Wi-Fi 尚处认证重定向状态。不能仅凭 ICMP 不通判断外网必然不可用，也不能把 HTTPS 校验关闭当成修复。
+
+处理方案：已在 Ubuntu `/home/mxj/fix-ubuntu-internet.sh` 准备脚本，保存原有线设置，将有线连接 ipv4.never-default=yes、ipv4.ignore-auto-dns=yes，再 device reapply；不 down 接口、不重启 NetworkManager，保留局域网地址和 SSH 路由。当前 SSH 用户仅对抓包包装器免密 sudo，网络配置需要用户在 Ubuntu 执行脚本并输入 sudo 密码。之后在 Ubuntu 浏览器访问 HTTP 页面触发并完成企业 Wi-Fi 认证。
+
+状态：诊断已完成，脚本已上传，尚待用户执行及网页认证；未宣称恢复上网。修复后需检查默认路由经 wlp3s0、SSH 仍可访问、DNS 和 HTTPS 正常。未修改 monitor 配置，也未停止或删除任何普通 Wi-Fi 保存网络。
