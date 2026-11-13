@@ -50,3 +50,7 @@
 ## 移除 framework-wifi.jar 的补充验证
 
 删除 compileOnly、bootstrapClasspath 覆盖及 jar 文件，标准 Android SDK 36 的 clean / assembleDebug / lintDebug 通过。APK 安装 TB323FU 后，与 iPhone 12 缓存配对重连、NDP 和 UDP 双向心跳/ACK 正常，11:38 两端均为 23/23。本项没有再次清除配对做 PIN 流程，Pixel 未重测。
+
+## 第二台 TB323FU 安装
+
+2026-11-13（Mac 测试日期）：最新标准 SDK 构建 APK 已安装到 USB 设备 a0807d7（TB323FU、Android 17），包名 io.awarebridge.android、版本 1.0。adb 安装返回 Success，冷启动 Status ok，唤醒后 UI 已确认显示 AwareBridge 与开始发布按钮。仅验证安装/启动，未对这台设备验证配对或数据链路。设备自身 lastUpdateTime 显示 11 月 12 日，与 Mac 日期不一致，未修改其系统时间。
