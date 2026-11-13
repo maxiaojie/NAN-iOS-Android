@@ -77,6 +77,8 @@ xcodebuild -project NAN-iOS/AwareBridge.xcodeproj -scheme AwareBridge \
 
 ## 验证
 
+- 所有问题、处理过程及剩余限制：[问题台账](docs/problem-log.md)，后续按 [开发记录要求](AGENTS.md) 持续更新。
+
 - 构建与报文测试：`scripts/check.sh`。
 - 真机步骤和实际结果：[测试记录](docs/validation.md)。
 - iOS 端基于 Apple [Building peer-to-peer apps](https://developer.apple.com/documentation/wifiaware/building-peer-to-peer-apps) 的配对与 Network 连接方式，使用 **原始 UDP** 替代示例的 `Coder/TLV` 协议栈。
@@ -86,4 +88,4 @@ xcodebuild -project NAN-iOS/AwareBridge.xcodeproj -scheme AwareBridge \
 
 本项目新增代码采用 MIT；Apple 示例派生部分保留 [Apple 示例许可](NAN-iOS/LICENSE.txt)。AOSP 编译 jar 的说明及许可见 [第三方说明](THIRD_PARTY_NOTICES.md)。
 
-当前真机状态与已知问题见 [验证记录](docs/validation.md) 和 [TB323FU STA/NAN 并发问题](docs/tb323fu-sta-nan-issue.md)。完整双向心跳验收仍在进行中。
+当前真机状态与已知问题见 [验证记录](docs/validation.md) 和 [TB323FU STA/NAN 并发问题](docs/tb323fu-sta-nan-issue.md)。TB323FU 断开普通 Wi-Fi 时已通过配对、NDP 和持续双向 UDP 心跳/ACK；STA 并发发现异常及首次 NDP 失败仍需处理。

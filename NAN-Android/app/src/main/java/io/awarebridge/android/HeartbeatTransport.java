@@ -38,6 +38,12 @@ final class HeartbeatTransport implements AutoCloseable {
             try {
                 synchronized (this) {
                     if (closed) return;
+                    // Some ROMs end the NDP without delivering NetworkCallback.onLost.
+                    // Release the socket and its locked peer/session on liveness loss.
+                    if (peer != null && SystemClock.elapsedRealtime() - lastReceived > 20_000) {
+                        observer.onError("心跳超时，连接已释放；请重新发布并连接");
+                        return;
+                    }
                     if (peer != null) send("heartbeat", ++sequence, "Android heartbeat");
                     report();
                 }

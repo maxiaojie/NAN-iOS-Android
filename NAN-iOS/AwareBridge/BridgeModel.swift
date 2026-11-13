@@ -6,6 +6,7 @@ import Foundation
 import Observation
 import Network
 import WiFiAware
+import OSLog
 
 let bridgeServiceName = "_aware-bridge._udp"
 
@@ -27,6 +28,9 @@ final class BridgeModel {
     var now = Date()
     @ObservationIgnored private var connectionTask: Task<Void, Never>?
     @ObservationIgnored private var generation = UUID()
+    @ObservationIgnored private var attemptReachedReady = false
+    @ObservationIgnored private var connectionAttempt = UUID()
+    @ObservationIgnored private let logger = Logger(subsystem: "io.awarebridge.ios", category: "connection")
 
     func watchDevices() async {
         do {
@@ -54,35 +58,68 @@ final class BridgeModel {
         status = "正在发现所选设备…"
         connectionTask = Task { [weak self] in
             do {
-                let browser = NetworkBrowser(for: .wifiAware(.connecting(to: .allPairedDevices, from: .bridge)))
-                let endpoint = try await browser.run { endpoints in
-                    if let endpoint = endpoints.first(where: { $0.device.id == target }) {
-                        return .finish(endpoint)
+                for attempt in 1...3 {
+                    guard let self, self.generation == token else { return }
+                    self.attemptReachedReady = false
+                    do {
+                        let browser = NetworkBrowser(for: .wifiAware(.connecting(to: .allPairedDevices, from: .bridge)))
+                        let endpoint = try await browser.run { endpoints in
+                            if let endpoint = endpoints.first(where: { $0.device.id == target }) {
+                                return .finish(endpoint)
+                            }
+                            return .continue
+                        }
+                        try Task.checkCancellation()
+                        guard self.generation == token else { return }
+                        self.peer = self.displayName(endpoint.device)
+                        self.status = "正在建立 Wi-Fi Aware 数据链路…"
+                        try await self.exchange(with: endpoint, token: token)
+                        if self.generation == token { self.finish("连接已结束") }
+                        return
+                    } catch {
+                        try Task.checkCancellation()
+                        guard self.generation == token else { return }
+                        // A failed NDP negotiation may leave NetworkConnection waiting
+                        // indefinitely. Retry only before ready; an established UDP
+                        // session must not silently switch its peer/session identity.
+                        guard let networkError = error as? NWError,
+                              case .wifiAware(-11987) = networkError,
+                              !self.attemptReachedReady, attempt < 3 else { throw error }
+                        self.logger.notice("NDP negotiation failed (-11987), retry \(attempt + 1)/3")
+                        self.status = "链路协商失败（-11987），2 秒后重试（\(attempt + 1)/3）"
+                        try await Task.sleep(for: .seconds(2))
                     }
-                    return .continue
                 }
-                try Task.checkCancellation()
-                guard let self, self.generation == token else { return }
-                self.peer = self.displayName(endpoint.device)
-                self.status = "正在建立 Wi-Fi Aware 数据链路…"
-                try await self.exchange(with: endpoint, token: token)
-                if self.generation == token { self.finish("连接已结束") }
             } catch {
                 guard let self, self.generation == token else { return }
-                self.finish(error is CancellationError ? "已断开" : "连接失败：\(error.localizedDescription)")
+                if let networkError = error as? NWError, case .wifiAware(-11987) = networkError {
+                    self.finish("链路协商失败（-11987），请在 Android 重新发布后再连接")
+                } else {
+                    self.finish(error is CancellationError ? "已断开" : "连接失败：\(error.localizedDescription)")
+                }
             }
         }
     }
     private func exchange(with endpoint: WAEndpoint, token: UUID) async throws {
+        let attemptToken = UUID()
+        connectionAttempt = attemptToken
         let connection = NetworkConnection(to: endpoint, using: .parameters { UDP() }
             .wifiAware { $0.performanceMode = .realtime }
             .serviceClass(.bestEffort))
+        let (failures, failureContinuation) = AsyncThrowingStream<Void, Error>.makeStream()
+        defer { failureContinuation.finish() }
         connection.onStateUpdate { [weak self] _, state in
-            guard let self, self.generation == token else { return }
+            guard let self, self.generation == token, self.connectionAttempt == attemptToken else { return }
             switch state {
-            case .ready: self.status = "数据链路已建立，等待双向心跳"
-            case .waiting(let error): self.status = "等待连接：\(error.localizedDescription)"
-            case .failed(let error): self.status = "连接失败：\(error.localizedDescription)"
+            case .ready:
+                self.attemptReachedReady = true
+                self.logger.info("NDP ready")
+                self.status = "数据链路已建立，等待双向心跳"
+            case .waiting(let error):
+                self.logger.notice("NDP waiting: \(String(describing: error), privacy: .public)")
+                self.status = "等待连接：\(error.localizedDescription)"
+                if case .wifiAware(-11987) = error { failureContinuation.finish(throwing: error) }
+            case .failed(let error): failureContinuation.finish(throwing: error)
             default: break
             }
         }
@@ -90,6 +127,9 @@ final class BridgeModel {
         // Both tasks retain the connection only for this scope. Cancelling the receive
         // operation cancels the underlying connection, releasing the Aware data path.
         try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask {
+                for try await _ in failures { }
+            }
             group.addTask { [weak self] in
                 var seq: Int64 = 0
                 while !Task.isCancelled {

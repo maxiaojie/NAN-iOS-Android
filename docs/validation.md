@@ -1,47 +1,44 @@
-# 验证记录
+# 真机验证记录
 
-更新：2026-11-13。此记录区分构建检查与真实无线互通；完整双向互通尚未通过。
+更新：2026-11-13。当前已在 **TB323FU 断开普通 Wi-Fi、保留 Wi-Fi 开关** 的条件下，完成 iPhone 12 ↔ TB323FU 的发现、系统配对、NDP、UDP 双向心跳/ACK验证。普通 Wi-Fi 并发发现异常和首次 NDP 失败仍是已知限制，不能宣称所有设备/网络状态均已通过。
 
-## 已通过
+## 构建和安装
 
-- `scripts/check.sh`：Android Debug 编译、Android lint、Swift JSON 协议检查、iOS 真机目标无签名编译。
-- Swift 协议检查覆盖 Android 格式报文解码、中文文本、ACK 的 session / seq，以及不支持的版本、负序号拒绝。
-- Android Debug APK 安装到 TB323FU（Android 17），成功 attach、发布服务并注册数据链路请求。
-- iOS 签名构建安装到 iPhone 12（iOS 27.0）；本机借用已有、包含 Wi-Fi Aware 权限的示例 Bundle ID/profile。仓库保留独立 Bundle ID，签名资料未入库。
-- USB 真实触控：点击 App 按钮后打开了系统 DevicePicker；不是仅截屏或启动 App。
-- Android 停止/退出时关闭网络请求和 Aware 会话，未观察到本 App 遗留的活动 NDP。
+- `scripts/check.sh` 通过：Android Debug、Android lint、Swift JSON 协议检查、iOS 真机目标无签名编译。
+- Swift 检查覆盖 Android 格式报文解码、中文文本、ACK 的 session / seq，以及不支持的版本、负序号拒绝。
+- Android 安装到 TB323FU（Android 17）；Pixel 9 用于发现与配对对照。
+- iOS 签名构建安装到 iPhone 12（iOS 27.0）。本机借用已有 Wi-Fi Aware 示例 Bundle ID/profile，仓库保留独立 Bundle ID；签名资料未入库。
+- USB 触控已实际操作 DevicePicker、连接、断开。截屏或启动 App 本身不计作触控验证。
 
-## 尚未通过
+## 无线验证
 
-11 月 12 日的测试中 DevicePicker 未显示 Android。11 月 13 日新增 Pixel 9 对照，已观察到新 App 的发现和 Android 配对成功回调，但仍**未验证新 App 的 NDP 建立、UDP 双向收发或两分钟持续心跳**。
+| 项目 | 结果 / 条件 |
+| --- | --- |
+| TB323FU 服务发现 | 普通 Wi-Fi 断开后通过；iOS 显示从设备读取的中文系统名称 |
+| 首次系统配对 | 已进入 PIN 流程并成功，Android 记录 Pairing Confirm / Security Association |
+| 缓存配对重连 | Android 重新发布后可再次连接，无需重新输入 PIN |
+| NDP / IPv6 | 通过；应用绑定 Aware Network，使用 IPv6 link-local 对端 |
+| UDP 双向 / ACK | 通过；两端实际收到 hello、heartbeat 和 ACK，计数持续增长 |
+| 持续通信 | 多次观察；10:41 到 10:43，iOS 18/18 增长到 72/71；重试版本 10:47 到 10:50，7/7 增长到 59/59 |
+| 最终两端恢复版本 | 再次建立链路，截图 iOS 47/47、Android 48/48，最近接收 0 秒 |
+| iOS 停止后的 NDP | 最终版本实际触发心跳超时，提示重新发布；mClients、Active NDPs、mUsedNdis、mNetworkRequestsCache 均为空，清理验证通过 |
+| Pixel 9 | 连接普通 Wi-Fi 时旧/新 App 均可被发现；配对成功。其 NDP 曾失败，未完成 Pixel 双向数据验收 |
+| TCP、后台持续连接 | 未测试；当前示例为前台 raw UDP，切后台停止 |
 
-排查使用了独立服务名与原示例服务名、Solicited/Unsolicited 发布、原 Android App 与原 Apple 示例 App 的对照，以及两端 Wi-Fi 开关重试。原版对照同样未发现设备。Android HAL 有 Publish Replied 事件，而采集窗口内 iOS `wifip2pd` 没有对应发现结果；这些证据不足以确认具体故障原因，也不能证明新代码已具备端到端互通能力。
+发送/接收截图不是同一瞬间，差 1 个报文不等同丢包；本次验证的是两端接收持续增长及 ACK 内容，未进行严格丢包率测量。
 
-最终代码恢复 Solicited 发布，服务名为 `_aware-bridge._udp`。为验证首次配对，测试中已在 iOS 删除 TB323FU 的旧配对；再次测试需要重新配对。11 月 13 日 iPhone USB 已恢复。
+## 已知问题与处理
 
-## 继续真机验证
+1. [TB323FU STA + NAN 并发异常](tb323fu-sta-nan-issue.md)：连接普通 Wi-Fi 时部分 Publish 在完整属性之后额外出现 23 个零字节，iOS 发现失败；断开后恢复。由平板 ROM 流程继续定位，Pixel 对照正常。
+2. [NDP -11987 与恢复](ndp-connection-recovery.md)：首次配对后的链路协商曾失败，Android 记录原因码 9010；后续未修改网络参数重连成功。增加 iOS 有限重试与 Android 心跳超时清理；不宣称已修复固件根因。
+3. 自动重试错误分支没有在后续成功重连中重新触发；不能以正常路径通过代替该失败分支已复现验证。
 
-1. 确保两端距离接近，Wi-Fi、Android 定位与所需权限开启，停止其他测试 App 的 Aware 会话。
-2. Android 开始发布，iOS 添加设备，输入 Android 显示的六位 PIN；记录两端配对成功结果。
-3. iOS 连接；检查 Android NDP/IP 与 iOS ready 状态。
-4. 确认两端接收计数都持续增长，观察至少两分钟并核对 ACK；仅有 IP 或本机发送计数不算双向通信成功。
-5. 断开、停止，检查 NDP 与网络请求释放；再次连接验证缓存配对。
-6. 测试结束停止两端 App，并锁定 iPhone、确认屏幕关闭。
+## 历史与诊断清理
 
-完成上述步骤后再记录实测结果并发布经过真机验证的版本。
+11 月 12 日及 13 日早期原/新 App 都曾发现失败。尝试过服务名、发布模式、instant mode、短 pairingName、配对缓存配置等对照。它们不是最终代码改动，现均恢复正式独立服务名 `_aware-bridge._udp`、Solicited 发布及完整配对配置。
 
-## 2026-11-13 对照实验
+测试中通过旧 App 身份删除 TB323FU 的测试别名 aware-100，并核对系统配对映射为空；未删除普通 Wi-Fi 保存网络。此后新 App 的配对已重新建立。平板 ADB 临时 root 已恢复为 shell。完整含密钥日志、原始抓包、签名资料不提交仓库。
 
-- Ubuntu monitor 接口自动抓包已可用，分别采集信道 6、149；原始抓包和含密钥的系统日志未提交仓库。
-- 当前同一台 iPhone 能发现 Pixel 9 的旧 App，也能发现新 AwareBridge App。此对照暂用原示例服务名 `_sat-simulation._udp`；正式代码已恢复独立服务名。
-- Pixel 9 新 App 在系统配对流程后显示“配对成功”；连接时收到 NDP 请求，HAL 确认 response code 为 1，iOS 显示 Wi-Fi Aware 错误 -11987，应用收发计数仍为 0。配对成功不等于数据链路成功。
-- TB323FU 在 09:28:38 曾被 iOS 系统发现并解析 TXT，之后在平板重启附近的测试窗口中失去发现。用户报告前一天原 App 已成功发现、配对和连接；不能据此将当前失败归结为设备不支持。
-- 此后 TB323FU 的新 App、原 App，以及从 Pixel 提取的同一旧 APK 均未稳定出现在当前 DevicePicker。后一项信道 6/149 抓包未捕获 Publish，因此不能拿它作异常帧复现证据。
-- 同一份抓包中，Pixel 和 TB323FU 的服务 ID、SSI 长度、SDEA 控制值相同。TB323FU 部分 Publish 帧尾多出 23 字节零数据，被 Wireshark 解析成异常属性；Pixel 对照帧没有此尾部。该差异尚未证明是 iOS 丢弃原因。
-- 缩短 pairingName、关闭配对缓存与验证均未恢复平板发现。关闭缓存后 NIRA 属性消失，但上述零数据保留。临时诊断改动全部恢复。
-- 已通过旧 App 身份删除 TB323FU 的测试配对别名 aware-100，并核对系统存储中别名和安全信息映射为空；未删除普通 Wi-Fi 配置。
-- 最终代码再次通过 scripts/check.sh。由于无线互通验收未通过，未 push GitHub。
+用户于 11 月 13 日明确要求先上传 ROM 问题文档，随后代码及后续验证记录继续推送。发布代码不表示上述已知 ROM 问题已经解决。
 
-## 发现恢复（11 月 13 日追加）
-
-用户断开平板普通 Wi-Fi 后恢复发现，并报告异常 23 字节尾部消失；USB 截图确认当前独立服务名的新 App 显示平板并进入 PIN 配对。随后配对成功，但 NDP 建立仍失败：iOS -11987，Android 驱动原因码 9010。参见 [ROM 问题记录](tb323fu-sta-nan-issue.md)。此前“尚未发现”的记录仅描述相应测试时段。用户现已明确要求上传问题文档，因此仓库可先推送当前工作；这不代表双向数据验收通过。
+完整问题索引与持续记录规则见 [问题台账](problem-log.md)。USB 锁屏事件尚未成功，设备此前仍报告 activeOn；不能以 App 已停止代替完成锁屏。
