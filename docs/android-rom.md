@@ -19,3 +19,5 @@
 固定 passphrase 仅为复现已验证实验配置，不是 PIN，不提供应用身份认证，也不适合直接作为公开产品的共享秘密。不要据此声称所有 Android 16/17 设备都支持 iOS 互通。
 
 构建需要 JDK 21 读取该 jar 的 class file 65。Java 源码/目标设为 8，确保 AOSP Wi-Fi API 在 javac bootstrap classpath 中先于 Android SDK stub 被解析；这些是编译配置，与设备运行时权限相互独立。
+
+`setVendorData` 目前仅是保留的已验证配置，不代表已经证明它是 iOS 互通必需项；删除后的独立对照尚未进行，见 [P15](problem-log.md#p15setvendordata-是否为互通必需项)。

@@ -90,7 +90,7 @@ final class AwareController implements AutoCloseable {
             if (manager.getCharacteristics().isInstantCommunicationModeSupported()) {
                 config.setInstantCommunicationModeEnabled(true, android.net.wifi.ScanResult.WIFI_BAND_5_GHZ);
             }
-            // Required by the currently validated custom ROM's Apple interoperability path.
+            // Retained from the validated configuration; necessity has not been isolated by A/B testing.
             PersistableBundle data = new PersistableBundle();
             data.putBoolean("android", false);
             config.setVendorData(Collections.singletonList(new OuiKeyedData.Builder(0x506f9a, data).build()));
