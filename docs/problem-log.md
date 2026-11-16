@@ -263,6 +263,8 @@ iOS syslog 在 11:42:51～52 收到驱动 Discovery Result 通知，11:42:52.960
 
 ### 实机 HAL 库与 Publish 指针定位
 
+2026-11-16 AOSP 源码环境补充：按用户要求，在 Ubuntu `192.168.31.211` 的 `/home/mxj/workspace/aosp-main` 下载完整 `main` 分支源码文件（浅克隆，不含完整 Git 历史）。Google 源直连超时，清华镜像 Git 拉取排队且首次初始化失败；改用中科大 `https://mirrors.ustc.edu.cn/aosp/platform/manifest.git` 后初始化成功。已启动独立于 SSH 的下载进程，首次检查 `.repo` 已有 58MB，状态 RUNNING，**此时尚未全部下载完成**。脚本 `/home/mxj/workspace/sync-aosp-main.sh` 使用 4 路并发、失败重试与文件锁；日志 `aosp-main-sync.log`、状态 `aosp-main-sync.status` 均在 `/home/mxj/workspace/`。成功后生成 `aosp-main-manifest.xml`，状态改为 COMPLETE；重跑脚本可续传。没有改 Ubuntu 全局 Git 配置。`main` 是用户指定分支，不代表与 TB323FU 私有 Android 17 固件完全对应，不能用上游源码直接代替设备私有实现证据。
+
 2026-11-16：USB 检查 a0807d7，Wi-Fi HAL 进程实际加载 `/vendor/lib64/libwifi-hal.so`；初始化代码把 Publish 表项赋为 `nan_publish_request`，后者调用 `NanCommand::putNanPublish`。设备另有 `libwifi-hal-qcom.so`，但本次进程未加载。没有动态跟踪 dlopen 的实参，不能把该动态加载分支一定执行当作结论。详见 [库标识、表项偏移及调用地址](device-wifi-hal-library-analysis.md)。两个 ROM 问题仍未修复。
 
 ### 两个 ROM 排查主线与 Publish SDF 的组帧边界
