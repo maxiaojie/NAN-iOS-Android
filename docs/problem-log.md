@@ -316,3 +316,11 @@ iOS syslog 在 11:42:51～52 收到驱动 Discovery Result 通知，11:42:52.960
 实际执行 `adb root` 返回 already running as root；`adb remount` 和 `adb disable-verity` 都返回 `Device must be bootloader unlocked`。root 下直接 `mount -o remount,rw /vendor` 仍返回设备只读。直接 push 失败，最终目标 XML 仍不存在，系统未声明 Aware。由此确认该设备与 P21 的可写工程机不同，root 身份本身不保证能写验证保护的 vendor。没有执行 Bootloader 解锁、刷机、清数据，也未重启，因为 XML 没有成功变更。
 
 本项目 debug APK 安装 Success，`io.awarebridge.android` 1.0/code 1 冷启动 Status ok（248ms）。本轮只完成 APK 安装与启动；XML 写入仍受阻，需要可写 vendor 的环境或从 ROM 构建部署声明，未验证 NAN 发布、配对或 NDP。
+
+### P22 用户解锁后重新部署成功
+
+2026-11-16：用户自行解锁 Bootloader 后请求重试，实机确认 flash.locked=0、vbmeta.device_state=unlocked。`adb root` 成功；首次 `adb remount` 关闭 verity、启用 overlayfs，并要求重启。按提示重启后再次 root/remount，vendor 返回 RW、Remount succeeded。
+
+成功写入 `/vendor/etc/permissions/android.hardware.wifi.aware.xml`，设置 root:root、0644、restorecon，SELinux 标签为 vendor_configs_file。SHA-256 为 `6370914090ba4f81ef1410da719b6b2df5389180a8757ac95e77ca88d0076e85`，与源文件一致。本项目 debug APK 重新安装返回 Success，随后再次重启加载声明。
+
+最终核验 boot_completed=1，XML 及校验值重启后保留，`pm list features` 出现 `android.hardware.wifi.aware`，存在 wifiaware 服务；普通 shell 为 uid=2000。应用冷启动 Status ok（200ms）。因此之前的写入阻塞已解除，本轮完成配置部署与安装/启动；仍未验证此设备的发布、iOS 发现、配对或 NDP。Bootloader 解锁由用户执行，本轮没有执行解锁、刷机或清数据。

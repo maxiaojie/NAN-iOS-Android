@@ -1,5 +1,7 @@
 # 真机验证记录
 
+2026-11-16 HA2E6NPB 后续：用户解锁后 root/remount 成功，经关闭 verity、启用 overlayfs 并重启，已写入 Aware XML、重新安装 APK，再次重启后 feature 声明及 wifiaware 服务可见，应用冷启动正常。此前写入受阻已解除；未验收发布、配对或 NDP。详见 P22 后续记录。
+
 2026-11-16 HA2E6NPB（TB323FU，Android 16/API 36）：已有 root，但 Bootloader 锁定导致 remount/disable-verity 被拒绝，vendor 手动重新挂载与 XML push 也失败，系统未声明 Aware。APK 安装与冷启动成功；未重启、未解锁/刷机，未验收 NAN 功能。详见问题台账 P22。
 
 2026-11-16 b2302624（TB522FU，Android 16/API 36）：root/remount 成功，Aware feature XML 写入 vendor 并校验一致；重启后系统声明 `android.hardware.wifi.aware`、存在 wifiaware 服务，APK 安装与冷启动成功。未测试此设备的发布、发现、配对及 NDP。详见问题台账 P21。
