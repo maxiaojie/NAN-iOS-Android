@@ -240,3 +240,6 @@ iOS syslog 在 11:42:51～52 收到驱动 Discovery Result 通知，11:42:52.960
 
 
 最终构建复验（2026-11-16）：Android assembleDebug / lintDebug 与 iOS 真机签名构建均通过，并分别安装 a0807d7 与 iPhone 12。最终代码（含 iOS 精确选择目标及错误解释）在打开窗口后建立连接；Android 自身时钟 12:41:38.094 开启 Setup，12:42:38.203 自动关闭，关闭后 Android 发送/接收 38/38、最近接收 0 秒，iPhone 39/38、最近接收 2 秒。不同时间截图的计数差不用于推断丢包率。这验证了最终版本的窗口超时与既有链路保留，不改变上述关闭窗口重新发现仍失败的结论。测试结束已断开两端，并通过 USB 锁定 iPhone，见 P12。
+
+
+2026-11-16 抓包机恢复开机后的补充：已使用本机保存的 `ideapad-ubuntu-reinstalled` 主机别名严格校验 SSH 密钥并以专用 SSH key 连通，未绕过主机校验或覆盖旧 IP 的密钥记录。检查发现重启后只有 managed 模式 wlp3s0（信道 52），wlp3s0mon 已不存在。免密 sudo 仅允许 `/usr/local/sbin/nan-capture`，该脚本要求 monitor 接口已经存在，因此目前不能开始抓包。已在 Ubuntu 准备 `/home/mxj/prepare-nan-monitor.sh`，请求用户 sudo 执行：释放普通 Wi-Fi、将 wlp3s0 交出给 monitor 抓包，保留有线 SSH；未扩大 sudo 权限。iPhone 仍锁定，需要用户解锁后继续双端复现。目前没有新增空口结果。
