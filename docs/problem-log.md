@@ -256,3 +256,7 @@ iOS syslog 在 11:42:51～52 收到驱动 Discovery Result 通知，11:42:52.960
 ### P19 Apple 原版对照已取得报文
 
 用户解锁后，原版 Host 普通监听与配对页分别抓到 7 个 Publish SDF：SDEA 均为 0x0644、CSIA 均为 `04 07 01 05 01`（支持组密钥，PASN-128 与 GTK CCMP-128），DCEA 0x0200 / 0x0300。Apple 普通监听关闭新配对仍保留 GTK 支持，没有 Android Setup=false 的 GTK 矛盾。NIRA 两状态均存在。详见 [完整对照与样本限制](apple-original-publish-comparison.md)。早期 Android 订阅 App 会自动引导配对，用户指出只需比较 iPhone 后已停止；配对页有效文件没有同期 Android 发射。后续完全停用 Android、以及去掉自动引导的临时订阅版本均未补到新的 Publish，记录为未成功复验，不伪装单变量重复通过。303fdedc 已恢复测试前 APK、停止订阅；iPhone 已恢复 AwareBridge 并核验锁屏。原工程及新项目业务源码未改，本轮只有诊断文档更新。
+
+### P16 monitor 模式的反向恢复脚本
+
+2026-11-16 用户要求提供 `/home/mxj/prepare-nan-monitor.sh` 的完整逆向脚本。已生成仓库 `scripts/restore-normal-wifi.sh` 并上传 Ubuntu `/home/mxj/restore-normal-wifi.sh`：删除专用 wlp3s0mon，恢复/必要时重建 wlp3s0 的 managed 类型，启用接口、交回 NetworkManager，并尝试连接已保存的 Wi-Fi；不删除保存网络、不改有线配置。自动连接失败时明确提示接口已恢复、网络仍需手动选择。本机与 Ubuntu 的 `bash -n` 均通过。远程账号此前执行 nmcli 被权限拒绝，免密 sudo 仅允许抓包脚本，因此本次仅完成脚本部署与语法检查，等待用户在 Ubuntu 执行 `sudo bash /home/mxj/restore-normal-wifi.sh`；不宣称已恢复联网。
