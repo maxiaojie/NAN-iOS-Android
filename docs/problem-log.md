@@ -243,3 +243,8 @@ iOS syslog 在 11:42:51～52 收到驱动 Discovery Result 通知，11:42:52.960
 
 
 2026-11-16 抓包机恢复开机后的补充：已使用本机保存的 `ideapad-ubuntu-reinstalled` 主机别名严格校验 SSH 密钥并以专用 SSH key 连通，未绕过主机校验或覆盖旧 IP 的密钥记录。检查发现重启后只有 managed 模式 wlp3s0（信道 52），wlp3s0mon 已不存在。免密 sudo 仅允许 `/usr/local/sbin/nan-capture`，该脚本要求 monitor 接口已经存在，因此目前不能开始抓包。已在 Ubuntu 准备 `/home/mxj/prepare-nan-monitor.sh`，请求用户 sudo 执行：释放普通 Wi-Fi、将 wlp3s0 交出给 monitor 抓包，保留有线 SSH；未扩大 sudo 权限。iPhone 仍锁定，需要用户解锁后继续双端复现。目前没有新增空口结果。
+
+
+### P19 空口补充：GTK 能力声明不一致
+
+2026-11-16 用户恢复抓包机并解锁 iPhone 后，已独立完成信道 6、149 对照。关闭 Setup 时 Android 确实回复 Publish，NIRA 存在；同会话开启后 iPhone 立即连接。两信道均发现：SDEA 关闭/开启分别为 0x0440 / 0x0640，均要求 GTK；CSIA 却从关闭时的 `00 07 01`（不支持组密钥、只有 PASN-128）变为开启时的 `04 05 01 07 01`（组密钥支持、增加 GTK CCMP-128）。这是当前最具体的报文层不一致，优先核查 ROM/HAL/固件的配置与构帧关联，但尚未独立修改该字段验证因果，不宣称确认了 Apple 的过滤分支。两代表帧属性边界完整，无多余 23 字节尾部。详细帧号、时序、字节、依据、失败样本排除及后续 ROM 检查点见 [空口分析](pair-setup-discovery-analysis.md)。本轮没有 Pixel 对照，没有代码修复；自动关窗后两端 77/77。已停止两端并再次核验 iPhone 锁屏。

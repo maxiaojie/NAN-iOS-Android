@@ -67,7 +67,7 @@ xcodebuild -project NAN-iOS/AwareBridge.xcodeproj -scheme AwareBridge \
 4. 两端出现双向通信状态，发送/接收计数每 5 秒增长。持续观察至少 2 分钟，确认链路不会因无流量而断开。
 5. iOS 点「断开」，Android 点「停止」；再次开始可复用系统已保存的配对。
 
-> 当前 TB323FU a0807d7 与 iPhone 12 的已知限制：配对开关关闭时，重新发现服务可超时（-11988 / subscriberTimeout）；暂时打开 1 分钟配对窗口后可连接，窗口关闭后已有链路能继续。此操作会允许新配对，仅为临时绕过，根因仍需抓包定位，见 [问题 P19](docs/problem-log.md)。
+> 当前 TB323FU a0807d7 与 iPhone 12 的已知限制：配对开关关闭时，重新发现服务可超时（-11988 / subscriberTimeout）；暂时打开 1 分钟配对窗口后可连接，窗口关闭后已有链路能继续。此操作会允许新配对，仅为临时绕过，根因仍需抓包定位，见 [问题 P19](docs/problem-log.md) 和 [空口属性对照](docs/pair-setup-discovery-analysis.md)。
 
 首次 iOS 发包后，Android 学到该 UDP 会话的来源端口，再定时向它发送心跳。因此 Android 显示 NDP 已建立但 RX 为 0 时，应先检查 iOS 是否发送首包。
 

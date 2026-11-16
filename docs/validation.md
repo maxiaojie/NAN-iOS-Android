@@ -77,3 +77,8 @@ USB 控制 iPhone 断开并重新连接后，已复现 **Android Setup=false 时
 2026-11-16：最终 Android assembleDebug / lintDebug、iOS 真机签名构建均通过，APK 已安装 a0807d7，iOS App 已安装 iPhone 12。保留精确设备选择后的正常路径复验：Android 自身时钟 12:41:38.094 开启 Setup，12:42:38.203 自动关闭；关闭后 Android 38/38（最近接收 0 秒）、iPhone 39/38（最近接收 2 秒）。这验证了最终版本建立链路后自动关窗仍能持续通信；Setup=false 时新建连接仍未通过，不将临时绕过当作修复。
 
 测试结束由 USB 点击 iOS 断开、Android 停止发布。iPhone USB 短按 Consumer Power 后主 LCD 和全局 backlightState 均为 off，devicectl lockState 返回 passcodeRequired=true，已核验锁屏；未修改自动锁定设置。Ubuntu 抓包机仍待恢复可连接地址，尚无本轮空口证据。
+
+
+### PairSetup 的空口复验
+
+2026-11-16：Ubuntu monitor 恢复后，在信道 6、149 两次复现：Setup=false 时 iOS 一直发现，打开同会话窗口后连接；窗口自动关闭后两端 77/77，最近接收 0 秒。发现 SDEA 要求 GTK 与 CSIA 不支持组密钥的矛盾，开启后 CSIA 恢复组密钥支持与 ID 5；NIRA 两状态均存在。详见 [逐帧分析与限制](pair-setup-discovery-analysis.md)。这是新增诊断证据，未做单字段固件修复验证，不计作关闭状态重连通过。原始抓包不入库。两端已停止，iPhone 已锁屏。
