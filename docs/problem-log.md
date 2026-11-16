@@ -329,4 +329,4 @@ iOS syslog 在 11:42:51～52 收到驱动 Discovery Result 通知，11:42:52.960
 
 2026-11-16 用户反馈：安装本项目 APK 到 Android 16 Baldur 后，iOS 无法发现；空口抓包显示设备信息填入 Service Descriptor Attribute（SDA）。用户说明此前向 Google 提交过相关问题，从 Android 17 开始用户配置的服务信息放入 Service Descriptor Extension Attribute（SDEA）。问题编号、对应提交及本轮帧号待补；该版本对照作为用户提供线索记录，不将其概括成所有 ROM 均已确认的行为。
 
-后续验证方向：在 Android 16 ROM 路径中强制将设备信息放入 SDEA，先核对实际报文和长度，再分别验证 iOS 发现、新配对、缓存重连及 NDP。用户另提出此前配对问题可能受接收长度错误影响，当前为待验证假设，不与 STA 并发额外尾部或 GTK 声明问题直接合并归因。本轮没有修改代码/ROM，也没有新功能验收。详见 [现象、历史线索与对照方案](android16-baldur-ssi-placement.md)。
+此前提出在 Android 16 ROM 中强制将设备信息放入 SDEA 的验证方案。同日用户明确该设备后续只升级 Android 17，不再更新 Android 16，因此取消该修改与验证，按版本维护策略结束此项跟进，历史现象保留，不标为修复通过。后续以升级 Android 17 后的互通验证为准。此前配对问题可能受接收长度错误影响仍为假设；STA 并发额外尾部及 GTK 声明问题继续独立跟踪。本轮没有修改代码/ROM，也没有新功能验收。详见 [现象、历史线索与取消决定](android16-baldur-ssi-placement.md)。

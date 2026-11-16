@@ -1,6 +1,6 @@
 # 真机验证记录
 
-2026-11-16 Android 16 Baldur 用户测试补充：安装 APK 后 iOS 无法发现，用户抓包发现设备信息位于 SDA；Android 17 改用 SDEA 的历史线索及 Android 16 强制使用 SDEA 的待验证方案见 [P23 专项记录](android16-baldur-ssi-placement.md)。本轮仅记录反馈，未独立抓包或修改 ROM；长度异常影响此前配对仍为假设，不作为配对/NDP 通过或根因已确认的证据。
+2026-11-16 Android 16 Baldur 用户测试补充：安装 APK 后 iOS 无法发现，用户抓包发现设备信息位于 SDA。用户随后明确该设备只升级 Android 17、不再更新 Android 16，已取消强制使用 SDEA 的 Android 16 修改与验证；后续以 Android 17 互通结果为准。历史线索及取消决定见 [P23 专项记录](android16-baldur-ssi-placement.md)。本轮未独立抓包或修改 ROM；长度异常影响此前配对仍为假设，不将结束跟进记作修复或验收通过。
 
 2026-11-16 HA2E6NPB 后续：用户解锁后 root/remount 成功，经关闭 verity、启用 overlayfs 并重启，已写入 Aware XML、重新安装 APK，再次重启后 feature 声明及 wifiaware 服务可见，应用冷启动正常。此前写入受阻已解除；未验收发布、配对或 NDP。详见 P22 后续记录。
 
