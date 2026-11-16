@@ -324,3 +324,9 @@ iOS syslog 在 11:42:51～52 收到驱动 Discovery Result 通知，11:42:52.960
 成功写入 `/vendor/etc/permissions/android.hardware.wifi.aware.xml`，设置 root:root、0644、restorecon，SELinux 标签为 vendor_configs_file。SHA-256 为 `6370914090ba4f81ef1410da719b6b2df5389180a8757ac95e77ca88d0076e85`，与源文件一致。本项目 debug APK 重新安装返回 Success，随后再次重启加载声明。
 
 最终核验 boot_completed=1，XML 及校验值重启后保留，`pm list features` 出现 `android.hardware.wifi.aware`，存在 wifiaware 服务；普通 shell 为 uid=2000。应用冷启动 Status ok（200ms）。因此之前的写入阻塞已解除，本轮完成配置部署与安装/启动；仍未验证此设备的发布、iOS 发现、配对或 NDP。Bootloader 解锁由用户执行，本轮没有执行解锁、刷机或清数据。
+
+## P23：Android 16 Baldur 的设备信息位于 SDA，iOS 无法发现
+
+2026-11-16 用户反馈：安装本项目 APK 到 Android 16 Baldur 后，iOS 无法发现；空口抓包显示设备信息填入 Service Descriptor Attribute（SDA）。用户说明此前向 Google 提交过相关问题，从 Android 17 开始用户配置的服务信息放入 Service Descriptor Extension Attribute（SDEA）。问题编号、对应提交及本轮帧号待补；该版本对照作为用户提供线索记录，不将其概括成所有 ROM 均已确认的行为。
+
+后续验证方向：在 Android 16 ROM 路径中强制将设备信息放入 SDEA，先核对实际报文和长度，再分别验证 iOS 发现、新配对、缓存重连及 NDP。用户另提出此前配对问题可能受接收长度错误影响，当前为待验证假设，不与 STA 并发额外尾部或 GTK 声明问题直接合并归因。本轮没有修改代码/ROM，也没有新功能验收。详见 [现象、历史线索与对照方案](android16-baldur-ssi-placement.md)。
