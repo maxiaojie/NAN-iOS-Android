@@ -290,3 +290,12 @@ iOS syslog 在 11:42:51～52 收到驱动 Discovery Result 通知，11:42:52.960
 ### AwareController 可读性整理
 
 2026-11-16 用户要求整改同一行堆叠链式调用的写法。已统一 AwareController.java 中的 Builder 调用为每项独立一行，并展开压缩的回调、try/catch、同一行多条语句与资源清理块，增加方法间分隔。修改前后 Java 令牌序列（含字符串和注释）一致，仅调整空白/换行；assembleDebug、git diff --check 通过。本轮未安装真机，未变更配对或网络逻辑，不作为互通问题的修复。用户的未跟踪 publish.txt 未改动、未提交。
+
+## P20：HA2DAQGD 安装应用与添加 Aware feature 声明
+
+2026-11-16：用户要求将 Mac 下载目录的 `android.hardware.wifi.aware.xml` 写入 HA2DAQGD 的 `/vendor/etc/permissions/`，并安装本项目 APK。设备为 TB323FU、Android 16/API 36，固件 `Lenovo/TB323FU/TB323FU:16/BQ2A.250831.001-BP2A.250605.031.A3/02.126.251223W:user/release-keys`，不同于此前 Android 17 的 a0807d7。
+
+- XML 内容是 `<feature name="android.hardware.wifi.aware" />`，源文件存在，设备目标文件原先不存在，`pm list features` 未声明 Aware。
+- `adb root` 返回 `adbd cannot run as root in production builds`；直接 push 返回 `Read-only file system`，最终核对目标仍不存在。设备没有可用 su，`ro.debuggable=0`、Verified Boot 为 green、bootloader 为 locked；`adb remount` 也不可用。因此 XML 写入未完成，未进行解锁、刷机或清数据操作。需要可写 vendor 的工程固件/root 环境，或者在 ROM 构建中加入该声明后部署。
+- 当前源码 `assembleDebug` 成功；`adb install -r` 返回 Success；`am start -W` 冷启动 Status ok。包名 `io.awarebridge.android`，版本 1.0/code 1。
+- 本轮只确认 APK 安装与启动，没有验证该设备的 NAN HAL 支持、发现、配对或 NDP；仅添加 feature XML 也不能作为底层能力已支持的证明。
