@@ -308,3 +308,11 @@ iOS syslog 在 11:42:51～52 收到驱动 Discovery Result 通知，11:42:52.960
 `adb root` 成功，`adb remount` 报告 Verity 已关闭、vendor remount RW 成功（同时有部分分区 overlayfs/未挂载分区提示，但最终返回 Remount succeeded）。已将 Mac 下载目录的 `android.hardware.wifi.aware.xml` 写入 `/vendor/etc/permissions/`，设置 root:root、0644、restorecon 后标签为 vendor_configs_file；两端 SHA-256 均为 `6370914090ba4f81ef1410da719b6b2df5389180a8757ac95e77ca88d0076e85`。
 
 安装本项目当前 debug APK 返回 Success，随后重启设备。重启后 boot_completed=1，XML 保留，`pm list features` 出现 `android.hardware.wifi.aware`，服务列表出现 `wifiaware`；普通 adb shell 已恢复 uid=2000。`io.awarebridge.android` 1.0/code 1 冷启动 Status ok。没有关闭/重新开启 verity、解锁 bootloader 或刷固件。本轮验证到配置加载、安装和启动，不包含发布、iOS 发现、配对或 NDP；feature/service 存在不能代替 NAN 硬件功能验收。
+
+## P22：HA2E6NPB 有 root 但 vendor 仍不可写
+
+2026-11-16：用户要求同样写入 Aware XML 并安装 APK。设备为 TB323FU、Android 16/API 36，固件 `Lenovo/TB323FU/TB323FU:16/BQ2A.250831.001/maxj9_319.2605211035W:userdebug/test-keys`。连接时 adbd 已是 root，`ro.debuggable=1`，存在 su；但 Bootloader locked、flash.locked=1、Verified Boot green，vendor 为 `/dev/block/dm-10` 的只读 ext4。
+
+实际执行 `adb root` 返回 already running as root；`adb remount` 和 `adb disable-verity` 都返回 `Device must be bootloader unlocked`。root 下直接 `mount -o remount,rw /vendor` 仍返回设备只读。直接 push 失败，最终目标 XML 仍不存在，系统未声明 Aware。由此确认该设备与 P21 的可写工程机不同，root 身份本身不保证能写验证保护的 vendor。没有执行 Bootloader 解锁、刷机、清数据，也未重启，因为 XML 没有成功变更。
+
+本项目 debug APK 安装 Success，`io.awarebridge.android` 1.0/code 1 冷启动 Status ok（248ms）。本轮只完成 APK 安装与启动；XML 写入仍受阻，需要可写 vendor 的环境或从 ROM 构建部署声明，未验证 NAN 发布、配对或 NDP。

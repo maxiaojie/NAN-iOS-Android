@@ -1,5 +1,7 @@
 # 真机验证记录
 
+2026-11-16 HA2E6NPB（TB323FU，Android 16/API 36）：已有 root，但 Bootloader 锁定导致 remount/disable-verity 被拒绝，vendor 手动重新挂载与 XML push 也失败，系统未声明 Aware。APK 安装与冷启动成功；未重启、未解锁/刷机，未验收 NAN 功能。详见问题台账 P22。
+
 2026-11-16 b2302624（TB522FU，Android 16/API 36）：root/remount 成功，Aware feature XML 写入 vendor 并校验一致；重启后系统声明 `android.hardware.wifi.aware`、存在 wifiaware 服务，APK 安装与冷启动成功。未测试此设备的发布、发现、配对及 NDP。详见问题台账 P21。
 
 2026-11-16 HA2DAQGD（TB323FU，Android 16/API 36）部署：当前源码 assembleDebug 成功，APK 安装 Success、冷启动 Status ok。请求添加的 Aware feature XML 未能写入只读 vendor；正式版 adbd 不支持 root，目标文件仍不存在，系统仍未声明 Aware。未验证此设备的发现、配对或 NDP。详见问题台账 P20。
