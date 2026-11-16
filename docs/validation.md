@@ -1,5 +1,7 @@
 # 真机验证记录
 
+2026-11-16 b2302624（TB522FU，Android 16/API 36）：root/remount 成功，Aware feature XML 写入 vendor 并校验一致；重启后系统声明 `android.hardware.wifi.aware`、存在 wifiaware 服务，APK 安装与冷启动成功。未测试此设备的发布、发现、配对及 NDP。详见问题台账 P21。
+
 2026-11-16 HA2DAQGD（TB323FU，Android 16/API 36）部署：当前源码 assembleDebug 成功，APK 安装 Success、冷启动 Status ok。请求添加的 Aware feature XML 未能写入只读 vendor；正式版 adbd 不支持 root，目标文件仍不存在，系统仍未声明 Aware。未验证此设备的发现、配对或 NDP。详见问题台账 P20。
 
 2026-11-16 HAL 二进制诊断补充：a0807d7 的进程映射、ELF 符号/重定位及反汇编确认当前实现库为 `/vendor/lib64/libwifi-hal.so`，Publish 指针指向 `nan_publish_request`，继续调用 `NanCommand::putNanPublish`。详见 [分析记录](device-wifi-hal-library-analysis.md)。仅做只读诊断，没有变更应用或 ROM，也没有新增跨端功能验收；普通 adb shell 保持 uid=2000。

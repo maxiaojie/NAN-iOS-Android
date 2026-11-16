@@ -300,3 +300,11 @@ iOS syslog 在 11:42:51～52 收到驱动 Discovery Result 通知，11:42:52.960
 - 当前源码 `assembleDebug` 成功；`adb install -r` 返回 Success；`am start -W` 冷启动 Status ok。包名 `io.awarebridge.android`，版本 1.0/code 1。
 - 本轮只确认 APK 安装与启动，没有验证该设备的 NAN HAL 支持、发现、配对或 NDP；仅添加 feature XML 也不能作为底层能力已支持的证明。
 - 用户要求继续实际执行 root/remount 后，再次运行 `adb root` 仍被 production build 拒绝；`adb remount`、`adb disable-verity` 分别报告 remount、disable-verity 不存在；`mount -o remount,rw /vendor` 返回 `/dev/block/dm-10 not user mountable in fstab`，`su -c id` 返回 su 不存在。`/proc/mounts` 确认 vendor 为 ext4、ro，shell 仍 uid=2000。未取得 root、未关闭 verity、未修改分区；XML 仍不存在，APK 安装保留。不能通过重复普通 ADB 命令把当前锁定的 user 固件变为工程固件。
+
+## P21：b2302624 添加 Aware 声明并安装 APK
+
+2026-11-16：用户指定 b2302624（TB522FU，Android 16/API 36），固件 `Lenovo/TB522FU_PRC/TB522FU:16/BQ2A.250831.001/maxj9_377.2605201137C:userdebug/test-keys`。原先 vendor 中没有 Aware XML，系统 feature 列表也没有 Aware。
+
+`adb root` 成功，`adb remount` 报告 Verity 已关闭、vendor remount RW 成功（同时有部分分区 overlayfs/未挂载分区提示，但最终返回 Remount succeeded）。已将 Mac 下载目录的 `android.hardware.wifi.aware.xml` 写入 `/vendor/etc/permissions/`，设置 root:root、0644、restorecon 后标签为 vendor_configs_file；两端 SHA-256 均为 `6370914090ba4f81ef1410da719b6b2df5389180a8757ac95e77ca88d0076e85`。
+
+安装本项目当前 debug APK 返回 Success，随后重启设备。重启后 boot_completed=1，XML 保留，`pm list features` 出现 `android.hardware.wifi.aware`，服务列表出现 `wifiaware`；普通 adb shell 已恢复 uid=2000。`io.awarebridge.android` 1.0/code 1 冷启动 Status ok。没有关闭/重新开启 verity、解锁 bootloader 或刷固件。本轮验证到配置加载、安装和启动，不包含发布、iOS 发现、配对或 NDP；feature/service 存在不能代替 NAN 硬件功能验收。
