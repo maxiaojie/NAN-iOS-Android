@@ -2,9 +2,13 @@ package io.awarebridge.android;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.view.*;
 import android.widget.*;
 import java.util.Locale;
@@ -56,7 +60,20 @@ public final class MainActivity extends Activity {
             state.setText("设备不支持 Wi-Fi Aware"); return;
         }
         if (!getSystemService(LocationManager.class).isLocationEnabled()) {
-            state.setText("请先在系统设置中打开定位服务"); return;
+            state.setText("无法开始发布：系统定位服务未开启");
+            new AlertDialog.Builder(this)
+                    .setTitle("无法开始发布")
+                    .setMessage("系统定位服务未开启。请打开定位服务，返回应用后再次点击“开始发布”。")
+                    .setNegativeButton("取消", null)
+                    .setPositiveButton("打开定位设置", (dialog, which) -> {
+                        try {
+                            startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
+                        } catch (ActivityNotFoundException e) {
+                            state.setText("无法打开定位设置，请手动前往系统设置开启定位服务");
+                            Toast.makeText(this, "请手动前往系统设置开启定位服务", Toast.LENGTH_LONG).show();
+                        }
+                    }).show();
+            return;
         }
         peer.setText("对端：—"); stats.setText("发送 0  ·  接收 0");
         lastMessage.setText("等待心跳…");

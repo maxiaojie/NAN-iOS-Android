@@ -169,7 +169,7 @@
 
 状态：诊断已完成，脚本已上传，尚待用户执行及网页认证；未宣称恢复上网。修复后需检查默认路由经 wlp3s0、SSH 仍可访问、DNS 和 HTTPS 正常。未修改 monitor 配置，也未停止或删除任何普通 Wi-Fi 保存网络。
 
-## P16：a0807d7 点击开始发布未启动
+## P17：a0807d7 点击开始发布未启动
 
 日期：2026-11-16。设备 a0807d7（TB323FU / Android 17），标准 SDK 构建的 AwareBridge。Wi-Fi 已开启但未连接 AP，NEARBY_WIFI_DEVICES、粗略/精确定位权限均已授予，系统 `location_mode=0`。
 
@@ -178,3 +178,9 @@
 原因：MainActivity.start() 显式检查 LocationManager.isLocationEnabled()，关闭时设置状态文字并直接返回；不是按钮事件无效，也不是 HAL 发布失败。当前界面只更新文字，用户容易认为点击无反应。这里确认的是应用前置检查阻止启动，不据此证明本 ROM 在定位关闭时底层一定不能运行 Aware。
 
 处理/验证：使用 `cmd location set-location-enabled true` 打开该设备系统定位总开关，再次点击。UI 显示“服务已发布，请在 iOS 上添加设备 / UDP 端口 46260”，按钮变为停止。已确认发布成功；本轮没有验证 iOS 发现、配对或数据通信。定位保持开启、App 保持发布，供继续测试。证据保存在本机 `/tmp/a0807d7-location-block.xml` 和 `/tmp/a0807d7-location-enabled.xml`，原始日志未提交。
+
+### P17 后续：定位关闭时显示错误弹窗
+
+2026-11-16。用户要求启动被定位检查拦截时明确提示错误。MainActivity 现在显示“无法开始发布”弹窗，说明系统定位服务未开启，并提供“取消”和“打开定位设置”。打开设置的 Activity 不存在时，捕获 ActivityNotFoundException 并以状态文字和 Toast 提示手动开启。使用可见错误提示，不抛出会导致应用崩溃的未捕获异常；返回 App 后仍需主动点击开始发布。
+
+验证：assembleDebug 与 lintDebug 通过，APK 覆盖安装到 a0807d7。显式关闭 user 0 的定位开关并确认 location_mode=0，点击后 UI 层级确认弹窗标题、原因与两个按钮；点击“打开定位设置”确认进入“位置信息”页面且服务关闭。恢复定位开启，返回再次点击后发布成功，UDP 端口 58196。测试结束定位已恢复开启。设置入口缺失的兜底分支未真机触发，本项未重新验证 iOS 发现/配对/数据通信。证据仅保存在本机 /tmp/location-dialog.xml、/tmp/location-settings.xml、/tmp/location-restored.xml；不上传原始设备日志。
