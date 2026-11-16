@@ -276,3 +276,7 @@ iOS syslog 在 11:42:51～52 收到驱动 Discovery Result 通知，11:42:52.960
 本机只读 getprop 确认 a0807d7 的 ro.hardware=qcom、ro.board.platform=canoe。应从这台设备对应的高通 WLAN/NAN 实现继续追踪，而不是将别的平台路径直接套用。建议分别检查 STA 并发时属性总长度/尾部填充，以及 Setup=false 分支是否清除了 CSIA GTK capability/cipher 却保留 SDEA GTK Required；沿 framework → HAL → 驱动/固件逐层比较实际参数后再确定责任层。
 
 上游源：[WifiAwareNativeApi](https://android.googlesource.com/platform/packages/modules/Wifi/+/refs/heads/main/service/java/com/android/server/wifi/aware/WifiAwareNativeApi.java)、[WifiNanIfaceAidlImpl](https://android.googlesource.com/platform/packages/modules/Wifi/+/refs/heads/main/service/java/com/android/server/wifi/hal/WifiNanIfaceAidlImpl.java)、[wifi_nan_iface.cpp](https://android.googlesource.com/platform/hardware/interfaces/+/refs/heads/main/wifi/aidl/default/wifi_nan_iface.cpp)、[aidl_struct_util.cpp](https://android.googlesource.com/platform/hardware/interfaces/+/refs/heads/main/wifi/aidl/default/aidl_struct_util.cpp)。本次无业务代码或设备配置修改。
+
+### P19 重新 Publish 是否能绕过 GTK 矛盾
+
+用户提出不用 updatePublish，结束旧 Publish 后以 Setup=false 新建。已复核信道 149 有效第二轮：原会话清理后 UI“开始发布”→重新开始、UDP 40813，初始配置走 publish(false)，尚未通过 updatePublish 关闭。帧 13525 仍为 SDEA=0x0440、CSIA 仅 ID 7、组密钥支持=0，iOS 仍发现失败。因此完整重建后的默认关闭也异常，不能仅归因于 updatePublish 残留。保留原 attach 只重建 Publish 的专门分支尚未单测；未新增该代码改动。详见 [已有样本复核](pair-setup-discovery-analysis.md#新建-publish-与-updatepublish-的区别核对)。

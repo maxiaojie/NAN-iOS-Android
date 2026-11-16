@@ -76,3 +76,9 @@ App 继续保留用户要求的默认关闭及一分钟窗口；暂时打开窗�
 ## Apple 原版 Demo 的后续对照
 
 同日已取得原版 Host 普通监听与“+”配对页的 Publish：SDEA 均为 0x0644，CSIA 均为 `04 07 01 05 01`，同时要求并支持 GTK；DCEA 为 0x0200 / 0x0300，Pairing Enable 位随状态变化。它没有出现本报告中 Android Setup=false 的 GTK 声明矛盾。完整方法、帧号及未成功的补充复验边界见 [Apple 原版对照](apple-original-publish-comparison.md)。这仍不能替代 Android 单字段固件修复及 iOS 过滤分支的因果验证。
+
+## 新建 Publish 与 updatePublish 的区别核对
+
+2026-11-16 补充核对：并非所有关闭状态样本都来自 updatePublish。信道 149 有效第二轮之前，旧会话已因停止收发后的心跳超时清理；唤醒平板后 UI 为“开始发布”，配对开关关闭。点击开始发布后 UI 显示 UDP 40813、按钮“停止”、配对开关仍关闭。代码此时走 `aware.publish(publishConfig(false), ...)`，不是用 updatePublish 将旧会话改为关闭。该轮抓包首个代表 Publish（13525）依然是 SDEA=0x0440、CSIA cipher=7、group-key support=0，iPhone 仍停留发现。之后开启窗口才恢复 GTK 声明并连接。
+
+因此，新建 Setup=false 的 Publish 也能复现，现有证据不支持“仅 updatePublish 更新遗留状态，重建后就正常”。这个测试包含完整 Aware 资源清理后重新启动；尚未单独实现“保留原 attach/网络请求，只 close PublishDiscoverySession 再创建 Publish”的替代关闭分支，不将两种生命周期操作混为完全相同。配对缓存保留，未通过删除凭据改变条件。本节是对现有记录及本机 XML/抓包的复核，不是新增真机重测。
