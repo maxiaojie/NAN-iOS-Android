@@ -261,6 +261,10 @@ iOS syslog 在 11:42:51～52 收到驱动 Discovery Result 通知，11:42:52.960
 
 2026-11-16 用户要求提供 `/home/mxj/prepare-nan-monitor.sh` 的完整逆向脚本。已生成仓库 `scripts/restore-normal-wifi.sh` 并上传 Ubuntu `/home/mxj/restore-normal-wifi.sh`：删除专用 wlp3s0mon，恢复/必要时重建 wlp3s0 的 managed 类型，启用接口、交回 NetworkManager，并尝试连接已保存的 Wi-Fi；不删除保存网络、不改有线配置。自动连接失败时明确提示接口已恢复、网络仍需手动选择。本机与 Ubuntu 的 `bash -n` 均通过。远程账号此前执行 nmcli 被权限拒绝，免密 sudo 仅允许抓包脚本，因此本次仅完成脚本部署与语法检查，等待用户在 Ubuntu 执行 `sudo bash /home/mxj/restore-normal-wifi.sh`；不宣称已恢复联网。
 
+### 实机 HAL 库与 Publish 指针定位
+
+2026-11-16：USB 检查 a0807d7，Wi-Fi HAL 进程实际加载 `/vendor/lib64/libwifi-hal.so`；初始化代码把 Publish 表项赋为 `nan_publish_request`，后者调用 `NanCommand::putNanPublish`。设备另有 `libwifi-hal-qcom.so`，但本次进程未加载。没有动态跟踪 dlopen 的实参，不能把该动态加载分支一定执行当作结论。详见 [库标识、表项偏移及调用地址](device-wifi-hal-library-analysis.md)。两个 ROM 问题仍未修复。
+
 ### 两个 ROM 排查主线与 Publish SDF 的组帧边界
 
 2026-11-16 再次确认当前主要两项：P07 的 STA 并发额外尾部，与 P19 的 PairSetup=false 时 GTK 声明矛盾，触发条件不同，不应合并为同一个已证实根因。第一项是 TB323FU 特定条件下的抓包与发现失败对应关系，Pixel 原 STA 并发对照未出现；第二项在普通 Wi-Fi 未连接时也复现，Apple 原版普通监听仍正确声明 GTK。第二项尚未通过仅修复 CSIA 后重测确认 iOS 的实际过滤原因。

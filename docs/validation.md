@@ -1,5 +1,7 @@
 # 真机验证记录
 
+2026-11-16 HAL 二进制诊断补充：a0807d7 的进程映射、ELF 符号/重定位及反汇编确认当前实现库为 `/vendor/lib64/libwifi-hal.so`，Publish 指针指向 `nan_publish_request`，继续调用 `NanCommand::putNanPublish`。详见 [分析记录](device-wifi-hal-library-analysis.md)。仅做只读诊断，没有变更应用或 ROM，也没有新增跨端功能验收；普通 adb shell 保持 uid=2000。
+
 更新：2026-11-16。当前已在 **TB323FU 断开普通 Wi-Fi、保留 Wi-Fi 开关** 的条件下，完成 iPhone 12 ↔ TB323FU 的发现、系统配对、NDP、UDP 双向心跳/ACK验证。普通 Wi-Fi 并发发现异常和首次 NDP 失败仍是已知限制，不能宣称所有设备/网络状态均已通过。
 
 ## 构建和安装
