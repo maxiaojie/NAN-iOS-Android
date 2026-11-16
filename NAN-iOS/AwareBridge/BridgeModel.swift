@@ -50,7 +50,8 @@ final class BridgeModel {
         status = "配对成功，点击连接"
     }
     func connect() {
-        guard !active, let target = selectedDeviceID else { return }
+        guard !active, let target = selectedDeviceID,
+              let targetDevice = devices.first(where: { $0.id == target }) else { return }
         let token = UUID()
         generation = token
         active = true
@@ -62,7 +63,7 @@ final class BridgeModel {
                     guard let self, self.generation == token else { return }
                     self.attemptReachedReady = false
                     do {
-                        let browser = NetworkBrowser(for: .wifiAware(.connecting(to: .allPairedDevices, from: .bridge)))
+                        let browser = NetworkBrowser(for: .wifiAware(.connecting(to: .selected([targetDevice]), from: .bridge)))
                         let endpoint = try await browser.run { endpoints in
                             if let endpoint = endpoints.first(where: { $0.device.id == target }) {
                                 return .finish(endpoint)
@@ -95,10 +96,19 @@ final class BridgeModel {
                 if let networkError = error as? NWError, case .wifiAware(-11987) = networkError {
                     self.finish("链路协商失败（-11987），请在 Android 重新发布后再连接")
                 } else {
-                    self.finish(error is CancellationError ? "已断开" : "连接失败：\(error.localizedDescription)")
+                    self.finish(error is CancellationError ? "已断开" : "连接失败：\(Self.errorDescription(error))")
                 }
             }
         }
+    }
+    private static func errorDescription(_ error: Error) -> String {
+        if let networkError = error as? NWError, let awareError = networkError.wifiAware {
+            if case .subscriberTimeout = awareError {
+                return "未发现所选设备的服务（发现超时，\(networkError)）"
+            }
+            return "\(awareError)（\(networkError)）"
+        }
+        return error.localizedDescription
     }
     private func exchange(with endpoint: WAEndpoint, token: UUID) async throws {
         let attemptToken = UUID()
@@ -117,7 +127,7 @@ final class BridgeModel {
                 self.status = "数据链路已建立，等待双向心跳"
             case .waiting(let error):
                 self.logger.notice("NDP waiting: \(String(describing: error), privacy: .public)")
-                self.status = "等待连接：\(error.localizedDescription)"
+                self.status = "等待连接：\(Self.errorDescription(error))"
                 if case .wifiAware(-11987) = error { failureContinuation.finish(throwing: error) }
             case .failed(let error): failureContinuation.finish(throwing: error)
             default: break

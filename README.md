@@ -15,7 +15,7 @@ NAN-iOS-Android/
 
 ## 功能与范围
 
-- 简洁单页 UI：开始/停止、配对码、连接状态、发送/接收计数。
+- 简洁单页 UI：开始/停止、允许配对开关、配对码、连接状态、发送/接收计数。
 - Android 发布 `_aware-bridge._udp`，iOS 配对并主动连接；当前实现单对端，未实现角色互换。
 - UDP socket 绑定 Android 的 Aware `Network`；在 NDP 响应中通知监听端口和协议号 `17`。
 - 双向心跳与 ACK；ACK 不再回复 ACK，避免循环。超过 20 秒无有效接收显示心跳超时。
@@ -62,10 +62,12 @@ xcodebuild -project NAN-iOS/AwareBridge.xcodeproj -scheme AwareBridge \
 ## 使用
 
 1. Android 点击「开始发布」。
-2. iOS 点击「添加 Android 设备」，选择 Android 设备；将 Android 显示的 6 位代码输入 iOS 系统配对界面。
-3. 配对成功后，在 iOS 选择该设备并点击「连接」。Android 无需再点连接。
+2. 首次配对时，Android 打开「允许新设备配对（1 分钟）」；iOS 点击「添加 Android 设备」，选择 Android 设备；将 Android 显示的 6 位代码输入 iOS 系统配对界面。
+3. 配对成功或开启满 1 分钟后，Android 自动关闭新配对，继续发布服务；设计上已配对设备连接无需打开此开关，当前实机限制见下方说明。配对成功后，在 iOS 选择该设备并点击「连接」。Android 无需再点连接。
 4. 两端出现双向通信状态，发送/接收计数每 5 秒增长。持续观察至少 2 分钟，确认链路不会因无流量而断开。
 5. iOS 点「断开」，Android 点「停止」；再次开始可复用系统已保存的配对。
+
+> 当前 TB323FU a0807d7 与 iPhone 12 的已知限制：配对开关关闭时，重新发现服务可超时（-11988 / subscriberTimeout）；暂时打开 1 分钟配对窗口后可连接，窗口关闭后已有链路能继续。此操作会允许新配对，仅为临时绕过，根因仍需抓包定位，见 [问题 P19](docs/problem-log.md)。
 
 首次 iOS 发包后，Android 学到该 UDP 会话的来源端口，再定时向它发送心跳。因此 Android 显示 NDP 已建立但 RX 为 0 时，应先检查 iOS 是否发送首包。
 

@@ -1,6 +1,6 @@
 # 问题与解决记录
 
-更新：2026-11-13。本文件是 NAN-iOS-Android 的统一问题台账，涵盖新项目调试及直接影响实现的原 wifi_aware 项目历史。后续遇到的问题必须持续追加；已解决的问题保留，不覆盖失败证据。原项目提交号用于追溯，未导入本仓库 Git 历史。
+更新：2026-11-16。本文件是 NAN-iOS-Android 的统一问题台账，涵盖新项目调试及直接影响实现的原 wifi_aware 项目历史。后续遇到的问题必须持续追加；已解决的问题保留，不覆盖失败证据。原项目提交号用于追溯，未导入本仓库 Git 历史。
 
 状态含义：**已验证**＝列出的条件下实际通过；**已处理、待复现**＝代码已改但失败分支尚未重新触发；**待定位**＝现象有证据，根因未确定；**历史记录**＝依据旧提交，不代表当前设备重新验证。
 
@@ -19,9 +19,14 @@
 | P09 | iOS Network.NWError -11987 | 重连已成功；底层原因待定位；自动重试分支待复现 |
 | P10 | NDP 建立后应用数据协议不一致 | raw UDP JSON 已验证 |
 | P11 | 空闲掉线、断开后 Android 仍保留旧会话 | 心跳和超时清理已验证 |
-| P12 | iOS 真机签名、USB 触控、重启后设备消失 | 签名/触控已验证；锁屏尚未确认 |
+| P12 | iOS 真机签名、USB 触控、重启后设备消失 | 签名/触控已验证；11 月 16 日 USB 锁屏已确认 |
 | P13 | Ubuntu SSH 主机密钥与抓包权限 | 专用主机记录和受限 sudo 抓包可用 |
 | P14 | 抓包缺少 Host Publish，误把未抓到当成未发送 | 已调整证据判断方法 |
+| P15 | setVendorData 是否必需 | 已移除并通过配对/链路验证 |
+| P16 | Ubuntu managed 模式连接后无法上网 | 路由与认证已诊断 |
+| P17 | 定位关闭时点击发布看似无响应 | 已增加弹窗并真机验证 |
+| P18 | 新设备配对开关及 1 分钟窗口 | 状态切换/超时已验证；关闭后的重连受 P19 阻塞 |
+| P19 | 配对后停留在发现所选设备，随后 -11988 | 已复现 Setup=false 时发现超时；Setup=true 可绕过 |
 
 ## P01：编译接口、jar 和 ROM 是三个层面
 
@@ -117,7 +122,9 @@
 
 **验证：** USB 已实际控制 DevicePicker、连接和断开，并截图核对，非仅启动 App。系统 PIN 与配对流程已真机通过。
 
-**未完成：** 用户要求测试后锁屏。尝试 USB Consumer Power/Sleep 事件后，设备仍报告 backlightState activeOn，不能声称已经锁屏；CoreDevice 锁定状态查询在本设备未实现。AssistiveTouch 诊断开关已恢复原值。最终锁屏须以屏幕关闭的实际检查或用户实体按键确认为准。
+**此前未完成：** 用户要求测试后锁屏。尝试 USB Consumer Power/Sleep 事件后，设备仍报告 backlightState activeOn，不能声称已经锁屏；CoreDevice 锁定状态查询在本设备未实现。AssistiveTouch 诊断开关已恢复原值。最终锁屏须以屏幕关闭的实际检查或用户实体按键确认为准。
+
+2026-11-16 补充：完成双端测试后，先断开 iOS、停止 Android 发布。USB HID 的长按 Consumer Power 会打开 Siri 设置页，未配置 Siri；一次短按退出该页，再对 App 前台发送 Consumer Power（usage page 0x0c / usage 0x30，约 50 ms），主显示 LCD 与全局 backlightState 均变为 off。随后 devicectl 的 lockState 查询返回 passcodeRequired=true、unlockedSinceBoot=true，结合息屏确认设备已经锁定。此结果取代此前“尚未锁屏”的最终状态；没有改动自动锁定时长。
 
 ## P13：Ubuntu 访问与抓包权限
 
@@ -184,3 +191,52 @@
 2026-11-16。用户要求启动被定位检查拦截时明确提示错误。MainActivity 现在显示“无法开始发布”弹窗，说明系统定位服务未开启，并提供“取消”和“打开定位设置”。打开设置的 Activity 不存在时，捕获 ActivityNotFoundException 并以状态文字和 Toast 提示手动开启。使用可见错误提示，不抛出会导致应用崩溃的未捕获异常；返回 App 后仍需主动点击开始发布。
 
 验证：assembleDebug 与 lintDebug 通过，APK 覆盖安装到 a0807d7。显式关闭 user 0 的定位开关并确认 location_mode=0，点击后 UI 层级确认弹窗标题、原因与两个按钮；点击“打开定位设置”确认进入“位置信息”页面且服务关闭。恢复定位开启，返回再次点击后发布成功，UDP 端口 58196。测试结束定位已恢复开启。设置入口缺失的兜底分支未真机触发，本项未重新验证 iOS 发现/配对/数据通信。证据仅保存在本机 /tmp/location-dialog.xml、/tmp/location-settings.xml、/tmp/location-restored.xml；不上传原始设备日志。
+
+## P18：将新设备配对改为显式开启的 1 分钟窗口
+
+日期：2026-11-16。此前每次 Publish 固定 PairingSetupEnabled=true，配对成功仅清除 PIN，且 PIN 超时为 120 秒。用户要求默认不允许新配对，由 UI 开关控制；成功或 1 分钟超时后关闭新配对，但不终止服务。
+
+处理：初次发布 Setup=false，Verification=true、Cache=true 保留。增加“允许新设备配对（1 分钟）”开关，发布成功前禁用。开启、手动关闭、配对成功和窗口超时均通过同一 PublishDiscoverySession.updatePublish 更新完整配置，不重新 attach、不主动释放数据链路。60 秒从开启配置收到成功回调时计算，不因收到 PIN 请求延长；关闭时立即清除所有 PIN、撤销计时器，拒绝之后的新配对请求。配对失败允许在剩余窗口内重试。停止、后台退出及资源清理均移除计时器并重置/禁用开关；再次发布仍默认关闭。
+
+状态同步：配置更新串行化，等待回调期间禁用开关，回调成功才确认最终状态，程序更新开关不重复触发监听。若关闭请求与更新重叠，保留最新目标并在回调后继续更新。配置失败或等待超过 10 秒则明确提示错误并释放会话，防止界面显示关闭而底层仍允许配对。保持现有 SSI、加密与 UDP 配置。已提交给系统的配对握手没有在此调用中强制取消；关闭 Setup 不等于撤销已完成配对或删除凭据，迟到的成功回调仍执行关闭动作。
+
+编译验证：标准 SDK 的 assembleDebug / lintDebug 通过。安装到 a0807d7，初始未发布时开关关闭且禁用；发布后关闭且可操作。实测开启/关闭均收到成功回调对应 UI，手动关闭后仍显示“停止”，保持原发布会话。过程中现有 iOS 对端连入并收到有效心跳，Android 计数达到发送/接收 3/3；随后对端停止流量，原有心跳超时清理触发（8/4），该轮不能充当一分钟窗口超时验证。重新发布后进行后续窗口验证，过程中用户完成了配对；不能把这一轮当成未配对超时。后续对照窗口的超时证据见下文。
+
+补充真机证据（以下时刻为 Android 自身时钟，不能与 Mac 日期直接混用）：11:56:32.207 开启配置成功；11:56:34 发生 Bootstrapping；11:56:39.213 收到 Pairing Confirm 和 Security Association，随后 11:56:39.225 调用 updatePublish，39.305 关闭配置成功，UI 开关关闭，仍为原 sessionId=7 / pubSubId=1。这一轮实际覆盖了真实配对成功触发关闭，并非仅静态检查。
+
+之后为排查 P19，11:59:04.219 临时再次开启 Setup，12:00:04.325 自动更新为 Setup=false；两条 NativeApi 配置均保留 Cache=true / Verification=true，sessionId=7 / pubSubId=1 未重建。Android UI 开关随后确认关闭，UDP 仍持续增长，iPhone USB 截图也确认双向通信。此处约 60 秒关闭证明窗口计时分支生效（期间系统 Pair Verify 不应延长窗口）。本机证据 /tmp/pair-window-end-aware.txt、/tmp/pair-discovery-11988-filtered.log、/tmp/pair-window-latest.xml、/tmp/nan-iphone-before.png；原始日志包含隐私字段，不提交。
+
+限制：没有在本轮清除两端全部缓存重新验收“完全无凭据”场景；不把系统 Pair Verify 混写成新 PIN 配对。配置失败/无回调兜底未故障注入。用户后续接入 iPhone USB，继续进行受控重连测试。
+
+## P19：配对后 iOS 一直发现所选设备，并报告 -11988
+
+日期：2026-11-16。用户在 P18 版本上配对后点击连接，界面停留“正在发现所选设备”；随后临时开启 Android PairSetup 对照，用户报告错误码 -11988。当前 Android a0807d7 普通 Wi-Fi 未连接；另一台 303fdedc 没有发布会话。不应直接套用 STA 并发尾部异常，也不能将用户报错直接归因于 PairSetup=false。
+
+证据：初始配对后关闭 Setup 的 updatePublish 成功，发布仍存在但未见后续 NDP。临时打开 Setup 后，11:59:45 出现缓存凭据验证（requestType=1），11:59:46 收到 NDP 请求、响应成功，Confirm accept=true/reason=0，信道信息包含 5745 / 5260 MHz。Android 回应携带应用信息 appInfo.length=16。后续即使 12:00:04 自动关闭 Setup，Android 仍有双向 UDP/ACK 收发；iPhone 重新接入 USB 后截图显示“已连接 · 双向数据通信中”，计数 101/101，Android 后续达到 225/223、最近接收 0 秒。不能将这一成功路径解释成 -11988 已根治，也不能由现有链路存活推出关闭 Setup 时新建连接必然成功。
+
+状态：继续验证关闭 Setup 状态下主动断开/重连，并获取 iOS 端具体错误上下文。原始数字 -11988 尚未从当前 SDK 的 WAError 映射或 iOS 日志核实含义，不沿用 -11987 的解释。Ubuntu 192.168.31.211 当前 SSH Host is down，暂时没有新增空口证据；不修改设备配对缓存来掩盖问题。
+
+### P19 受控双端复现与错误码核实
+
+用户接入 iPhone USB 后，停止双方人工交叉操作。通过 USB HID 实际点击 iPhone“断开”并截图确认；最终 Android 版本重新安装/发布，开关默认关闭，保留两端配对记录。iPhone 点击连接后长时间停留在发现阶段，Android UI 发送/接收 0/0。随后仅打开 Android 的配对开关（同一 Publish 会话 updatePublish），iPhone 随即发现端点、Pair Verify、建立 NDP，iPhone 截图 6/6；后续配对窗口自动关闭，双向数据继续。这次对照重复了此前用户报告的现象，故不再将“关闭后已有链路能存活”当作“关闭后可以新建连接”的证据。
+
+iOS syslog 在 11:42:51～52 收到驱动 Discovery Result 通知，11:42:52.960 之后出现 resolvedIdentityUUID / Discovered Peers 0→1，再由 App 的 NetworkBrowser 返回端点；但未抓到对应空口属性，不能直接判断此前缺少 NIRA、NIRA 校验失败或 iOS 某个过滤条件。日志中的 `parse(event:)` 即使在成功流程也以 ERROR 级别出现，不能单凭级别认定解析失败。成功结果中的 `pairSetup=NO` 也不能直接等同于 Android `setPairingSetupEnabled`；不同层级的能力位/要求位需要结合抓包字段确认。
+
+试验记录（均确认 Android UI 已发布，发现计数 0/0；未清理配对）：
+
+| 对照 | 结果 | 最终保留 |
+| --- | --- | --- |
+| Setup=false，PIN Bootstrap、原 TXT、Solicited | iOS 发现失败；打开 Setup 后同次发现恢复 | 保留用户要求的默认关闭，记录兼容性限制 |
+| Setup=false 时 Bootstrap 方法设为 0 | 仍发现失败 | 否，恢复原声明 |
+| Setup=false 时不带 SSI/TXT | 仍发现失败 | 否，恢复原 SSI |
+| Setup=false 时改为 Unsolicited | 仍发现失败 | 否，恢复 Solicited |
+| iOS 改为系统直接发现所选设备 `.selected([targetDevice])` | 仍出现超时，未解决本问题 | 保留精确目标选择及错误诊断，正常连接路径另测 |
+
+已通过真机调用 `NWError.wifiAware` 扩展解析，截图明确得到 `subscriberTimeout(WiFiAware.WAError.SubscriberTimeoutDetails()) (-11988: Wi-Fi Aware)`。因此该次 -11988 是**订阅/发现超时**，不是此前 -11987 的 NDP 失败，也不是 UDP 端口验证失败。iOS 现在给该分支显示“未发现所选设备的服务（发现超时，…）”，其它 Aware 错误显示 SDK 解析结果和原码，避免只显示 Network.NWError 数字。本次没有新增“遇到 -11988 自动打开 Android PairSetup”的隐式行为。
+
+当前可复现的临时操作：在 Android 打开 1 分钟配对窗口，再从 iOS 连接；确认双向心跳后窗口自动关闭，已有链路可继续。它会暂时允许新增配对，不能宣传为“关闭配对状态下已配对设备重连通过”。代码仍严格按用户要求默认 Setup=false，不把广播能力偷改为 true、只在 UI 假装关闭。
+
+剩余工作：对比 Setup 开/关的 Publish SDF，重点核对 DCEA、SDEA、NIRA/身份解析、配对缓存能力及完整属性边界，并与 Pixel 对照；当前不能确定是 Android HAL/固件构帧还是 iOS 过滤实现问题。Ubuntu SSH 当前 Host is down，已请求用户确认可连接地址。`/tmp/nan-ios-discovery-live.log` 含系统配对材料，仅本机保留，不提交。安全证据以本文的时序和布尔状态为准。受控测试中一轮覆盖安装后平板自动息屏、未实际发布的样本被排除；随后唤醒并确认 UI“服务已发布”后重新测试，避免把暂停误判为过滤。
+
+
+最终构建复验（2026-11-16）：Android assembleDebug / lintDebug 与 iOS 真机签名构建均通过，并分别安装 a0807d7 与 iPhone 12。最终代码（含 iOS 精确选择目标及错误解释）在打开窗口后建立连接；Android 自身时钟 12:41:38.094 开启 Setup，12:42:38.203 自动关闭，关闭后 Android 发送/接收 38/38、最近接收 0 秒，iPhone 39/38、最近接收 2 秒。不同时间截图的计数差不用于推断丢包率。这验证了最终版本的窗口超时与既有链路保留，不改变上述关闭窗口重新发现仍失败的结论。测试结束已断开两端，并通过 USB 锁定 iPhone，见 P12。

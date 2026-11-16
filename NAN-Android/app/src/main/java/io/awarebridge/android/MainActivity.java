@@ -17,6 +17,8 @@ import java.util.Locale;
 public final class MainActivity extends Activity {
     private TextView state, pin, stats, peer, lastMessage;
     private Button toggle;
+    private Switch pairingSwitch;
+    private boolean syncingPairing;
     private AwareController controller;
     private static final String[] PERMISSIONS = {
             Manifest.permission.NEARBY_WIFI_DEVICES, Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION
@@ -34,10 +36,17 @@ public final class MainActivity extends Activity {
         state = label(content, "准备就绪", 20);
         pin = label(content, "", 32);
         toggle = new Button(this); toggle.setText("开始发布"); content.addView(toggle);
+        pairingSwitch = new Switch(this);
+        pairingSwitch.setText("允许新设备配对（1 分钟）");
+        pairingSwitch.setEnabled(false);
+        content.addView(pairingSwitch);
+        pairingSwitch.setOnCheckedChangeListener((button, checked) -> {
+            if (!syncingPairing && controller != null) controller.setPairingEnabled(checked);
+        });
         peer = label(content, "对端：—", 14);
         stats = label(content, "发送 0  ·  接收 0", 20);
         lastMessage = label(content, "每 5 秒双向心跳，收到后回复确认", 16);
-        label(content, "1. 点击开始发布\n2. iOS 添加设备并输入此处显示的代码\n3. iOS 点击连接\n\n请保持两端 App 在前台。", 15);
+        label(content, "1. 点击开始发布\n2. 打开允许配对，iOS 添加设备并输入代码\n3. iOS 点击连接\n\n请保持两端 App 在前台。", 15);
         ScrollView scroll = new ScrollView(this); scroll.setFillViewport(true); scroll.addView(content); setContentView(scroll);
         toggle.setOnClickListener(v -> {
             if (controller != null) { stop("已停止"); return; }
@@ -85,6 +94,12 @@ public final class MainActivity extends Activity {
                 peer.setText("对端：" + remote);
                 lastMessage.setText(text + (ageMs < 0 ? "" : "\n最近接收：" + ageMs / 1000 + " 秒前"));
                 if (rx > 0) state.setText(ageMs > 20_000 ? "心跳超时，请检查 iOS 是否在前台" : "已连接 · 双向数据通信中");
+            }
+            @Override public void pairing(boolean enabled, boolean available) {
+                syncingPairing = true;
+                pairingSwitch.setChecked(enabled);
+                pairingSwitch.setEnabled(available);
+                syncingPairing = false;
             }
             @Override public void stopped() {
                 controller = null; toggle.setText("重新发布");

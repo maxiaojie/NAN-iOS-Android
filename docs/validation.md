@@ -1,6 +1,6 @@
 # 真机验证记录
 
-更新：2026-11-13。当前已在 **TB323FU 断开普通 Wi-Fi、保留 Wi-Fi 开关** 的条件下，完成 iPhone 12 ↔ TB323FU 的发现、系统配对、NDP、UDP 双向心跳/ACK验证。普通 Wi-Fi 并发发现异常和首次 NDP 失败仍是已知限制，不能宣称所有设备/网络状态均已通过。
+更新：2026-11-16。当前已在 **TB323FU 断开普通 Wi-Fi、保留 Wi-Fi 开关** 的条件下，完成 iPhone 12 ↔ TB323FU 的发现、系统配对、NDP、UDP 双向心跳/ACK验证。普通 Wi-Fi 并发发现异常和首次 NDP 失败仍是已知限制，不能宣称所有设备/网络状态均已通过。
 
 ## 构建和安装
 
@@ -41,7 +41,7 @@
 
 用户于 11 月 13 日明确要求先上传 ROM 问题文档，随后代码及后续验证记录继续推送。发布代码不表示上述已知 ROM 问题已经解决。
 
-完整问题索引与持续记录规则见 [问题台账](problem-log.md)。USB 锁屏事件尚未成功，设备此前仍报告 activeOn；不能以 App 已停止代替完成锁屏。
+完整问题索引与持续记录规则见 [问题台账](problem-log.md)。此前 USB 锁屏事件失败；2026-11-16 已通过短按 Consumer Power 完成并核验锁屏，见末尾补充。
 
 ## 不设置 VendorData 的补充验证
 
@@ -58,3 +58,22 @@
 2026-11-16：a0807d7 点击发布被 App 的系统定位总开关检查拦截；开启定位后发布成功（UDP 46260）。详见问题台账 P17；本轮未测 iOS 连接。
 
 2026-11-16：定位错误弹窗版本 assembleDebug / lintDebug 通过，已覆盖安装到 a0807d7。定位关闭时弹窗正常，“打开定位设置”跳转正常；开启定位后返回 App 再次发布成功（UDP 58196）。测试结束定位开启、App 正在发布。未触发设置 Activity 缺失分支，未以本项测试宣称 iOS 连接通过。
+
+
+## 显式配对窗口（2026-11-16）
+
+Android assembleDebug / lintDebug 通过，已安装 a0807d7。默认发布 Setup=false；UI 开关手动开启/关闭 updatePublish 成功。真实配对 Confirm 后自动关闭 updatePublish 成功，维持原 sessionId=7 / pubSubId=1；另一次窗口开启约 60 秒后自动关闭，保留 Cache / Verification。关闭时已有链路继续双向收发，iPhone USB 截图确认 101/101，Android 后续 225/223。详见问题台账 P18 / P19。
+
+用户曾报告配对后一直发现与 -11988，随后恢复通信；受控断开/重连结果见下文。未清空全部凭据重测，配置更新失败/无回调兜底尚未故障注入。不能以当前通信成功宣称 -11988 根因已解决。
+
+
+### 受控重连结论修正
+
+USB 控制 iPhone 断开并重新连接后，已复现 **Android Setup=false 时服务发现不通过**；同一发现过程中 updatePublish 开启 Setup=true 后恢复，iPhone 双向计数 6/6。Bootstrap=0、不带 SSI、Unsolicited 三项对照均未解决，均恢复。iOS 系统直接发现所选设备的版本仍超时，SDK 明确将 -11988 解码为 subscriberTimeout；已改为具体错误提示。故本版本的“默认关闭后跨端重连”尚未验收通过，不能以既有链路持续收发替代它。详见 P19，需补充空口与 Pixel 对照。
+
+
+### 最终版本与测试收尾
+
+2026-11-16：最终 Android assembleDebug / lintDebug、iOS 真机签名构建均通过，APK 已安装 a0807d7，iOS App 已安装 iPhone 12。保留精确设备选择后的正常路径复验：Android 自身时钟 12:41:38.094 开启 Setup，12:42:38.203 自动关闭；关闭后 Android 38/38（最近接收 0 秒）、iPhone 39/38（最近接收 2 秒）。这验证了最终版本建立链路后自动关窗仍能持续通信；Setup=false 时新建连接仍未通过，不将临时绕过当作修复。
+
+测试结束由 USB 点击 iOS 断开、Android 停止发布。iPhone USB 短按 Consumer Power 后主 LCD 和全局 backlightState 均为 off，devicectl lockState 返回 passcodeRequired=true，已核验锁屏；未修改自动锁定设置。Ubuntu 抓包机仍待恢复可连接地址，尚无本轮空口证据。
