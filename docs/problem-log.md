@@ -330,3 +330,13 @@ iOS syslog 在 11:42:51～52 收到驱动 Discovery Result 通知，11:42:52.960
 2026-11-16 用户反馈：安装本项目 APK 到 Android 16 Baldur 后，iOS 无法发现；空口抓包显示设备信息填入 Service Descriptor Attribute（SDA）。用户说明此前向 Google 提交过相关问题，从 Android 17 开始用户配置的服务信息放入 Service Descriptor Extension Attribute（SDEA）。问题编号、对应提交及本轮帧号待补；该版本对照作为用户提供线索记录，不将其概括成所有 ROM 均已确认的行为。
 
 此前提出在 Android 16 ROM 中强制将设备信息放入 SDEA 的验证方案。同日用户明确该设备后续只升级 Android 17，不再更新 Android 16，因此取消该修改与验证，按版本维护策略结束此项跟进，历史现象保留，不标为修复通过。后续以升级 Android 17 后的互通验证为准。此前配对问题可能受接收长度错误影响仍为假设；STA 并发额外尾部及 GTK 声明问题继续独立跟踪。本轮没有修改代码/ROM，也没有新功能验收。详见 [现象、历史线索与取消决定](android16-baldur-ssi-placement.md)。
+
+## P24：反向流程（iOS 发布、Android 订阅/连接）及实机阻碍
+
+**环境：** 2026-11-16，a0807d7 TB323FU / Android 17 + iPhone 12 / iOS 27，Android 无 STA 连接。
+
+**实现：** 新增角色切换、Android 主动订阅/PIN Keypad、iOS DevicePairingView/UDP listener、Android 首包和双向心跳。原 Android 发布方向保留。反向固定端口 45454，并允许框架未通知端口时按应用约定回退。
+
+**问题/证据/处理：** 带 SSI 的 NAN_SUBSCRIBE 被 native 拒绝（status=5，Invalid TLV type），空 SSI 对照成功；最终只降级重试一次并提示首次配对限制。iOS listener 与配对页同时运行曾出现配对页 publisher error=5，改为先配对后监听。引导请求到达 iOS，但名称为空、Android 引导超时；本轮只确认缓存验证，首次 PIN 尚未验收。NDP 曾 reason=2，去掉反向固定 PSK 后有成功样本，但仍有间歇失败；成功时框架端口=0/协议=-1，约定端口回退后双向通。主线程 UDP connect 异常已修复。iOS 默认 120 秒 publisherTimeout 曾连带取消通信；延长 active 请求未改变系统 120 秒期限，改为独立持有 accepted connection 后越过到期点仍持续收发。
+
+**验证/限制：** 两端构建和原有协议检查通过；新应用已安装、角色 UI 已操作；反向发现、缓存配对验证、NDP 和双向心跳实际成功。首次反向 PIN 与底层拒绝原因仍待验证/ROM 分析，不宣称完整新配对通过。原方向回归仍出现 -11987 / NDP reason=2，重启发布及 Wi-Fi 后未通过，不排除角色切换/缓存状态相关性。完整失败时序、状态返回、区分已确认与推测见 [专项记录](reverse-flow-validation.md)。

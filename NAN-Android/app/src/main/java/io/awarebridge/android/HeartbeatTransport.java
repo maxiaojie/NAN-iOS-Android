@@ -23,6 +23,7 @@ final class HeartbeatTransport implements AutoCloseable {
     private InetSocketAddress peer;
     private String peerSession;
     private long sequence, tx, rx, lastReceived;
+    private long startedAt;
     private String lastText = "等待 iOS 发送首个心跳";
 
     HeartbeatTransport(Observer observer) throws SocketException {
@@ -32,7 +33,15 @@ final class HeartbeatTransport implements AutoCloseable {
     int port() { return socket.getLocalPort(); }
 
     void start(Network network) throws IOException {
+        start(network, null);
+    }
+
+    synchronized void start(Network network, InetSocketAddress remote) throws IOException {
         network.bindSocket(socket);
+        if (remote != null) {
+            peer = remote;
+        }
+        startedAt = SystemClock.elapsedRealtime();
         new Thread(this::receive, "awarebridge-udp-receive").start();
         timer.scheduleWithFixedDelay(() -> {
             try {
@@ -40,11 +49,15 @@ final class HeartbeatTransport implements AutoCloseable {
                     if (closed) return;
                     // Some ROMs end the NDP without delivering NetworkCallback.onLost.
                     // Release the socket and its locked peer/session on liveness loss.
-                    if (peer != null && SystemClock.elapsedRealtime() - lastReceived > 20_000) {
+                    long lastActivity = lastReceived == 0 ? startedAt : lastReceived;
+                    if (peer != null && SystemClock.elapsedRealtime() - lastActivity > 20_000) {
                         observer.onError("心跳超时，连接已释放；请重新发布并连接");
                         return;
                     }
-                    if (peer != null) send("heartbeat", ++sequence, "Android heartbeat");
+                    if (peer != null) {
+                        String type = sequence == 0 ? "hello" : "heartbeat";
+                        send(type, sequence++, "Android " + type);
+                    }
                     report();
                 }
             } catch (Exception e) {
@@ -75,11 +88,12 @@ final class HeartbeatTransport implements AutoCloseable {
                     if (peer == null) {
                         if (type.equals("ack")) continue;
                         peer = source;
-                        peerSession = message.getString("session");
                         socket.connect(peer);
                     }
-                    if (!peer.equals(source) || !peerSession.equals(message.getString("session"))) continue;
+                    if (!peer.equals(source)) continue;
                     if (type.equals("ack") && !session.equals(message.optString("ackSession"))) continue;
+                    if (peerSession == null) peerSession = message.getString("session");
+                    if (!peerSession.equals(message.getString("session"))) continue;
                     rx++;
                     lastReceived = SystemClock.elapsedRealtime();
                     lastText = message.optString("text", type);

@@ -11,7 +11,7 @@ import java.util.*;
 
 /** Android publishes; iOS pairs and initiates the data path. Main-thread owned. */
 @SuppressLint("MissingPermission")
-final class AwareController implements AutoCloseable {
+final class AwareController implements BridgeController {
     static final String SERVICE = "_aware-bridge._udp";
     // Retained from the working ROM experiment. This is a demo, not a production secret.
     private static final String DEMO_PASSPHRASE = "1234567890";
@@ -57,7 +57,7 @@ final class AwareController implements AutoCloseable {
         }
     };
 
-    void start() {
+    public void start() {
         if (closed) return;
         try {
             if (manager == null || !manager.isAvailable()) {
@@ -135,7 +135,7 @@ final class AwareController implements AutoCloseable {
         }
     }
 
-    void setPairingEnabled(boolean enabled) {
+    public void setPairingEnabled(boolean enabled) {
         if (closed || publisher == null) return;
         pairingRequested = enabled;
         if (!enabled) {

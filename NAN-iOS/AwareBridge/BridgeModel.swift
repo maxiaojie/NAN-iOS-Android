@@ -14,8 +14,19 @@ extension WASubscribableService {
     static var bridge: WASubscribableService { allServices[bridgeServiceName]! }
 }
 
+extension WAPublishableService {
+    static var bridge: WAPublishableService { allServices[bridgeServiceName]! }
+}
+
+enum BridgeRole: String, CaseIterable, Identifiable {
+    case subscriber = "订阅 · iOS 连接 Android"
+    case publisher = "发布 · Android 连接 iOS"
+    var id: Self { self }
+}
+
 @MainActor @Observable
 final class BridgeModel {
+    var role: BridgeRole = .subscriber
     var status = "准备就绪"
     var devices: [WAPairedDevice] = []
     var selectedDeviceID: WAPairedDevice.ID?
@@ -27,9 +38,11 @@ final class BridgeModel {
     var lastReceived: Date?
     var now = Date()
     @ObservationIgnored private var connectionTask: Task<Void, Never>?
+    @ObservationIgnored private var incomingTask: Task<Void, Never>?
     @ObservationIgnored private var generation = UUID()
     @ObservationIgnored private var attemptReachedReady = false
     @ObservationIgnored private var connectionAttempt = UUID()
+    @ObservationIgnored private var incomingActive = false
     @ObservationIgnored private let logger = Logger(subsystem: "io.awarebridge.ios", category: "connection")
 
     func watchDevices() async {
@@ -50,7 +63,7 @@ final class BridgeModel {
         status = "配对成功，点击连接"
     }
     func connect() {
-        guard !active, let target = selectedDeviceID,
+        guard role == .subscriber, !active, let target = selectedDeviceID,
               let targetDevice = devices.first(where: { $0.id == target }) else { return }
         let token = UUID()
         generation = token
@@ -101,6 +114,79 @@ final class BridgeModel {
             }
         }
     }
+
+    func publish() {
+        guard role == .publisher, !active else { return }
+        let token = UUID()
+        generation = token
+        active = true
+        incomingActive = false
+        tx = 0
+        rx = 0
+        lastReceived = nil
+        peer = "—"
+        status = "正在发布服务…"
+        connectionTask = Task { [weak self] in
+            do {
+                let listener = try NetworkListener(
+                    for: .wifiAware(.connecting(to: .bridge, from: .allPairedDevices),
+                                    active: .seconds(3600)),
+                    using: .parameters { UDP() }
+                        .localPort(45454)
+                        .wifiAware { $0.performanceMode = .realtime }
+                        .serviceClass(.bestEffort))
+                listener.onStateUpdate { [weak self] _, state in
+                    guard let self, self.generation == token else { return }
+                    switch state {
+                    case .ready:
+                        if !self.incomingActive {
+                            self.status = "服务已发布，等待已配对的 Android 连接"
+                        }
+                    case .waiting(let error):
+                        self.status = "发布等待：\(Self.errorDescription(error))"
+                    default: break
+                    }
+                }
+                try await listener.run { [weak self] connection in
+                    guard let self, self.generation == token, !self.incomingActive else { return }
+                    self.incomingActive = true
+                    self.tx = 0
+                    self.rx = 0
+                    self.lastReceived = nil
+                    self.peer = "Android"
+                    self.status = "已收到 Android 连接，等待双向心跳"
+                    // The accepted UDP connection owns its lifetime independently of
+                    // the discovery listener (which iOS may stop after 120 seconds).
+                    self.incomingTask = Task { [weak self] in
+                        guard let self else { return }
+                        defer {
+                            if self.generation == token { self.incomingActive = false }
+                        }
+                        do {
+                            try await self.exchange(connection: connection, token: token)
+                        } catch {
+                            guard self.generation == token else { return }
+                            self.stop()
+                            self.status = "连接已结束，请重新发布：\(Self.errorDescription(error))"
+                        }
+                    }
+                }
+                if let self, self.generation == token { self.finish("发布已结束") }
+            } catch {
+                guard let self, self.generation == token else { return }
+                if let networkError = error as? NWError,
+                   case .publisherTimeout = networkError.wifiAware,
+                   self.incomingActive {
+                    // Publishing has expired; the accepted data connection remains
+                    // owned by incomingTask until Stop or a transport failure.
+                    self.logger.notice("Publisher expired; retaining the active UDP connection")
+                    return
+                }
+                self.incomingTask?.cancel()
+                self.finish(error is CancellationError ? "已停止发布" : "发布失败：\(Self.errorDescription(error))")
+            }
+        }
+    }
     private static func errorDescription(_ error: Error) -> String {
         if let networkError = error as? NWError, let awareError = networkError.wifiAware {
             if case .subscriberTimeout = awareError {
@@ -111,11 +197,15 @@ final class BridgeModel {
         return error.localizedDescription
     }
     private func exchange(with endpoint: WAEndpoint, token: UUID) async throws {
-        let attemptToken = UUID()
-        connectionAttempt = attemptToken
         let connection = NetworkConnection(to: endpoint, using: .parameters { UDP() }
             .wifiAware { $0.performanceMode = .realtime }
             .serviceClass(.bestEffort))
+        try await exchange(connection: connection, token: token)
+    }
+
+    private func exchange(connection: NetworkConnection<UDP>, token: UUID) async throws {
+        let attemptToken = UUID()
+        connectionAttempt = attemptToken
         let (failures, failureContinuation) = AsyncThrowingStream<Void, Error>.makeStream()
         defer { failureContinuation.finish() }
         connection.onStateUpdate { [weak self] _, state in
@@ -191,6 +281,9 @@ final class BridgeModel {
         generation = UUID()
         connectionTask?.cancel()
         connectionTask = nil
+        incomingTask?.cancel()
+        incomingTask = nil
+        incomingActive = false
         finish("已断开")
     }
     private func finish(_ text: String) { active = false; status = text }

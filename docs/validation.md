@@ -1,5 +1,8 @@
 # 真机验证记录
 
+2026-11-16 新增反向角色真机验证：使用用户指定的 a0807d7 与 iPhone 12。iOS 发布 → Android 订阅的服务发现、缓存配对 Verification、NDP、UDP 45454 双向心跳通过；iOS 120 秒发布到期后保留独立 connection，继续收发。**首次反向 PIN 未通过验收**（引导超时），订阅 SSI 被当前 ROM 拒绝，最终有一次空 SSI 降级。本轮原方向回归仍遇到 -11987 / NDP reason=2，未重新通过双向数据验收。详见 [P24 反向流程完整记录](reverse-flow-validation.md)。以下早期记录主要是原 Android 发布方向，不能混作反向首次配对证据。
+
+
 2026-11-16 Android 16 Baldur 用户测试补充：安装 APK 后 iOS 无法发现，用户抓包发现设备信息位于 SDA。用户随后明确该设备只升级 Android 17、不再更新 Android 16，已取消强制使用 SDEA 的 Android 16 修改与验证；后续以 Android 17 互通结果为准。历史线索及取消决定见 [P23 专项记录](android16-baldur-ssi-placement.md)。本轮未独立抓包或修改 ROM；长度异常影响此前配对仍为假设，不将结束跟进记作修复或验收通过。
 
 2026-11-16 HA2E6NPB 后续：用户解锁后 root/remount 成功，经关闭 verity、启用 overlayfs 并重启，已写入 Aware XML、重新安装 APK，再次重启后 feature 声明及 wifiaware 服务可见，应用冷启动正常。此前写入受阻已解除；未验收发布、配对或 NDP。详见 P22 后续记录。

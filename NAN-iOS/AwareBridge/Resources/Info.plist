@@ -6,6 +6,8 @@
 	<dict>
 		<key>_aware-bridge._udp</key>
 		<dict>
+			<key>Publishable</key>
+			<dict/>
 			<key>Subscribable</key>
 			<dict/>
 		</dict>

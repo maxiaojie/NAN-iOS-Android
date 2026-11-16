@@ -2,7 +2,7 @@
 
 **Wi-Fi Aware / NAN，连接 iOS 与 Android。** 两端应用名为 **AwareBridge**。
 
-一个可阅读、可修改的跨端演示：Android 发布服务并显示配对码，iOS 使用系统配对界面添加设备并建立 Wi-Fi Aware 数据链路。两端通过原始 UDP JSON 每 5 秒发送心跳、回复确认，界面显示收发计数和最近接收时间。
+一个可阅读、可修改的跨端演示：支持 Android 发布 / iOS 连接，以及 iOS 发布 / Android 连接两种角色。系统 PIN 配对后建立 Wi-Fi Aware 数据链路。两端通过原始 UDP JSON 每 5 秒发送心跳、回复确认，界面显示收发计数和最近接收时间。
 
 ```
 NAN-iOS-Android/
@@ -16,7 +16,7 @@ NAN-iOS-Android/
 ## 功能与范围
 
 - 简洁单页 UI：开始/停止、允许配对开关、配对码、连接状态、发送/接收计数。
-- Android 发布 `_aware-bridge._udp`，iOS 配对并主动连接；当前实现单对端，未实现角色互换。
+- 两端可切换发布/订阅角色，使用 `_aware-bridge._udp`；每次仅连接一个对端。
 - UDP socket 绑定 Android 的 Aware `Network`；在 NDP 响应中通知监听端口和协议号 `17`。
 - 双向心跳与 ACK；ACK 不再回复 ACK，避免循环。超过 20 秒无有效接收显示心跳超时。
 - 停止或退到后台时释放 socket、计时任务、网络请求和 Aware 会话。
@@ -48,7 +48,7 @@ adb -s YOUR_ANDROID_SERIAL install -r app/build/outputs/apk/debug/app-debug.apk
 - 支持 Wi-Fi Aware 的 iPhone / iPad，iOS / iPadOS 26+；真机验证需要设备与系统支持，模拟器编译不能代替无线测试。
 - 使用支持 WiFiAware 和新版 Network API 的 Xcode，本项目在 Xcode 27.2 编译验证。
 - 打开 `NAN-iOS/AwareBridge.xcodeproj`，选择 `AwareBridge` scheme。
-- 配置自己的 Bundle Identifier / Development Team；签名 profile 必须包含 Wi-Fi Aware 的 `Subscribe` entitlement。
+- 配置自己的 Bundle Identifier / Development Team；签名 profile 必须包含 Wi-Fi Aware 的 `Subscribe` 和 `Publish` entitlement。
 - 默认 Bundle Identifier：`io.awarebridge.ios`。仓库不包含个人 Team、profile、证书或私钥。
 
 ```sh
@@ -61,6 +61,8 @@ xcodebuild -project NAN-iOS/AwareBridge.xcodeproj -scheme AwareBridge \
 
 ## 使用
 
+### Android 发布 → iOS 连接
+
 1. Android 点击「开始发布」。
 2. 首次配对时，Android 打开「允许新设备配对（1 分钟）」；iOS 点击「添加 Android 设备」，选择 Android 设备；将 Android 显示的 6 位代码输入 iOS 系统配对界面。
 3. 配对成功或开启满 1 分钟后，Android 自动关闭新配对，继续发布服务；设计上已配对设备连接无需打开此开关，当前实机限制见下方说明。配对成功后，在 iOS 选择该设备并点击「连接」。Android 无需再点连接。
@@ -70,6 +72,16 @@ xcodebuild -project NAN-iOS/AwareBridge.xcodeproj -scheme AwareBridge \
 > 当前 TB323FU a0807d7 与 iPhone 12 的已知限制：配对开关关闭时，重新发现服务可超时（-11988 / subscriberTimeout）；暂时打开 1 分钟配对窗口后可连接，窗口关闭后已有链路能继续。此操作会允许新配对，仅为临时绕过，根因仍需抓包定位，见 [问题 P19](docs/problem-log.md) 和 [空口属性对照](docs/pair-setup-discovery-analysis.md)。
 
 首次 iOS 发包后，Android 学到该 UDP 会话的来源端口，再定时向它发送心跳。因此 Android 显示 NDP 已建立但 RX 为 0 时，应先检查 iOS 是否发送首包。
+
+### iOS 发布 → Android 连接
+
+1. iOS 选择「发布 · Android 连接 iOS」。首次配对先打开「允许 Android 配对」，Android 选择订阅角色并开始订阅。
+2. Android 选择发现的 iOS 服务，点击配对，将 iOS 系统页显示的 PIN 输入 Android。配对完成后关闭 iOS 系统配对页。
+3. iOS 点击「开始发布」，Android 等待缓存配对验证后选择设备、点击连接。已配对设备直接从此步骤开始即可。
+4. iOS 固定监听 UDP `45454`；Android 使用 Aware 网络中的对端 IPv6，并主动发出首包。两端每 5 秒心跳并回复 ACK。
+5. 停止发布/订阅后可切换角色。iOS 仅保留一条已接入连接；发布到期后不主动重建发现会话，新的连接需要停止后重新发布。
+
+**当前 a0807d7 ROM 限制：** 带设备信息 SSI 的 Subscribe 请求返回 `Invalid TLV type`，应用只重试一次，去掉 SSI 后可以发现、验证缓存配对并建立链路。此降级可能影响首次 PIN 配对，本轮 PIN 引导确实超时，不能视为全新配对通过。可先沿原方向完成配对，再使用反向数据连接。详情及精确验收见 [反向流程验证](docs/reverse-flow-validation.md)。
 
 ## 协议与扩展
 
