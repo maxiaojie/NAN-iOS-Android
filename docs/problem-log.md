@@ -168,3 +168,13 @@
 处理方案：已在 Ubuntu `/home/mxj/fix-ubuntu-internet.sh` 准备脚本，保存原有线设置，将有线连接 ipv4.never-default=yes、ipv4.ignore-auto-dns=yes，再 device reapply；不 down 接口、不重启 NetworkManager，保留局域网地址和 SSH 路由。当前 SSH 用户仅对抓包包装器免密 sudo，网络配置需要用户在 Ubuntu 执行脚本并输入 sudo 密码。之后在 Ubuntu 浏览器访问 HTTP 页面触发并完成企业 Wi-Fi 认证。
 
 状态：诊断已完成，脚本已上传，尚待用户执行及网页认证；未宣称恢复上网。修复后需检查默认路由经 wlp3s0、SSH 仍可访问、DNS 和 HTTPS 正常。未修改 monitor 配置，也未停止或删除任何普通 Wi-Fi 保存网络。
+
+## P16：a0807d7 点击开始发布未启动
+
+日期：2026-11-16。设备 a0807d7（TB323FU / Android 17），标准 SDK 构建的 AwareBridge。Wi-Fi 已开启但未连接 AP，NEARBY_WIFI_DEVICES、粗略/精确定位权限均已授予，系统 `location_mode=0`。
+
+复现：唤醒并打开 App，点击开始发布，状态文字为“请先在系统设置中打开定位服务”，按钮仍为开始发布。发布前 dumpsys wifiaware 的 mClients 为空，mCurrentAwareConfiguration 为 null，没有进入 attach/publish。
+
+原因：MainActivity.start() 显式检查 LocationManager.isLocationEnabled()，关闭时设置状态文字并直接返回；不是按钮事件无效，也不是 HAL 发布失败。当前界面只更新文字，用户容易认为点击无反应。这里确认的是应用前置检查阻止启动，不据此证明本 ROM 在定位关闭时底层一定不能运行 Aware。
+
+处理/验证：使用 `cmd location set-location-enabled true` 打开该设备系统定位总开关，再次点击。UI 显示“服务已发布，请在 iOS 上添加设备 / UDP 端口 46260”，按钮变为停止。已确认发布成功；本轮没有验证 iOS 发现、配对或数据通信。定位保持开启、App 保持发布，供继续测试。证据保存在本机 `/tmp/a0807d7-location-block.xml` 和 `/tmp/a0807d7-location-enabled.xml`，原始日志未提交。

@@ -54,3 +54,5 @@
 ## 第二台 TB323FU 安装
 
 2026-11-13（Mac 测试日期）：最新标准 SDK 构建 APK 已安装到 USB 设备 a0807d7（TB323FU、Android 17），包名 io.awarebridge.android、版本 1.0。adb 安装返回 Success，冷启动 Status ok，唤醒后 UI 已确认显示 AwareBridge 与开始发布按钮。仅验证安装/启动，未对这台设备验证配对或数据链路。设备自身 lastUpdateTime 显示 11 月 12 日，与 Mac 日期不一致，未修改其系统时间。
+
+2026-11-16：a0807d7 点击发布被 App 的系统定位总开关检查拦截；开启定位后发布成功（UDP 46260）。详见问题台账 P16；本轮未测 iOS 连接。
