@@ -280,3 +280,7 @@ iOS syslog 在 11:42:51～52 收到驱动 Discovery Result 通知，11:42:52.960
 ### P19 重新 Publish 是否能绕过 GTK 矛盾
 
 用户提出不用 updatePublish，结束旧 Publish 后以 Setup=false 新建。已复核信道 149 有效第二轮：原会话清理后 UI“开始发布”→重新开始、UDP 40813，初始配置走 publish(false)，尚未通过 updatePublish 关闭。帧 13525 仍为 SDEA=0x0440、CSIA 仅 ID 7、组密钥支持=0，iOS 仍发现失败。因此完整重建后的默认关闭也异常，不能仅归因于 updatePublish 残留。保留原 attach 只重建 Publish 的专门分支尚未单测；未新增该代码改动。详见 [已有样本复核](pair-setup-discovery-analysis.md#新建-publish-与-updatepublish-的区别核对)。
+
+### AwareController 可读性整理
+
+2026-11-16 用户要求整改同一行堆叠链式调用的写法。已统一 AwareController.java 中的 Builder 调用为每项独立一行，并展开压缩的回调、try/catch、同一行多条语句与资源清理块，增加方法间分隔。修改前后 Java 令牌序列（含字符串和注释）一致，仅调整空白/换行；assembleDebug、git diff --check 通过。本轮未安装真机，未变更配对或网络逻辑，不作为互通问题的修复。用户的未跟踪 publish.txt 未改动、未提交。
