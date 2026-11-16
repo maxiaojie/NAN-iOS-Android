@@ -299,3 +299,4 @@ iOS syslog 在 11:42:51～52 收到驱动 Discovery Result 通知，11:42:52.960
 - `adb root` 返回 `adbd cannot run as root in production builds`；直接 push 返回 `Read-only file system`，最终核对目标仍不存在。设备没有可用 su，`ro.debuggable=0`、Verified Boot 为 green、bootloader 为 locked；`adb remount` 也不可用。因此 XML 写入未完成，未进行解锁、刷机或清数据操作。需要可写 vendor 的工程固件/root 环境，或者在 ROM 构建中加入该声明后部署。
 - 当前源码 `assembleDebug` 成功；`adb install -r` 返回 Success；`am start -W` 冷启动 Status ok。包名 `io.awarebridge.android`，版本 1.0/code 1。
 - 本轮只确认 APK 安装与启动，没有验证该设备的 NAN HAL 支持、发现、配对或 NDP；仅添加 feature XML 也不能作为底层能力已支持的证明。
+- 用户要求继续实际执行 root/remount 后，再次运行 `adb root` 仍被 production build 拒绝；`adb remount`、`adb disable-verity` 分别报告 remount、disable-verity 不存在；`mount -o remount,rw /vendor` 返回 `/dev/block/dm-10 not user mountable in fstab`，`su -c id` 返回 su 不存在。`/proc/mounts` 确认 vendor 为 ext4、ro，shell 仍 uid=2000。未取得 root、未关闭 verity、未修改分区；XML 仍不存在，APK 安装保留。不能通过重复普通 ADB 命令把当前锁定的 user 固件变为工程固件。
