@@ -260,3 +260,19 @@ iOS syslog 在 11:42:51～52 收到驱动 Discovery Result 通知，11:42:52.960
 ### P16 monitor 模式的反向恢复脚本
 
 2026-11-16 用户要求提供 `/home/mxj/prepare-nan-monitor.sh` 的完整逆向脚本。已生成仓库 `scripts/restore-normal-wifi.sh` 并上传 Ubuntu `/home/mxj/restore-normal-wifi.sh`：删除专用 wlp3s0mon，恢复/必要时重建 wlp3s0 的 managed 类型，启用接口、交回 NetworkManager，并尝试连接已保存的 Wi-Fi；不删除保存网络、不改有线配置。自动连接失败时明确提示接口已恢复、网络仍需手动选择。本机与 Ubuntu 的 `bash -n` 均通过。远程账号此前执行 nmcli 被权限拒绝，免密 sudo 仅允许抓包脚本，因此本次仅完成脚本部署与语法检查，等待用户在 Ubuntu 执行 `sudo bash /home/mxj/restore-normal-wifi.sh`；不宣称已恢复联网。
+
+### 两个 ROM 排查主线与 Publish SDF 的组帧边界
+
+2026-11-16 再次确认当前主要两项：P07 的 STA 并发额外尾部，与 P19 的 PairSetup=false 时 GTK 声明矛盾，触发条件不同，不应合并为同一个已证实根因。第一项是 TB323FU 特定条件下的抓包与发现失败对应关系，Pixel 原 STA 并发对照未出现；第二项在普通 Wi-Fi 未连接时也复现，Apple 原版普通监听仍正确声明 GTK。第二项尚未通过仅修复 CSIA 后重测确认 iOS 的实际过滤原因。
+
+对于“Publish SDF 在哪里组帧”：本项目 AwareController 只构建 PublishConfig 和 SSI，调用 publish/updatePublish，没有拼接完整 802.11 SDF。已阅读当前上游 AOSP 源码，调用边界如下（仅作 ROM 源码导航，不保证与当前设备私有分支逐行相同）：
+
+- `packages/modules/Wifi/service/java/com/android/server/wifi/aware/WifiAwareNativeApi.java`：publish 将配置传给 WifiNanIface。
+- 同模块 `hal/WifiNanIfaceAidlImpl.java`：createNanPublishRequest 构造 HAL 请求，createAidlPairingConfig 逐项复制 Setup / Verification / Cache，随后调用 startPublishRequest。这是请求结构构造，不是完整空口 SDF 组帧。
+- `hardware/interfaces/wifi/aidl/default/wifi_nan_iface.cpp`：startPublishRequestInternal 转换请求后调用 legacy HAL 的 nanPublishRequest。
+- 同目录 `aidl_struct_util.cpp`：convertAidlNanPublishRequestToLegacy 拷贝 SSI 及长度、cipher_type、安全配置和 pairing 配置。此处需要检查参数/长度映射，但不能把它称作已找到具体 SDF 帧尾或 CSIA 的写入函数。
+- 后续进入厂商 NAN HAL / 驱动 / 固件。在 NAN offload 实现中，完整管理帧通常由固件生成和调度；当前尚未取得设备对应厂商源码或固件实现，不能断言两个问题均发生在固件，也不能给出未经核对的最终组帧函数名。
+
+本机只读 getprop 确认 a0807d7 的 ro.hardware=qcom、ro.board.platform=canoe。应从这台设备对应的高通 WLAN/NAN 实现继续追踪，而不是将别的平台路径直接套用。建议分别检查 STA 并发时属性总长度/尾部填充，以及 Setup=false 分支是否清除了 CSIA GTK capability/cipher 却保留 SDEA GTK Required；沿 framework → HAL → 驱动/固件逐层比较实际参数后再确定责任层。
+
+上游源：[WifiAwareNativeApi](https://android.googlesource.com/platform/packages/modules/Wifi/+/refs/heads/main/service/java/com/android/server/wifi/aware/WifiAwareNativeApi.java)、[WifiNanIfaceAidlImpl](https://android.googlesource.com/platform/packages/modules/Wifi/+/refs/heads/main/service/java/com/android/server/wifi/hal/WifiNanIfaceAidlImpl.java)、[wifi_nan_iface.cpp](https://android.googlesource.com/platform/hardware/interfaces/+/refs/heads/main/wifi/aidl/default/wifi_nan_iface.cpp)、[aidl_struct_util.cpp](https://android.googlesource.com/platform/hardware/interfaces/+/refs/heads/main/wifi/aidl/default/aidl_struct_util.cpp)。本次无业务代码或设备配置修改。
