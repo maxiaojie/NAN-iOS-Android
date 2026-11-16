@@ -248,3 +248,11 @@ iOS syslog 在 11:42:51～52 收到驱动 Discovery Result 通知，11:42:52.960
 ### P19 空口补充：GTK 能力声明不一致
 
 2026-11-16 用户恢复抓包机并解锁 iPhone 后，已独立完成信道 6、149 对照。关闭 Setup 时 Android 确实回复 Publish，NIRA 存在；同会话开启后 iPhone 立即连接。两信道均发现：SDEA 关闭/开启分别为 0x0440 / 0x0640，均要求 GTK；CSIA 却从关闭时的 `00 07 01`（不支持组密钥、只有 PASN-128）变为开启时的 `04 05 01 07 01`（组密钥支持、增加 GTK CCMP-128）。这是当前最具体的报文层不一致，优先核查 ROM/HAL/固件的配置与构帧关联，但尚未独立修改该字段验证因果，不宣称确认了 Apple 的过滤分支。两代表帧属性边界完整，无多余 23 字节尾部。详细帧号、时序、字节、依据、失败样本排除及后续 ROM 检查点见 [空口分析](pair-setup-discovery-analysis.md)。本轮没有 Pixel 对照，没有代码修复；自动关窗后两端 77/77。已停止两端并再次核验 iPhone 锁屏。
+
+### P19 Apple 原版 Demo 对照准备（待解锁继续）
+
+2026-11-16 用户要求比较 Apple 原版 Host 的配对/非配对发布属性。已检查 `/Users/mxj/XcodeProjects/BuildingPeerToPeerApps`：业务源码无工作区修改，只有已有本机 Xcode 项目签名设置变更；原版服务为 `_sat-simulation._udp`。Host 的 DevicePairingView 用于新设备配对，NetworkListener 的 `.allPairedDevices` 用于已配对设备监听，两者必须分别实测，不能把仅进入 Host 或只见 Beacon 当作已取得非配对 Publish。原版真机签名构建通过，已临时覆盖安装同 Bundle ID 的测试 App；AwareBridge 原签名产物保留，测试结束恢复。启动被 iOS 明确拒绝：Locked / FBSOpenApplicationErrorDomain 7，需要用户解锁，已请求。Ubuntu monitor 可用。303fdedc 的旧 Android App 已验证可以主动订阅原版服务，随后停止；未进行新配对。当前尚无 Apple 原版新空口样本，不能宣称属性已对照或与 Android 一致。
+
+### P19 Apple 原版对照已取得报文
+
+用户解锁后，原版 Host 普通监听与配对页分别抓到 7 个 Publish SDF：SDEA 均为 0x0644、CSIA 均为 `04 07 01 05 01`（支持组密钥，PASN-128 与 GTK CCMP-128），DCEA 0x0200 / 0x0300。Apple 普通监听关闭新配对仍保留 GTK 支持，没有 Android Setup=false 的 GTK 矛盾。NIRA 两状态均存在。详见 [完整对照与样本限制](apple-original-publish-comparison.md)。早期 Android 订阅 App 会自动引导配对，用户指出只需比较 iPhone 后已停止；配对页有效文件没有同期 Android 发射。后续完全停用 Android、以及去掉自动引导的临时订阅版本均未补到新的 Publish，记录为未成功复验，不伪装单变量重复通过。303fdedc 已恢复测试前 APK、停止订阅；iPhone 已恢复 AwareBridge 并核验锁屏。原工程及新项目业务源码未改，本轮只有诊断文档更新。

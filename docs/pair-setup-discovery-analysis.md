@@ -72,3 +72,7 @@ NIRA 在两帧之间字节不同，但不同时间的 Nonce/Tag 本来可能变�
 5. 必要时结合 iOS 身份解析日志核验 NIRA 与缓存匹配，现有属性存在性不足以排除身份校验问题。
 
 App 继续保留用户要求的默认关闭及一分钟窗口；暂时打开窗口连接仍只是绕过。测试结束已由 USB 断开 iOS、停止 Android 发布，iPhone 主 LCD 与全局背光均为 off，lockState 返回 passcodeRequired=true，已锁屏。
+
+## Apple 原版 Demo 的后续对照
+
+同日已取得原版 Host 普通监听与“+”配对页的 Publish：SDEA 均为 0x0644，CSIA 均为 `04 07 01 05 01`，同时要求并支持 GTK；DCEA 为 0x0200 / 0x0300，Pairing Enable 位随状态变化。它没有出现本报告中 Android Setup=false 的 GTK 声明矛盾。完整方法、帧号及未成功的补充复验边界见 [Apple 原版对照](apple-original-publish-comparison.md)。这仍不能替代 Android 单字段固件修复及 iOS 过滤分支的因果验证。
