@@ -1,6 +1,5 @@
 package io.awarebridge.android;
 import android.annotation.SuppressLint;
-import android.annotation.TargetApi;
 import android.content.Context;
 import android.net.wifi.aware.WifiAwareManager;
 import android.os.Build;
@@ -29,7 +28,6 @@ final class DeviceInfo {
         return ssi.toByteArray();
     }
 
-    @TargetApi(37)
     static byte[] buildBootstrappingMessage(Context context) {
         return WifiAwareManager.createTxtRecordTlvBuffer(read(context));
     }

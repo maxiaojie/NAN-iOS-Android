@@ -88,3 +88,6 @@ Android NativeApi 同步记录 method=32、命令受理成功，但最终仍约 
 本次 syslog live 实际使用 OsTraceService，并非名称相似的旧 com.apple.syslog_relay。主机经 usbmux 与设备 lockdownd 建立已信任会话，通过 StartService 启动 com.apple.os_trace_relay、连接返回端口，再发送 Plist：Request=StartActivity、MessageFilter=65535、Pid=-1、StreamFlags=60。设备返回 RequestSuccessful 后，主机按记录标记及长度读取二进制流，解析时间、PID、进程、日志等级和消息。底层属于 iOS 系统诊断转发，不要求 App 注入，也不直接读取系统日志文件；private 字段仍受系统隐藏规则约束。本机实现位于 pymobiledevice3/services/os_trace.py 的 OsTraceService.syslog。
 
 测试收尾恢复 a0807d7 原版 APK，停止订阅，恢复 30 秒熄屏设置。iPhone 14 Pro 的自动锁定从临时“永不”恢复为原来的“3 分钟”，界面勾选已核对；两台 iPhone 执行锁屏后再次查询系统锁状态。AOSP 不恢复下载。Ubuntu 抓包保持 monitor 状态，无继续抓包任务。
+
+
+2026-11-17 后续版本范围调整：按用户要求仅支持 Android 17 / API 37 及以上，minSdk 与 targetSdk 均升为 37，移除 API 36 两参数兼容分支，直接调用三参数 Bootstrap 接口。上文 min/target 36 是当时接入阶段的历史配置；本次版本调整不代表元数据传输问题已解决。

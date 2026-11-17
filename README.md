@@ -29,9 +29,9 @@ NAN-iOS-Android/
 
 ### Android
 
-- Android 16 / API 36 或更高，硬件及 ROM 支持 Wi-Fi Aware **和 Aware 配对**。
+- Android 17 / API 37 或更高，硬件及 ROM 支持 Wi-Fi Aware **和 Aware 配对**。
 - 开启 Wi-Fi 和系统定位，授予附近设备、定位权限。
-- JDK **21**、Android SDK Platform **37.0**；Gradle wrapper **9.3.1**、AGP **9.1.1**。minSdk / targetSdk 仍为 36；Android 17 / API 37 使用新增 Bootstrap message 接口携带配对设备信息，API 36 保留旧接口路径。
+- JDK **21**、Android SDK Platform **37.0**；Gradle wrapper **9.3.1**、AGP **9.1.1**。compileSdk / minSdk / targetSdk 均为 37；使用新增 Bootstrap message 接口携带配对设备信息，不再支持 Android 17 以下版本。
 - 使用标准 Android SDK 编译，不需要 `setVendorData` 或 `framework-wifi.jar`，不覆盖 SDK 的 Wi-Fi 编译接口。不同 ROM 仍需验证 Aware 配对和数据链路能力，见 [Android ROM 条件](docs/android-rom.md)。
 
 ```sh

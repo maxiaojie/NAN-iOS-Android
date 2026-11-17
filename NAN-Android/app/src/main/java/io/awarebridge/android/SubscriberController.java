@@ -227,16 +227,11 @@ final class SubscriberController implements BridgeController {
             observer.status("正在协商配对方式，请保持 iOS 系统配对页面打开");
             // iOS expects the initiator's Keypad role in the bootstrap request.
             // On the tested ROM this value reaches the wire unchanged; Display is rejected.
-            if (Build.VERSION.SDK_INT >= 37) {
-                byte[] message = DeviceInfo.buildBootstrappingMessage(context);
-                Log.d("AwareBridge", "Bootstrap request: API 37, TXT TLV bytes=" + message.length);
-                subscriber.initiateBootstrappingRequest(peer.handle,
-                        AwarePairingConfig.PAIRING_BOOTSTRAPPING_PIN_CODE_KEYPAD,
-                        message);
-            } else {
-                subscriber.initiateBootstrappingRequest(peer.handle,
-                        AwarePairingConfig.PAIRING_BOOTSTRAPPING_PIN_CODE_KEYPAD);
-            }
+            byte[] message = DeviceInfo.buildBootstrappingMessage(context);
+            Log.d("AwareBridge", "Bootstrap request: API 37, TXT TLV bytes=" + message.length);
+            subscriber.initiateBootstrappingRequest(peer.handle,
+                    AwarePairingConfig.PAIRING_BOOTSTRAPPING_PIN_CODE_KEYPAD,
+                    message);
         } catch (RuntimeException e) { endPairing("无法发起配对：" + e.getMessage()); }
     }
 

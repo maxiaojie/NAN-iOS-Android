@@ -119,3 +119,7 @@ Android compileSdk 37 / AGP 9.1.1 / Gradle 9.3.1，JDK 21 assembleDebug、lintDe
 API 37 三参数 Bootstrap 调用实机 App 记录非空 TXT TLV 86 字节，iPhone 12 接收日志仍为 TXT 0 / SSI nil，首次配对继续失败。未修改普通 Subscribe SSI，未中断 Ubuntu 下载。详见问题台账 P24/P26 及引导专项文档。
 
 本轮收尾：Android 已停止订阅并恢复 30 秒息屏；关闭 iPhone 12 系统配对页面后执行锁屏，devicectl 确认 passcodeRequired=true。iPhone 14 Pro 未操作。未清除配对缓存。
+
+### 最低 Android 版本调整（2026-11-17）
+
+仅支持 Android 17 / API 37 及以上，compileSdk / minSdk / targetSdk 均为 37；移除 API 36 Bootstrap 兼容分支。assembleDebug / lintDebug 通过，最终 APK 元数据确认三个 SDK 值均为 37。本轮未重新安装或执行双端测试，不改变先前配对问题的验收状态。

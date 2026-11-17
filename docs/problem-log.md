@@ -381,3 +381,9 @@ NanErrorTranslation 打印位置在公开高通 HAL 的 hardware/qcom/wlan/legac
 **处理：** 增加独立 PeerDeviceInfo 解析器，支持已知的 0x04 + 小端长度 TXT TLV 和原始 DNS-SD TXT；按完整记录边界解析，校验长度与 UTF-8，拒绝控制字符和不完整数据，避免从任意二进制偏移提取伪名称。优先 pairingName，其次 modelName；列表补充不同的型号、厂商、会话内编号与配对状态。新回调没有有效字段时保留同一 Peer 已获得的信息；没有名称时明确显示“iOS 设备（未提供名称）”。名称仅用于显示，不作为对端认证或连接选择身份，连接继续使用 PeerHandle。日志仅输出长度与字段名，不输出设备名称内容。
 
 **验证/限制：** 中文名称、型号/厂商、两种编码、空信息、截断、异常字节、非法 UTF-8、控制字符与空名称的解析检查通过；assembleDebug/lintDebug 通过，安装 a0807d7。真机发现两次回调均 SSI bytes=189、fields=[]，UI 显示“iOS 设备（未提供名称）#138”；本轮未在真机取得有效名称，不能宣称已显示真实 iPhone 名称。此前 Framework onMatch 也出现过类似非 TXT 字节内容，但无法单凭此确认空口未发送信息或确定 ROM 出错层。要显示真实名称，须发现回调提供有效 TXT；App 不能据服务名/PeerHandle 推断用户设备名。解析测试加入 scripts/check.sh。
+
+## P27：最低系统版本限定为 Android 17
+
+2026-11-17 用户要求只支持 Android 17 及以上。将 minSdk 从 36 提升至 37，targetSdk 同步设为 37，compileSdk 仍为 37；删除 Bootstrap 的 API 36 两参数兼容路径及不再需要的 TargetApi 注解，直接使用三参数接口。README 更新支持范围，专项文档保留历史配置并追加当前规则。
+
+验证：JDK 21 assembleDebug / lintDebug 通过；aapt2 检查最终 APK 的 minSdkVersion=37、targetSdkVersion=37、compileSdkVersion=37。不再允许低于 API 37 的系统安装。本轮未操作真机或重新验证配对/NDP；此前 Bootstrap 元数据接收为空的问题仍未解决。
