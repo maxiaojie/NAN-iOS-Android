@@ -102,6 +102,10 @@ USB 控制 iPhone 断开并重新连接后，已复现 **Android Setup=false 时
 
 2026-11-16：Ubuntu monitor 恢复后，在信道 6、149 两次复现：Setup=false 时 iOS 一直发现，打开同会话窗口后连接；窗口自动关闭后两端 77/77，最近接收 0 秒。发现 SDEA 要求 GTK 与 CSIA 不支持组密钥的矛盾，开启后 CSIA 恢复组密钥支持与 ID 5；NIRA 两状态均存在。详见 [逐帧分析与限制](pair-setup-discovery-analysis.md)。这是新增诊断证据，未做单字段固件修复验证，不计作关闭状态重连通过。原始抓包不入库。两端已停止，iPhone 已锁屏。
 
+### iPhone 对照与 Android 反向首次配对诊断（2026-11-17）
+
+iPhone 14 Pro 订阅 iPhone 12：首次 PIN、认证、缓存成功，后续双方 NDP ready；不验收应用层双向心跳，因为当前 iOS 只接受 Android 消息。Android a0807d7：原请求方法 2 被 iOS 方法筛选拒绝；临时方法 32 越过方法检查后，iOS 明确报告 Bootstrap 缺少必需元数据（TXT 0 字节），仍超时。生产源码和 APK 恢复，不作为互操作修复通过。详见 [实测证据](ios-publisher-bootstrap-comparison.md)。AOSP 下载保持用户要求的停止状态。
+
 ### Apple 原版 Demo 的 Publish 对照
 
 2026-11-16：原版 iOS Demo 真机签名构建并运行，取得普通监听 / 允许新配对两组 Publish，CSIA 均保留 GTK、SDEA 均要求 GTK，DCEA Pairing Enable 随 UI 状态变化。详见 [证据和复验限制](apple-original-publish-comparison.md)。本轮不验收新 PIN 配对、NDP 或数据收发；Android 关闭 Setup 后重连仍未修复。两端测试 App 已恢复，订阅已停止，iPhone 已锁屏。

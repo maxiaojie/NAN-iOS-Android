@@ -361,3 +361,7 @@ NanErrorTranslation 打印位置在公开高通 HAL 的 hardware/qcom/wlan/legac
 2026-11-17 P24 空口补充：从 Ubuntu 取回历史 1～4.pcapng，2/3/4 共 50 个 iPhone Subscribe 均没有设备 TXT；SDEA 的长度 4 只有 OUI 与 Generic 类型。未获得实际 Bootstrap 握手样本，Publish 中的 Bootstrapping 能力声明不计作握手。详见 [逐文件与代表帧分析](iphone-subscriber-packet-analysis.md)。普通订阅不含 DeviceInfo 与本次首次配对失败必须分开判断。
 
 2026-11-17 P24 最终修正：按 Apple 文档及历史包，普通订阅直接不设置 DeviceInfo SSI，删除 omitSubscribeInfo、失败后重试及“ROM 不接受设备信息”提示。最终 APK assembleDebug/lintDebug 通过并安装 a0807d7，首次 startSubscribe 即 status=0，UI 正常发现服务且无降级提示。这个修改避开订阅配置错误，不记作首次配对修复。
+
+### P24 补充：iPhone 对照定位到实际引导过滤分支
+
+2026-11-17：两台 iPhone 实测首次 PIN 配对成功、NDP ready。a0807d7 的 Bootstrap method=2 在 iPhone 接收端被方法筛选拒绝，日志明确为 `None/Multiple Pairing Methods Requested. NPBA: [], PBEA: []`。临时 APK 改请求 method=32 后越过该分支，但接收端记录 `TXT Record size: 0 bytes`、`Received Pairing SSI: nil` 和 `Missing required pairing metadata in Bootstrap Request`，最终仍超时。因此普通 Subscribe 空 SSI 与 Bootstrap 配对元数据缺失是两件事，后者已取得直接接收日志证据。原版 APK 与源代码恢复，未宣称修复。详细环境、时刻、空口范围和 SDK 方法语义限制见 [iOS 发布端引导对照](ios-publisher-bootstrap-comparison.md)。Ubuntu 原包按用户要求放在 `/home/mxj/NAN/2026-11-17/`，不入 Git。
