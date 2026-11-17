@@ -104,6 +104,8 @@ USB 控制 iPhone 断开并重新连接后，已复现 **Android Setup=false 时
 
 ### iPhone 对照与 Android 反向首次配对诊断（2026-11-17）
 
+后续正式修正：Bootstrap 请求方法固定改为已实测的 Keypad（32）；该方法通过 iOS 方法筛选的证据来自同日临时 APK 对照。元数据缺失仍未解决，首次配对不验收通过。
+
 iPhone 14 Pro 订阅 iPhone 12：首次 PIN、认证、缓存成功，后续双方 NDP ready；不验收应用层双向心跳，因为当前 iOS 只接受 Android 消息。Android a0807d7：原请求方法 2 被 iOS 方法筛选拒绝；临时方法 32 越过方法检查后，iOS 明确报告 Bootstrap 缺少必需元数据（TXT 0 字节），仍超时。生产源码和 APK 恢复，不作为互操作修复通过。详见 [实测证据](ios-publisher-bootstrap-comparison.md)。AOSP 下载保持用户要求的停止状态。
 
 ### Apple 原版 Demo 的 Publish 对照

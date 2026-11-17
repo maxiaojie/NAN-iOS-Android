@@ -69,6 +69,12 @@ Android NativeApi 同步记录 method=32、命令受理成功，但最终仍约 
 
 ## 日志读取原理与收尾
 
+### 后续应用修正：请求改为 Keypad
+
+用户要求把已验证的方法位调整落实到正式代码。SubscriberController.pair 改为传 PAIRING_BOOTSTRAPPING_PIN_CODE_KEYPAD（32），与本地输入 PIN 的角色一致，替代此前 Display（2）。依据同日对照测试，32 可使 iOS 越过方法检查，进入配对元数据检查。此前“恢复原版”的叙述保留为诊断阶段历史；这项修改仍不构成首次配对成功，Bootstrap SSI 缺失未修复，也未验证其他 ROM 的兼容性。
+
+最终版本使用 JDK 21 执行 assembleDebug、lintDebug 通过，并安装到 a0807d7。没有再次解锁已锁定的 iPhone；不把构建和安装作为新增首次配对通过证据。
+
 本次 syslog live 实际使用 OsTraceService，并非名称相似的旧 com.apple.syslog_relay。主机经 usbmux 与设备 lockdownd 建立已信任会话，通过 StartService 启动 com.apple.os_trace_relay、连接返回端口，再发送 Plist：Request=StartActivity、MessageFilter=65535、Pid=-1、StreamFlags=60。设备返回 RequestSuccessful 后，主机按记录标记及长度读取二进制流，解析时间、PID、进程、日志等级和消息。底层属于 iOS 系统诊断转发，不要求 App 注入，也不直接读取系统日志文件；private 字段仍受系统隐藏规则约束。本机实现位于 pymobiledevice3/services/os_trace.py 的 OsTraceService.syslog。
 
 测试收尾恢复 a0807d7 原版 APK，停止订阅，恢复 30 秒熄屏设置。iPhone 14 Pro 的自动锁定从临时“永不”恢复为原来的“3 分钟”，界面勾选已核对；两台 iPhone 执行锁屏后再次查询系统锁状态。AOSP 不恢复下载。Ubuntu 抓包保持 monitor 状态，无继续抓包任务。

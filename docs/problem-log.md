@@ -364,4 +364,6 @@ NanErrorTranslation 打印位置在公开高通 HAL 的 hardware/qcom/wlan/legac
 
 ### P24 补充：iPhone 对照定位到实际引导过滤分支
 
+后续代码处理：按用户要求将 SubscriberController.pair 的 Bootstrap 请求方法由 Display（2）改为 Keypad（32），正式保留已验证能通过 iOS 方法检查的行为；普通 Subscribe 的本地配置原本即为 Keypad，不需改动。该修正只解决第一道方法筛选，Bootstrap 元数据仍为空，不能据此宣称首次配对通过。此前恢复原 APK 的记录是诊断阶段历史。
+
 2026-11-17：两台 iPhone 实测首次 PIN 配对成功、NDP ready。a0807d7 的 Bootstrap method=2 在 iPhone 接收端被方法筛选拒绝，日志明确为 `None/Multiple Pairing Methods Requested. NPBA: [], PBEA: []`。临时 APK 改请求 method=32 后越过该分支，但接收端记录 `TXT Record size: 0 bytes`、`Received Pairing SSI: nil` 和 `Missing required pairing metadata in Bootstrap Request`，最终仍超时。因此普通 Subscribe 空 SSI 与 Bootstrap 配对元数据缺失是两件事，后者已取得直接接收日志证据。原版 APK 与源代码恢复，未宣称修复。详细环境、时刻、空口范围和 SDK 方法语义限制见 [iOS 发布端引导对照](ios-publisher-bootstrap-comparison.md)。Ubuntu 原包按用户要求放在 `/home/mxj/NAN/2026-11-17/`，不入 Git。

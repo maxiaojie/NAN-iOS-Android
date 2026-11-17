@@ -205,9 +205,10 @@ final class SubscriberController implements BridgeController {
             pendingPair = peer;
             handler.postDelayed(pairingTimeout, 90_000);
             observer.status("正在协商配对方式，请保持 iOS 系统配对页面打开");
-            // Request the peer's advertised role: iOS displays the PIN, we enter it.
+            // iOS expects the initiator's Keypad role in the bootstrap request.
+            // On the tested ROM this value reaches the wire unchanged; Display is rejected.
             subscriber.initiateBootstrappingRequest(peer.handle,
-                    AwarePairingConfig.PAIRING_BOOTSTRAPPING_PIN_CODE_DISPLAY);
+                    AwarePairingConfig.PAIRING_BOOTSTRAPPING_PIN_CODE_KEYPAD);
         } catch (RuntimeException e) { endPairing("无法发起配对：" + e.getMessage()); }
     }
 
