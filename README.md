@@ -16,6 +16,7 @@ NAN-iOS-Android/
 ## 功能与范围
 
 - 简洁单页 UI：开始/停止、允许配对开关、配对码、连接状态、发送/接收计数。
+- Android 停止会话后可通过“管理配对缓存”查询、逐条删除或清空本应用的系统配对别名；iOS 端需在“设置 → 隐私与安全 → 配对设备”单独删除。
 - 两端可切换发布/订阅角色，使用 `_aware-bridge._udp`；每次仅连接一个对端。
 - UDP socket 绑定 Android 的 Aware `Network`；在 NDP 响应中通知监听端口和协议号 `17`。
 - 双向心跳与 ACK；ACK 不再回复 ACK，避免循环。超过 20 秒无有效接收显示心跳超时。
@@ -81,7 +82,7 @@ xcodebuild -project NAN-iOS/AwareBridge.xcodeproj -scheme AwareBridge \
 4. iOS 固定监听 UDP `45454`；Android 使用 Aware 网络中的对端 IPv6，并主动发出首包。两端每 5 秒心跳并回复 ACK。
 5. 停止发布/订阅后可切换角色。iOS 仅保留一条已接入连接；发布到期后不主动重建发现会话，新的连接需要停止后重新发布。
 
-**当前 a0807d7 ROM 限制：** 带设备信息 SSI 的 Subscribe 请求返回 `Invalid TLV type`，应用只重试一次，去掉 SSI 后可以发现、验证缓存配对并建立链路。此降级可能影响首次 PIN 配对，本轮 PIN 引导确实超时，不能视为全新配对通过。可先沿原方向完成配对，再使用反向数据连接。详情及精确验收见 [反向流程验证](docs/reverse-flow-validation.md)。
+**当前反向配对限制：** 首次 PIN 配对仍未通过（引导超时）。普通 Subscribe 不再添加设备 TXT，与历史 iPhone Subscribe 样本一致；a0807d7 首次订阅直接成功，已移除旧的 SSI 失败重试和误导提示。设备信息应在首次配对 Bootstrap Request 中单独核对，未确认它与超时的因果关系。已有配对的反向数据连接曾通过；当前两端目标缓存已按用户要求清除。详情见 [反向流程验证](docs/reverse-flow-validation.md) 与 [iPhone 订阅抓包](docs/iphone-subscriber-packet-analysis.md)。
 
 ## 协议与扩展
 

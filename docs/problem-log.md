@@ -340,3 +340,24 @@ iOS syslog 在 11:42:51～52 收到驱动 Discovery Result 通知，11:42:52.960
 **问题/证据/处理：** 带 SSI 的 NAN_SUBSCRIBE 被 native 拒绝（status=5，Invalid TLV type），空 SSI 对照成功；最终只降级重试一次并提示首次配对限制。iOS listener 与配对页同时运行曾出现配对页 publisher error=5，改为先配对后监听。引导请求到达 iOS，但名称为空、Android 引导超时；本轮只确认缓存验证，首次 PIN 尚未验收。NDP 曾 reason=2，去掉反向固定 PSK 后有成功样本，但仍有间歇失败；成功时框架端口=0/协议=-1，约定端口回退后双向通。主线程 UDP connect 异常已修复。iOS 默认 120 秒 publisherTimeout 曾连带取消通信；延长 active 请求未改变系统 120 秒期限，改为独立持有 accepted connection 后越过到期点仍持续收发。
 
 **验证/限制：** 两端构建和原有协议检查通过；新应用已安装、角色 UI 已操作；反向发现、缓存配对验证、NDP 和双向心跳实际成功。首次反向 PIN 与底层拒绝原因仍待验证/ROM 分析，不宣称完整新配对通过。原方向回归仍出现 -11987 / NDP reason=2，重启发布及 Wi-Fi 后未通过，不排除角色切换/缓存状态相关性。完整失败时序、状态返回、区分已确认与推测见 [专项记录](reverse-flow-validation.md)。
+
+
+2026-11-17 P24 补充：已有缓存反向链路演示再次通过；用户删除 iPhone 记录后首次配对仍失败。发现请求方法误用本地 Keypad，已改为对端声明的 Display；修改后请求 method=2，但约 20 秒确认超时、reason=1，未显示 PIN，不能宣称首次配对修复。详见反向专项记录。
+
+Apple 的 [PairingInfo 文档](https://developer.apple.com/documentation/wifiaware/wapaireddevice/pairinginfo-swift.struct) 明确：首次配对时，Publisher 在开启 Setup 的 Publish 帧携带设备信息，Subscriber 在 Pairing Bootstrap Request 携带信息；配对后不再发送这些标识。因此 SubscribeConfig 的 SSI 缺失不直接等同于 Bootstrap 信息缺失，也未证实它是本次引导超时原因。
+
+NanErrorTranslation 打印位置在公开高通 HAL 的 hardware/qcom/wlan/legacy/qcwcn/wifi_hal/nan_rsp.cpp。Subscribe 响应分支将 pFwRsp->status/value 传入，函数把输入 firmwareError 转为 frameworkError，并打印转换后的 status 及响应 value。这表明它在 HAL 处理下层响应，非 Framework Java 参数检查；设备实际拒绝位置仍需对应二进制、驱动及固件证据，不能仅凭公开实现断言固件具体错误条件。
+
+## P25：App 缺少配对缓存管理入口
+
+**环境/需求：** 2026-11-17，a0807d7 TB323FU / Android 17。用户需要在 App 查询及清除自身 NAN 配对缓存；iPhone 删除不会同步清除 Android 缓存。
+
+**处理：** 新增“管理配对缓存”，getPairedDevices 展示别名并刷新；removePairedDevice 删除单条，resetPairedDevices 清空全部。删除需确认，提交后重读系统列表；空列表禁止清空。发布/订阅运行中禁用管理入口，避免活动会话缓存状态失效。查询有超时和错误提示，退出时忽略旧回调并关闭确认框。只管理本应用，不展示密钥，不直接改系统存储文件。
+
+**验证/限制：** JDK 21 assembleDebug/lintDebug 通过，APK 安装 a0807d7；普通 App 进程查询空列表、刷新、空列表禁用清空、开始订阅后禁用管理均通过。此前两条真实缓存已经按用户要求清空（API 与落盘都核验为空），本轮没有伪造缓存；有记录时逐条删除和清空的 UI 分支尚未实机覆盖，首次反向配对仍未通过。服务异常/查询超时仅代码检查，未模拟系统故障。
+
+**iOS：** 当前 DeviceDiscoveryUI 流程使用 WAPairedDevice 查询，已查 SDK 无公开删除方法；通过“设置 → 隐私与安全 → 配对设备”删除。AccessorySetupKit 的 removeAccessory 适用于其管理的配件，不作为当前流程的通用删除接口。
+
+2026-11-17 P24 空口补充：从 Ubuntu 取回历史 1～4.pcapng，2/3/4 共 50 个 iPhone Subscribe 均没有设备 TXT；SDEA 的长度 4 只有 OUI 与 Generic 类型。未获得实际 Bootstrap 握手样本，Publish 中的 Bootstrapping 能力声明不计作握手。详见 [逐文件与代表帧分析](iphone-subscriber-packet-analysis.md)。普通订阅不含 DeviceInfo 与本次首次配对失败必须分开判断。
+
+2026-11-17 P24 最终修正：按 Apple 文档及历史包，普通订阅直接不设置 DeviceInfo SSI，删除 omitSubscribeInfo、失败后重试及“ROM 不接受设备信息”提示。最终 APK assembleDebug/lintDebug 通过并安装 a0807d7，首次 startSubscribe 即 status=0，UI 正常发现服务且无降级提示。这个修改避开订阅配置错误，不记作首次配对修复。

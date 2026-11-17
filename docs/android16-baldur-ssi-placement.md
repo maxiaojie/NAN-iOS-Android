@@ -10,8 +10,6 @@
 
 用户说明，之前已经向 Google 提交过相关问题，从 Android 17 开始，用户配置的服务信息放到了 **Service Descriptor Extension Attribute（SDEA）** 中。当前尚未提供 Google 问题编号、对应修复提交，以及此次 Baldur 抓包文件名/帧号；因此这里保留为用户提供的历史与版本对照线索，尚未独立核对具体变更或适用范围。
 
-术语统一：用户原话中的 “Server Descriptor Attribute” 在本文写作 Service Descriptor Attribute，“Service Descroptor Extension Attribute” 写作 Service Descriptor Extension Attribute。这里要比较的是应用配置的设备信息/SSI 在空口属性中的承载位置，不表示应用直接构造整个 SDA 或 SDEA。
-
 | 对象 | 当前记录 | 证据状态 |
 | --- | --- | --- |
 | Android 16 Baldur | 安装 APK 后 iOS 无法发现；抓包看到设备信息在 SDA 中 | 用户本轮反馈，待补对应原始帧 |

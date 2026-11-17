@@ -17,12 +17,13 @@ import java.util.*;
 /** Foreground publisher or subscriber. Role changes require stopping the session. */
 public final class MainActivity extends Activity {
     private TextView state, pin, stats, peer, lastMessage, instructions;
-    private Button toggle, pairButton, connectButton;
+    private Button toggle, pairButton, connectButton, cacheButton;
     private Switch pairingSwitch;
     private RadioGroup roles;
     private Spinner peerPicker;
     private LinearLayout subscriberControls;
     private AlertDialog pinDialog;
+    private PairingCacheDialog cacheDialog;
     private boolean syncingPairing;
     private BridgeController controller;
     private final List<SubscriberController.Peer> discovered = new ArrayList<>();
@@ -89,6 +90,15 @@ public final class MainActivity extends Activity {
         stats = label(content, "发送 0  ·  接收 0", 20);
         lastMessage = label(content, "每 5 秒双向心跳，收到后回复确认", 16);
         instructions = label(content, "", 15);
+        cacheButton = new Button(this);
+        cacheButton.setText("管理配对缓存");
+        content.addView(cacheButton);
+        cacheButton.setOnClickListener(v -> {
+            if (controller != null) return;
+            if (cacheDialog != null) cacheDialog.dismiss();
+            cacheDialog = new PairingCacheDialog(this);
+            cacheDialog.show();
+        });
         roles.setOnCheckedChangeListener((group, id) -> updateRole());
         updateRole();
         ScrollView scroll = new ScrollView(this);
@@ -188,6 +198,8 @@ public final class MainActivity extends Activity {
     }
 
     private void sessionControls(boolean running) {
+        cacheButton.setEnabled(!running);
+        cacheButton.setText(running ? "停止后可管理配对缓存" : "管理配对缓存");
         for (int i = 0; i < roles.getChildCount(); i++) roles.getChildAt(i).setEnabled(!running);
         if (running) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -251,6 +263,10 @@ public final class MainActivity extends Activity {
         }
         start();
     }
-    @Override protected void onStop() { super.onStop(); stop("已暂停；回到前台后请重新开始"); }
+    @Override protected void onStop() {
+        super.onStop();
+        if (cacheDialog != null) { cacheDialog.dismiss(); cacheDialog = null; }
+        stop("已暂停；回到前台后请重新开始");
+    }
     @Override protected void onDestroy() { stop("已停止"); super.onDestroy(); }
 }

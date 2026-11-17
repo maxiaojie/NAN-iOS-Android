@@ -2,6 +2,10 @@
 
 日期：2026-11-16，Mac 主机时间（Asia/Shanghai）。代码新增角色切换，保留原 Android 发布方向。本轮仅使用用户指定的 **TB323FU a0807d7 / Android 17** 与 **iPhone 12 / iOS 27**；未操作另一台 303fdedc。Android Wi-Fi 开启但没有 STA 连接。平板系统日期显示 11 月 12 日，与主机时间不同，不能直接按日志时间混合排序。
 
+## 当前状态（2026-11-17 更新）
+
+普通 Subscribe 已移除 DeviceInfo SSI，不再先失败后降级，也不再显示“ROM 不接受设备信息”。a0807d7 首次 startSubscribe 返回 status=0，正常发现 iOS 服务。历史 iPhone 50 个 Subscribe 同样没有设备 TXT；Apple 要求订阅端在首次配对 Bootstrap Request 携带信息，不能将其与 Subscribe SSI 混为一谈。首次 PIN 仍未通过。下文保留旧实现的失败与修正历史。
+
 ## 实现
 
 - Android：独立 SubscriberController，Active Subscribe，同一正式服务名，PIN Keypad 引导、PIN 输入、Pairing Setup/Verification 回调和缓存标记；用户显式选设备、配对、连接。90 秒配对超时，停止清除 PIN；拒绝非主动配对请求。
@@ -12,6 +16,14 @@
 - 已接入的 iOS UDP connection 由单独 Task 持有，停止时连同 listener Task 一起取消；发布会话到期不再连带取消数据连接。
 
 ## 排查过程（包括失败方案）
+
+### 2026-11-17 现场演示补充
+
+复用已有缓存时，a0807d7 与 iPhone 12 再次建立反向链路，双端显示双向数据通信，截图时 iOS 发送/接收 26/26，Android 27/26，随后 Android 计数 28/27。该结果仍不代表首次配对通过。
+
+用户在 iPhone 的“设置 → 隐私与安全 → 配对设备”删除目标配对后，重新打开允许 Android 配对。Android 发现未配对服务，但原代码请求本地 Keypad（32），而 iOS 声明 Display（2），引导被拒绝 reason=3。依据 DiscoverySession 接口说明，请求方法应取自对端声明；已改为请求 Display，本地订阅能力仍为 Keypad。JDK 21 下 assembleDebug/lintDebug 通过，并覆盖安装至 a0807d7。修改后确认请求 method=2，但约 20 秒后 HAL Pairing Confirm Timeout、reason=1，iOS 未显示 PIN；首次配对仍未通过，不能把方法修正记作完整修复。带 86 字节 SSI 的订阅仍返回 status=5 / Invalid TLV type，空 SSI 重试 status=0；未证实其与 PIN 超时的因果关系。
+
+随后按用户明确要求，使用 WifiAwareManager.resetPairedDevices() 针对 io.awarebridge.android 清除 a0807d7 的 awarebridge-105、awarebridge-100 两条缓存。getPairedDevices 回调返回空列表，落盘 PerAppPairedAliasMap 同样核验为空。未清除其他应用、其他 Android 设备或 iPhone 的其他配对记录；辅助工具未修改业务 App 数据。后续需从双方无目标配对的状态重新验证。iPhone 删除路径由用户补充并由用户手动完成，不能记录为自动 UI 删除成功。
 
 ### 1. Android 带 SSI 的订阅失败
 
@@ -26,7 +38,7 @@ onSessionConfigFailLocal: isPublish=false, reason=5
 
 同设备、同服务、同配对参数，去掉 Subscribe SSI 后返回 `status=0 / NAN status success`，进入 onSubscribeStarted，之后收到 iOS 服务发现及缓存验证回调。确认 **当前带 SSI 请求被设备底层拒绝、空 SSI 对照可启动**；尚未定位具体 TLV 的构造与拒绝分支，不把 `value 28` 当作已确认的 TLV 编号。
 
-最终代码先保留完整设备信息请求；若初始化配置失败，只重试一次空 SSI，并显示首次配对可能不可用的提示。这不是修复 ROM，也不代表任何配置失败都由 SSI 引起。无 SSI 的降级只确认已配对设备可用。
+2026-11-16 版本先保留完整设备信息请求；若初始化配置失败，只重试一次空 SSI，并显示首次配对可能不可用的提示。这不是修复 ROM，也不代表任何配置失败都由 SSI 引起。无 SSI 的降级只确认已配对设备可用。
 
 ### 2. iOS 系统配对页发布冲突
 

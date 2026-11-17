@@ -1,5 +1,9 @@
 # 真机验证记录
 
+2026-11-17 最终订阅修正：移除 Subscribe DeviceInfo 与降级重试。a0807d7 首次 native startSubscribe 返回 status=0 并发现 iOS 服务，未出现旧提示。首次 PIN 仍未通过；与 Bootstrap 信息承载分开跟踪。
+
+2026-11-17：Android 新增配对缓存查询/刷新、单条删除、清空全部和删除确认。assembleDebug/lintDebug 通过，已安装 a0807d7；空列表查询、刷新、清空禁用和订阅期间管理禁用实机通过。有记录删除 UI 尚未覆盖，详见 [P25](problem-log.md#p25app-缺少配对缓存管理入口)。已有缓存的反向通信再次演示成功，删除后新 PIN 仍未通过，不能混作完整配对验收。
+
 2026-11-16 新增反向角色真机验证：使用用户指定的 a0807d7 与 iPhone 12。iOS 发布 → Android 订阅的服务发现、缓存配对 Verification、NDP、UDP 45454 双向心跳通过；iOS 120 秒发布到期后保留独立 connection，继续收发。**首次反向 PIN 未通过验收**（引导超时），订阅 SSI 被当前 ROM 拒绝，最终有一次空 SSI 降级。本轮原方向回归仍遇到 -11987 / NDP reason=2，未重新通过双向数据验收。详见 [P24 反向流程完整记录](reverse-flow-validation.md)。以下早期记录主要是原 Android 发布方向，不能混作反向首次配对证据。
 
 

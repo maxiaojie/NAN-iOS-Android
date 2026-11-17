@@ -49,7 +49,6 @@ final class SubscriberController implements BridgeController {
     private WifiAwareNetworkInfo networkInfo;
     private Peer pendingPair;
     private boolean closed, registered, networkReady;
-    private boolean omitSubscribeInfo;
     private final Runnable pairingTimeout = () -> endPairing("配对超时，请重新打开 iOS 配对页面后重试");
 
     SubscriberController(Context context, Observer observer) {
@@ -115,7 +114,8 @@ final class SubscriberController implements BridgeController {
                 .setSubscribeType(SubscribeConfig.SUBSCRIBE_TYPE_ACTIVE)
                 .setPairingConfig(pairing)
                 .setTerminateNotificationEnabled(true);
-        if (!omitSubscribeInfo) config.setServiceSpecificInfo(DeviceInfo.build(context));
+        // Ordinary Subscribe frames do not carry pairing device TXT metadata.
+        // Subscriber identity belongs in the pairing bootstrap request.
         aware.subscribe(config.build(), discovery, handler);
     }
 
@@ -123,9 +123,7 @@ final class SubscriberController implements BridgeController {
         @Override public void onSubscribeStarted(SubscribeDiscoverySession session) {
             if (closed) { session.close(); return; }
             subscriber = session;
-            observer.status(omitSubscribeInfo
-                    ? "正在发现 iOS 服务（ROM 不接受设备信息，首次配对可能失败）"
-                    : "正在发现 iOS 服务；首次配对请在 iOS 打开允许配对");
+            observer.status("正在发现 iOS 服务；首次配对请在 iOS 打开允许配对");
         }
         @Override public void onServiceDiscovered(PeerHandle handle, byte[] info, List<byte[]> filter) {
             found(handle, info, null);
@@ -182,16 +180,7 @@ final class SubscriberController implements BridgeController {
         }
         @Override public void onSessionConfigFailed() {
             if (closed) return;
-            if (subscriber == null && !omitSubscribeInfo && aware != null) {
-                // TB323FU Android 17 rejects Subscribe SSI with Invalid TLV type.
-                // Retry once without metadata so cached peers can still connect.
-                omitSubscribeInfo = true;
-                observer.status("ROM 拒绝订阅配置，去掉设备信息重试；首次配对可能不可用");
-                try { subscribe(pairingConfig()); }
-                catch (RuntimeException | LinkageError e) { fail("订阅重试失败：" + e.getMessage()); }
-            } else {
-                fail("订阅配置失败，请检查 ROM 的 Aware 支持");
-            }
+            fail("订阅配置失败，请检查 ROM 的 Aware 支持");
         }
         @Override public void onSessionTerminated() { fail("订阅已终止，请重新开始"); }
     };
@@ -216,7 +205,9 @@ final class SubscriberController implements BridgeController {
             pendingPair = peer;
             handler.postDelayed(pairingTimeout, 90_000);
             observer.status("正在协商配对方式，请保持 iOS 系统配对页面打开");
-            subscriber.initiateBootstrappingRequest(peer.handle, KEYPAD);
+            // Request the peer's advertised role: iOS displays the PIN, we enter it.
+            subscriber.initiateBootstrappingRequest(peer.handle,
+                    AwarePairingConfig.PAIRING_BOOTSTRAPPING_PIN_CODE_DISPLAY);
         } catch (RuntimeException e) { endPairing("无法发起配对：" + e.getMessage()); }
     }
 
