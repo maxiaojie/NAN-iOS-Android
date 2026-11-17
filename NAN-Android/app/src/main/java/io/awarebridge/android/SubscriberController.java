@@ -7,7 +7,7 @@ import android.net.wifi.aware.*;
 import android.os.*;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
+import android.util.Log;
 import java.util.*;
 
 /** Explicitly selected peer, PIN keypad initiator, then NDP/UDP initiator. */
@@ -22,13 +22,33 @@ final class SubscriberController implements BridgeController {
         final PeerHandle handle;
         String name;
         boolean paired;
+        private final Map<String, String> deviceInfo = new LinkedHashMap<>();
 
         Peer(PeerHandle handle, byte[] info) {
             this.handle = handle;
-            name = deviceName(info, "iOS 服务 #" + handle.hashCode());
+            updateInfo(info);
         }
 
-        @Override public String toString() { return name + (paired ? " · 已配对" : ""); }
+        void updateInfo(byte[] info) {
+            Map<String, String> received = PeerDeviceInfo.parse(info);
+            deviceInfo.putAll(received);
+            name = deviceInfo.getOrDefault("pairingName",
+                    deviceInfo.getOrDefault("modelName", "iOS 设备（未提供名称）"));
+            Log.d("AwareBridge", "Peer metadata: peer=" + handle.hashCode()
+                    + ", SSI bytes=" + (info == null ? 0 : info.length)
+                    + ", fields=" + received.keySet());
+        }
+
+        @Override public String toString() {
+            StringBuilder label = new StringBuilder(name);
+            for (String key : Arrays.asList("modelName", "vendorName")) {
+                String value = deviceInfo.get(key);
+                if (value != null && !value.equals(name)) label.append(" · ").append(value);
+            }
+            label.append(" #").append(handle.hashCode());
+            if (paired) label.append(" · 已配对");
+            return label.toString();
+        }
     }
 
     // Shared application port; some ROMs omit the peer port from WifiAwareNetworkInfo.
@@ -192,7 +212,7 @@ final class SubscriberController implements BridgeController {
             peer = new Peer(handle, info);
             peers.put(handle, peer);
         } else {
-            peer.name = deviceName(info, peer.name);
+            peer.updateInfo(info);
         }
         if (alias != null && !alias.isEmpty()) peer.paired = true;
         observer.peers(new ArrayList<>(peers.values()));
@@ -207,8 +227,16 @@ final class SubscriberController implements BridgeController {
             observer.status("正在协商配对方式，请保持 iOS 系统配对页面打开");
             // iOS expects the initiator's Keypad role in the bootstrap request.
             // On the tested ROM this value reaches the wire unchanged; Display is rejected.
-            subscriber.initiateBootstrappingRequest(peer.handle,
-                    AwarePairingConfig.PAIRING_BOOTSTRAPPING_PIN_CODE_KEYPAD);
+            if (Build.VERSION.SDK_INT >= 37) {
+                byte[] message = DeviceInfo.buildBootstrappingMessage(context);
+                Log.d("AwareBridge", "Bootstrap request: API 37, TXT TLV bytes=" + message.length);
+                subscriber.initiateBootstrappingRequest(peer.handle,
+                        AwarePairingConfig.PAIRING_BOOTSTRAPPING_PIN_CODE_KEYPAD,
+                        message);
+            } else {
+                subscriber.initiateBootstrappingRequest(peer.handle,
+                        AwarePairingConfig.PAIRING_BOOTSTRAPPING_PIN_CODE_KEYPAD);
+            }
         } catch (RuntimeException e) { endPairing("无法发起配对：" + e.getMessage()); }
     }
 
@@ -286,18 +314,6 @@ final class SubscriberController implements BridgeController {
             networkReady = true;
             observer.status("数据链路已建立，正在向 iOS 发送心跳");
         } catch (IOException e) { fail("绑定 Aware 网络失败：" + e.getMessage()); }
-    }
-
-    private static String deviceName(byte[] data, String fallback) {
-        if (data == null) return fallback;
-        // Find a bounded length-prefixed TXT record; ignore unfamiliar Apple envelopes.
-        for (int i = 0; i < data.length; i++) {
-            int length = data[i] & 0xff;
-            if (length == 0 || i + 1 + length > data.length) continue;
-            String record = new String(data, i + 1, length, StandardCharsets.UTF_8);
-            if (record.startsWith("pairingName=") && record.length() > 12) return record.substring(12);
-        }
-        return fallback;
     }
 
     private void fail(String status) {

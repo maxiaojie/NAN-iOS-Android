@@ -1,7 +1,7 @@
 plugins { id 'com.android.application' }
 android {
     namespace 'io.awarebridge.android'
-    compileSdk 36
+    compileSdk 37
     defaultConfig {
         applicationId 'io.awarebridge.android'
         minSdk 36

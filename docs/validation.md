@@ -111,3 +111,11 @@ iPhone 14 Pro 订阅 iPhone 12：首次 PIN、认证、缓存成功，后续双�
 ### Apple 原版 Demo 的 Publish 对照
 
 2026-11-16：原版 iOS Demo 真机签名构建并运行，取得普通监听 / 允许新配对两组 Publish，CSIA 均保留 GTK、SDEA 均要求 GTK，DCEA Pairing Enable 随 UI 状态变化。详见 [证据和复验限制](apple-original-publish-comparison.md)。本轮不验收新 PIN 配对、NDP 或数据收发；Android 关闭 Setup 后重连仍未修复。两端测试 App 已恢复，订阅已停止，iPhone 已锁屏。
+
+### API 37 引导消息与发现名称（2026-11-17）
+
+Android compileSdk 37 / AGP 9.1.1 / Gradle 9.3.1，JDK 21 assembleDebug、lintDebug 通过；解析器独立检查通过，新 APK 安装 a0807d7。发现列表支持 pairingName、modelName、vendorName，并保留编号区分设备。实机当前 SSI 189 字节未解析到有效字段，因此仅验收“未提供名称”回退显示，不验收真实设备名展示。
+
+API 37 三参数 Bootstrap 调用实机 App 记录非空 TXT TLV 86 字节，iPhone 12 接收日志仍为 TXT 0 / SSI nil，首次配对继续失败。未修改普通 Subscribe SSI，未中断 Ubuntu 下载。详见问题台账 P24/P26 及引导专项文档。
+
+本轮收尾：Android 已停止订阅并恢复 30 秒息屏；关闭 iPhone 12 系统配对页面后执行锁屏，devicectl 确认 passcodeRequired=true。iPhone 14 Pro 未操作。未清除配对缓存。

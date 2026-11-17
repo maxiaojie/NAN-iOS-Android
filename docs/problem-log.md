@@ -367,3 +367,17 @@ NanErrorTranslation 打印位置在公开高通 HAL 的 hardware/qcom/wlan/legac
 后续代码处理：按用户要求将 SubscriberController.pair 的 Bootstrap 请求方法由 Display（2）改为 Keypad（32），正式保留已验证能通过 iOS 方法检查的行为；普通 Subscribe 的本地配置原本即为 Keypad，不需改动。该修正只解决第一道方法筛选，Bootstrap 元数据仍为空，不能据此宣称首次配对通过。此前恢复原 APK 的记录是诊断阶段历史。
 
 2026-11-17：两台 iPhone 实测首次 PIN 配对成功、NDP ready。a0807d7 的 Bootstrap method=2 在 iPhone 接收端被方法筛选拒绝，日志明确为 `None/Multiple Pairing Methods Requested. NPBA: [], PBEA: []`。临时 APK 改请求 method=32 后越过该分支，但接收端记录 `TXT Record size: 0 bytes`、`Received Pairing SSI: nil` 和 `Missing required pairing metadata in Bootstrap Request`，最终仍超时。因此普通 Subscribe 空 SSI 与 Bootstrap 配对元数据缺失是两件事，后者已取得直接接收日志证据。原版 APK 与源代码恢复，未宣称修复。详细环境、时刻、空口范围和 SDK 方法语义限制见 [iOS 发布端引导对照](ios-publisher-bootstrap-comparison.md)。Ubuntu 原包按用户要求放在 `/home/mxj/NAN/2026-11-17/`，不入 Git。
+
+### P24 补充：API 37 Bootstrap message 接入后的真机结果
+
+2026-11-17：用户指出 SDK 37 新增三参数 initiateBootstrappingRequest。已从官方文档及 a0807d7 运行时确认接口与 createTxtRecordTlvBuffer；App 使用官方助手编码设备的 modelName、pairingName、vendorName，API 37 传 message，API 36 保留旧路径，普通 Subscribe 不加设备信息。为编译公共接口升级 compileSdk 37、AGP 9.1.1、Gradle 9.3.1，min/targetSdk 仍为 36。
+
+新 APK 构建/lint 通过并安装 a0807d7。第二次对照 App 明确打印 API 37 / TXT TLV 86 字节；系统 NativeApi 收到 method=32，但 iPhone 12 在 Mac 时间 17:49:44.883 仍打印 TXT Record size: 0 bytes、Received Pairing SSI: nil、Missing required pairing metadata。首次配对未修复。确认 App 生成非空 message 与 iOS 接收为空，不足以确定中间是设备 Framework、HAL、固件哪层丢失；需继续检查实际设备实现，不能再断言无公共 API。没有中断 Ubuntu Android 17 下载或切换网卡抓包。详见专项文档。
+
+## P26：订阅发现列表缺少直观设备名称
+
+**环境/表现：** 2026-11-17，a0807d7 Android 17 订阅 iPhone 12。原列表常显示“iOS 服务 #编号”，旧代码只扫描 pairingName，未展示型号、厂商。
+
+**处理：** 增加独立 PeerDeviceInfo 解析器，支持已知的 0x04 + 小端长度 TXT TLV 和原始 DNS-SD TXT；按完整记录边界解析，校验长度与 UTF-8，拒绝控制字符和不完整数据，避免从任意二进制偏移提取伪名称。优先 pairingName，其次 modelName；列表补充不同的型号、厂商、会话内编号与配对状态。新回调没有有效字段时保留同一 Peer 已获得的信息；没有名称时明确显示“iOS 设备（未提供名称）”。名称仅用于显示，不作为对端认证或连接选择身份，连接继续使用 PeerHandle。日志仅输出长度与字段名，不输出设备名称内容。
+
+**验证/限制：** 中文名称、型号/厂商、两种编码、空信息、截断、异常字节、非法 UTF-8、控制字符与空名称的解析检查通过；assembleDebug/lintDebug 通过，安装 a0807d7。真机发现两次回调均 SSI bytes=189、fields=[]，UI 显示“iOS 设备（未提供名称）#138”；本轮未在真机取得有效名称，不能宣称已显示真实 iPhone 名称。此前 Framework onMatch 也出现过类似非 TXT 字节内容，但无法单凭此确认空口未发送信息或确定 ROM 出错层。要显示真实名称，须发现回调提供有效 TXT；App 不能据服务名/PeerHandle 推断用户设备名。解析测试加入 scripts/check.sh。

@@ -51,9 +51,19 @@ Android NativeApi 同步记录 method=32、命令受理成功，但最终仍约 
 
 1. 普通 Subscribe 不带设备 TXT 仍合理。本次缺失的是首次配对 Bootstrap Request 的 SSI，不能混为一谈。
 2. 当前 ROM/调用组合有两项阻碍：方法 2 在接收端被解释为 Display，不满足 iOS 此请求分支；方法 32 越过方法检查后，引导配对元数据为空。
-3. Android 公共 initiateBootstrappingRequest(peerHandle, method) 没有 SSI 参数，不能直接从此调用补 TXT。把 TXT 加回普通 Subscribe，也没有证据证明它能转移到 Bootstrap Request，且该 ROM 已有 Invalid TLV type 的历史失败。
+3. 本轮旧代码调用的两参数 initiateBootstrappingRequest(peerHandle, method) 没有 SSI 参数。此前据 SDK 36 将其推广为“公共接口不能传入元数据”不准确：API 37 已提供三参数重载，见下方修正。把 TXT 加回普通 Subscribe，也没有证据证明它能转移到 Bootstrap Request，且该 ROM 已有 Invalid TLV type 的历史失败。
 4. Android API 的 method 文档按对端能力描述，生产代码选择 Display 有其依据。方法 32 是本次针对实际行为的诊断对照，不代表所有 ROM 都应无条件改为 Keypad。没有把只绕过第一项检查的版本作为修复提交；需要核对设备实际 framework/HAL/firmware 的方法转换与引导 SSI 设置来源。
-5. iOS 日志确认过滤分支，不能据此补写完整私有实现或确定所有必填 TXT 键。下一步应在 ROM 层使 Bootstrap 请求携带有效配对元数据，并验证完整首次 PIN 流程。
+5. iOS 日志确认过滤分支，不能据此补写完整私有实现或确定所有必填 TXT 键。应先使用 API 37 新增的 message 参数传入设备信息，再核对对端接收日志及完整首次 PIN 流程，不能预先认定必须修改 ROM。
+
+## API 37 新接口修正与接入
+
+用户指出 API 37 新增 initiateBootstrappingRequest(PeerHandle, int, byte[])。已核对 [官方 DiscoverySession 文档](https://developer.android.com/reference/android/net/wifi/aware/DiscoverySession)：message 会作为 SDEA Service Info 传输，推荐 createTxtRecordTlvBuffer(Map) 生成 DNS-SD TXT。两参数接口自 API 34 存在，三参数接口自 API 37 增加，不能混用版本结论。
+
+在 a0807d7（Android 17 / API 37）执行只读运行时方法探测，确认实际 Framework 同时具有两种重载和 WifiAwareManager.createTxtRecordTlvBuffer(Map)。纯测试 map k=v 经官方助手得到 04 04 00 03 6b 3d 76，createTxtRecordMap 可还原，验证助手已包含 TXT TLV 头，不能再套一层现有 DeviceInfo.build 头。
+
+应用接入：API 37 调用三参数重载，message 使用官方助手，从设备读取 modelName、pairingName、vendorName 编码；本地方法仍为 PIN Keypad。API 36 保留旧路径；普通 Subscribe 继续不携带 DeviceInfo。共享读取与 UTF-8 长度限制，Publish 原有编码保留。compileSdk 升级 37，按官方工具兼容表升级 AGP 9.1.1 / Gradle 9.3.1，minSdk、targetSdk 保持 36。
+
+新 APK 已完成 assembleDebug / lintDebug 并安装 a0807d7。首轮 iPhone 12 在 17:39:59.909 仍报告 TXT 0 / SSI nil；增加安全诊断日志后再次测试，Android App 记录 `Bootstrap request: API 37, TXT TLV bytes=86`，Framework NativeApi 记录 method=32，iPhone 在 Mac 时间 17:49:44.883 仍记录 `TXT Record size: 0 bytes`、`Received Pairing SSI: nil`、`Missing required pairing metadata in Bootstrap Request`。因此参数在 App 侧非空，实际接收仍为空，首次配对未修复。尚不能确定丢失发生于设备 Framework、HAL、固件或编码交接环节，需检查实际实现。Ubuntu 仍在下载，按用户要求本轮没有切换 monitor 或进行空口抓包。该公共接口的存在修正此前“没有公开办法传参”的判断。
 
 ## 空口索引与证据边界
 
