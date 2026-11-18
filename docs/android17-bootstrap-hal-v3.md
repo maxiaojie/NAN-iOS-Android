@@ -214,3 +214,7 @@ rg -n 'wifi_nan_bootstrapping_request|nan_bootstrapping_request' hardware vendor
 
 
 2026-11-18 冻结接口完整对比补充：V3→V4 没有新增 IWifi* Binder 业务方法，主要是 6 个 NAN 类型的字段/枚举变化和 1 个新枚举文件。此前“包括新接口方法”的表述不准确，已修正；回移植仍需补齐新字段转换。详见 [完整 V3/V4 对比](wifi-hal-aidl-v3-v4-comparison.md)。
+
+### 对端 V3 是否会让 Framework 裁剪发送字段
+
+2026-11-18 再次直接核对设备 service-wifi.jar，而非仅按 AOSP 推测：IWifiNanIface$Stub$Proxy.initiateBootstrappingRequest（DEX 0x2bc798）直接 writeTypedObject(request) 后执行 Binder transact=21，没有 getInterfaceVersion 或按 V3 裁剪字段的分支。NanBootstrappingRequest.writeToParcel（DEX 0x2c00c0）无条件在 discoverySessionId 后调用 writeByteArray(serviceSpecificInfo)，也没有对端版本参数。WifiNanIfaceAidlImpl 的对应构造/发送路径同样没有按 V3 清空 SSI 的分支。因此，即使 Framework 已知 vendor 为 V3，本设备当前调用路径仍写出新增字段；Binder 传输不会自行按 AIDL 版本改写 payload。接收方 V3 reader 使用 parcelable size 跳过不认识的尾部，完成前向兼容。这是“新发送端写全部已知字段、旧接收端忽略未知字段”，不是协商生成 V3 格式。本轮只读设备已提取的二进制，没有新一轮真机配对操作。
