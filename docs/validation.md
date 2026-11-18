@@ -127,3 +127,8 @@ API 37 三参数 Bootstrap 调用实机 App 记录非空 TXT TLV 86 字节，iPh
 ### Bootstrap 空口与 vendor HAL 版本定位（2026-11-18）
 
 当前 APK 安装 a0807d7，iPhone 12 系统配对页复现失败。App TXT TLV 86 字节；信道 6 第 81821/81824 帧为 Bootstrap Request 的单播 SDF Follow-up 原发/Retry，均没有 SDEA；iPhone 日志 TXT 0 / SSI nil。实际 Wi-Fi HAL 运行时 V3，二进制仅读取旧六个字段；新 SSI 为 V4 字段，丢失断点已定位。确认诊断，不验收首次配对修复，未改 ROM/HAL。详见 [代码、空口和 ROM 升级位置](android17-bootstrap-hal-v3.md)。结束后 Android 停止并恢复 30 秒息屏，iPhone 12 锁屏。
+
+
+### 用户构建的 Vendor V4 产物部署（2026-11-18）
+
+a0807d7 已替换 Wi-Fi HAL 服务、添加 V4 NDK 库、将 VINTF 声明改为 4 并重启。运行版本查询 4、服务 running、maps 加载 V4 库、SHA-256 匹配。仅部署与服务初始化检查通过，未验收 Bootstrap SSI、首次配对或 NDP；仍保留此前失败结论，待双端测试。详见 [部署记录](wifi-hal-aidl-v3-v4-comparison.md#vendor-私有-v4-产物部署2026-11-18)。

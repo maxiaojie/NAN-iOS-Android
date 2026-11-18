@@ -400,3 +400,8 @@ AOSP Android 17 下载完成后，重新安装当前 APK，使用 a0807d7 / iPho
 ### P24：Wi-Fi AIDL V3/V4 冻结接口完整对比
 
 2026-11-18 按用户要求递归比较 Android 17 hardware/interfaces 冻结快照：V3 140 个 .aidl，V4 141 个，修改 6 个、新增 1 个，均为 NAN 类型。所有 IWifi* 方法/回调接口文件完全相同，没有新增 Binder 业务方法；修正此前升级文档“包括新接口方法”的宽泛表述。新增内容为 Bootstrap 请求/接收事件的 SSI、Bootstrap 响应方法、NONE 方法枚举、两个组密钥 cipher mask、周期测距间隔 bitmap 及对应枚举。SSI 的 V3 边界缺失结论保持；组密钥枚举新增不能代替此前 GTK 构帧问题的因果验证，发现 SSI 不可解析也不能与 Bootstrap RequestInd 新字段混同。完整表格及回移植范围见 [V3/V4 差异](wifi-hal-aidl-v3-v4-comparison.md)。本轮仅源码分析，未改 ROM、未操作真机或验收配对修复。
+
+
+### P24：部署用户编译的 Vendor V4 验证产物（2026-11-18）
+
+Downloads 中服务及 V4 NDK 库已备份后部署到 a0807d7，VINTF 同步声明 4，重启后 Binder 返回版本 4、进程实际加载 V4 库，文件 hash 匹配。另一台平板未操作。本轮只通过部署/加载检查，尚未验证 Bootstrap SSI 空口与首次配对；备份位置、证据和回退说明见 [部署记录](wifi-hal-aidl-v3-v4-comparison.md#vendor-私有-v4-产物部署2026-11-18)。

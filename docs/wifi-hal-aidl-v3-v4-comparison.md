@@ -133,3 +133,12 @@ Vendor 编译反馈（2026-11-18）：用户截图显示 aidl_struct_util.cpp:36
 7. 更新目标 VINTF Wi-Fi 版本声明，构建部署匹配 Vendor 产物，检查实际服务 getInterfaceVersion、加载库和后续空口/iOS 日志。生成快照本身不完成转换、不证明首次配对通过。
 
 依据：下载树 system/tools/aidl/build/aidl_api.go 的 makeApiDumpAsVersion 从完整 API dump 复制新版本目录；migrateAndAppendVersion 调用 bpmodify 追加版本并设 frozen=true。本次仅核对工具源码并记录步骤，未在隔离 Vendor 执行更新、冻结或编译。
+
+
+### Vendor 私有 V4 产物部署（2026-11-18）
+
+按用户要求，将 Downloads/android.hardware.wifi-service 与 android.hardware.wifi-V4-ndk.so 部署到 a0807d7（TB323FU / Android 17），未操作另一台 303fdedc。部署前 ELF 确认服务 DT_NEEDED 为 V4 NDK；原服务及 VINTF XML 已备份到 Mac /Users/mxj/workspace/nan-capture-analysis/2026-11-18/vendor-v4-backup-a0807d7/。设备原无 V4 NDK 库，保留原 V3 库。root/remount 后停止 vendor.wifi_hal_legacy，替换服务、添加 V4 库，并把原 Wi-Fi VINTF fragment 的版本从 3 改为 4；恢复权限/SELinux 标签并重启。
+
+重启验证：sys.boot_completed=1；root 下 getInterfaceVersion 返回 4；init.svc.vendor.wifi_hal_legacy=running，PID 1266 的 maps 实际加载 /vendor/lib64/android.hardware.wifi-V4-ndk.so；XML 声明 4。服务与库设备端 SHA-256 均与下载产物一致：服务 b2af3812b34720cf85fe09853f4428fb73ba0211785b6968d9c8b929d96668b2；库 26c5f7d42131d8a2eb0381e8b1e428f48e21b35edd2cad482351c8521c279bc7。日志包含 Wifi HAL started、Configured chip in mode 3 与 wifi-aware0 接口初始化。普通 shell 查询 Binder 曾显示服务不存在，adb root 后可正常查询，不据此前一次输出判断服务启动失败。设备日志日期为 11-12，与本轮操作日期不一致，不能用日志日期作为真实部署日期。
+
+本轮仅验收部署、加载与运行版本；下载产物为用户构建，其完整源码改动未由助手审核。未执行双端发现、Bootstrap SSI 抓包、首次配对或 NDP 测试，不宣称配对问题修复，亦不宣称该私有版本兼容完整标准 V4。回退时恢复备份服务和 XML，移除本轮新增 V4 库并重启，原 V3 库未修改。
