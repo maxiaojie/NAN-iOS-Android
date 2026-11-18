@@ -85,3 +85,11 @@ V4 新增的组密钥 HAL mask 为 16、32；它们是能力位掩码，**不是
 2026-11-18 用户询问高通是否提供 V4 HAL。公开检索未取得可证明“本平板对应 Wi-Fi 芯片/BSP 已交付完整 V4 Bootstrap SSI 支持”的高通发布说明或提交；CodeLinaro 页面访问受 robots 限制。搜索不到不代表高通没有提供，不能据此判断其私有 BSP 交付状态。
 
 已确定的只有 AOSP Android 17 提供 V4 Binder 接口/默认服务，以及当前平板实际运行 V3。android.hardware.wifi-V4-ndk 是 AOSP 接口版本，不是 libwifi-hal-qcom.so 的通用产品版本号。需要向对应 BSP/WLAN 维护方核对高通库、驱动、固件是否支持通过 wifi_nan_bootstrapping_request 在 PIN Keypad 引导请求的 SDEA 中携带 SSI，而不仅是存在该函数指针、支持 Service Managed 方法或已经具备基本 NAN 配对。尚未访问用户隔离服务器，未确认该私有源码是否已有补丁。
+
+## 保持 V3 外部版本进行定向验证的可行性
+
+2026-11-18 用户提出只修改 V3 Bootstrap 方法携带 deviceInfo。工程上可对 vendor 端定向回移植 SSI 来验证，但不能只改 initiateBootstrappingRequestInternal 的函数体：当前 V3 reader 已在进入方法前跳过新字段，必须同时让原生 NanBootstrappingRequest 的类型定义、Parcel reader/writer 和使用它的代码认识 SSI，再补齐 AIDL→legacy 转换及下游高通序列化。Framework 已写新字段，App 无需为此再改一套协议。
+
+只在自有匹配构建中作诊断时，可以保持旧方法签名并验证新字段通路；应使用生成源码的维护流程，不把直接修改生成的 C++ 文件当作持久修复。类型内存布局变化后需重编译匹配的服务/库，不能只替换不匹配的单个 NDK so。旧请求没有尾部字段时仍须兼容读取。
+
+正式产品不应修改冻结 aidl_api/3 内容或悄悄扩展 V3 却沿用原 hash/version：这已构成 parcelable 接口变更。AOSP 已有与 Framework 匹配的完整冻结 V4，优先在 vendor Wi-Fi 服务局部引入 V4，无需因此升级整个 Vendor；没有新增 Binder 业务方法，工作重点仍是字段转换和高通下游能力。保持 V3 的私有回移植可用于验证，但不作为标准 V3 兼容交付方案。当前未访问隔离 ROM 源码、未制作 ROM 补丁、未验证高通对 PIN Keypad SSI 的支持，不能预先承诺仅改 reader 即可配对成功。
