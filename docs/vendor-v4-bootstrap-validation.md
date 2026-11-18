@@ -1,5 +1,9 @@
 # Vendor V4 Bootstrap SSI 实机验证（2026-11-18）
 
+## 根因与最小修复结论
+
+该产品 Framework 为 Android 17、Vendor 为 Android 16 基线（Vendor 基线由用户说明，未访问其隔离源码）。Android 17 Framework 已支持 Bootstrap message 并写入 SDEA SSI 对应的 AIDL 字段；原 Vendor V3 AIDL 定义没有 serviceSpecificInfo，旧 reader 将其跳过。高通 legacy 结构体和封装路径已具备 SDEA SSI 支持。本次仅替换 Wi-Fi HAL 服务、AIDL NDK 库及 VINTF 声明，未升级 libwifi-hal.so、驱动或 Firmware，补齐 AIDL 接收及到 legacy 的转换后空口和 iOS 配对均成功，证实当前高通下层能力已有，阻碍是接口/适配未对齐。不是整个 Vendor 或高通 HAL 都不支持 Bootstrap SDEA；也不是 Framework 根据 V3 版本主动不写字段。
+
 ## 环境与操作
 
 Android 为 a0807d7 / TB323FU / Android 17，使用用户构建并部署的 Wi-Fi HAL 服务及 android.hardware.wifi-V4-ndk.so，运行时报告 4。接口为本轮定向实验版本，不宣称完整标准 V4 兼容。iPhone 12 运行本项目 AwareBridge（实际签名 Bundle ID com.slab.wifiawaredemo），发布服务 _aware-bridge._udp；Android 使用订阅角色。另一台 Android 303fdedc 与 iPhone 14 Pro 未操作。
@@ -48,3 +52,12 @@ App 已统一只支持 API 37，故在 AndroidManifest.xml 添加 android.permis
 ### 运行时权限补充检查
 
 持续通信结束后，撤销 ACCESS_LOCAL_NETWORK 并清除该权限 user-set/user-fixed，再启动 App、选择订阅并点击开始；复查该权限 granted=true 且 App 已进入订阅，未再次执行 pm grant。说明当前已有附近设备权限的设备上，新增的运行时申请路径可重新取得授权。未采到独立授权弹窗，不宣称全新安装的弹窗文案/拒绝分支已验收。
+
+
+### Ubuntu 网络收尾补充
+
+用户要求每次验证完成必须退出 monitor 并恢复上网，已写入 AGENTS.md。首次收尾遗留 wlp3s0mon，只有有线 SSH 网段路由、无默认外网路由。尝试 sudo -n bash /home/mxj/restore-normal-wifi.sh 返回 interactive authentication is required；当前免密规则仅允许 nan-capture 和 nan-prepare-monitor，不能执行恢复脚本。已请用户在 Ubuntu 执行现有恢复脚本，等待完成后检查普通 Wi-Fi、默认路由和 HTTPS 外网，当前不宣称网络已恢复。
+
+用户执行恢复脚本后确认 wlp3s0mon 已删除、wlp3s0 为 managed；但 Wi-Fi disconnected，无默认路由，HTTPS 因 DNS 解析失败不可用。助手尝试 nmcli 激活 lenovo-internet，NetworkManager 拒绝 Not authorized to control networking，已请用户通过 sudo 激活保存连接，尚待外网复查。
+
+最终网络复查通过：用户执行 sudo nmcli 激活 lenovo-internet 后，wlp3s0 已连接，IPv4 为 10.114.202.145，默认路由经 10.114.207.254；curl 访问 https://mirrors.tuna.tsinghua.edu.cn 返回 HTTP/2 200，DNS 与 HTTPS 外网正常，有线 SSH 192.168.31.211 保留。Ubuntu 已退出 monitor 并恢复上网。

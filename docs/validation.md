@@ -139,3 +139,5 @@ a0807d7 已替换 Wi-Fi HAL 服务、添加 V4 NDK 库、将 VINTF 声明改为 
 a0807d7 订阅 iPhone 12，HAL 转换 SSI=86 字节；空口 03-vendor-v4-bootstrap-ch6.pcap 第 122062 帧包含 SDEA（14），三项设备 TXT=83 字节，iOS 非空解析并显示设备名/PIN。用户输入 PIN 后首次配对成功，缓存验证通过。首轮 NDP 建立但 UDP 因 ACCESS_LOCAL_NETWORK 缺失返回 EPERM；补齐 manifest/运行时申请，assembleDebug/lintDebug 通过，覆盖安装并授权后双向通信持续超过 2 分钟，Android 70/69、iOS 68/69（采样时间不同）。撤销权限后再走 App 申请可重新获准，独立弹窗/拒绝分支未验收。未宣称完整标准 V4 或其他 ROM 兼容。证据、原始包路径和长度解释见 [专项验收](vendor-v4-bootstrap-validation.md)。
 
 本轮收尾：停止 iOS 发布与 Android 订阅，Android 恢复 30 秒息屏；用户恢复 USB 后 iPhone 12 锁屏，devicectl 确认 passcodeRequired=true。成功配对缓存保留，未操作另一台平板。
+
+Ubuntu 网络收尾已通过：wlp3s0mon 删除、wlp3s0 managed 并连接 lenovo-internet，默认路由恢复，清华镜像 HTTPS 返回 200；有线 SSH 保留。后续测试必须恢复网络的要求已写入 AGENTS.md。

@@ -414,3 +414,10 @@ a0807d7 订阅 iPhone 12：App/HAL SSI=86，空口 03-vendor-v4-bootstrap-ch6.pc
 ### P28：Android 17 本地网络权限缺失导致心跳 EPERM
 
 首次配对后 NDP 已建立，但 Android sendto 返回 EPERM，AppOps 记录 ACCESS_LOCAL_NETWORK 被拒绝，原 APK 没有声明该权限。添加权限声明与运行时申请，assembleDebug/lintDebug 通过并覆盖安装 a0807d7；本轮用 pm grant 授权后有效 UID 拒绝消失，双向心跳开始增长。首次系统权限弹窗未单独验收；持续通信结果及设备范围见 [实机验证](vendor-v4-bootstrap-validation.md)。
+
+
+### P24：明确 Framework / Vendor / 高通实现的支持边界
+
+Framework Android 17、Vendor Android 16 基线为用户提供的产品背景；直接验证的运行接口为 Vendor Wi-Fi AIDL V3。Framework 已写出 Bootstrap SSI，旧 Vendor reader 缺字段而跳过；现有高通下层本来具备 SDEA SSI 能力，本轮不替换高通库/驱动/Firmware，仅补 AIDL 类型及转换后空口、首次 PIN 成功，根因应表述为接口与适配未对齐。已更新 [根因文档](android17-bootstrap-hal-v3.md#修复后确认的层次关系)，避免把 V3 等同整个 Vendor 版本或泛称高通不支持。
+
+Ubuntu 抓包收尾规则已加入 AGENTS.md；退出 monitor 后需额外 sudo nmcli 激活保存连接，用户执行后外网 HTTPS 200 已验证。

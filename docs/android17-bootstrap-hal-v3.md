@@ -6,7 +6,17 @@
 
 a0807d7 的 App 和 Wi-Fi Java 模块已经支持 Bootstrap message，但 vendor Wi-Fi HAL 仍为 AIDL V3。Bootstrap 请求的 `serviceSpecificInfo` 是 V4 才加入的字段；设备实际 V3 NDK 库的反序列化只读取旧六个字段，随后跳过剩余 Parcel 数据，因此无法把新 SSI 交给后续原生 HAL 实现。
 
-本轮同时取得运行时 HAL 版本、实际加载库、设备二进制读写逻辑、单播空口帧和 iPhone 接收日志。已经确认有一个足以导致此次元数据缺失的 HAL 接口版本断点，不再仅把范围泛称为 Framework/HAL/固件。尚未部署升级后的 vendor HAL，不能宣称首次配对修复，也不能证明 V4 升级后下游高通 HAL、驱动、固件一定支持此数据。
+初次定位时同时取得运行时 HAL 版本、实际加载库、设备二进制读写逻辑、单播空口帧和 iPhone 接收日志，确认足以导致元数据缺失的 HAL 接口版本断点。当时尚未部署修改后的 Vendor，未宣称配对已修复；后续同日部署及成功结果如下。
+
+### 修复后确认的层次关系
+
+用户说明该产品 Framework 为 Android 17，Vendor 使用 Android 16 基线；Vendor 基线来自用户对隔离源码的说明，本助手未访问其私有源码。设备侧直接确认的是 Framework 已写出新增字段、Vendor Wi-Fi AIDL 实际为 V3，不能仅凭 V3 反推整个 Vendor 的 Android 版本。
+
+- **Android 17 Framework 已支持 Bootstrap 携带 SDEA SSI**：三参数应用接口接收 message，Java HAL 适配层设置 NanBootstrappingRequest.serviceSpecificInfo，Parcel 中写出该字段。
+- **原有 Vendor V3 AIDL 接收定义缺少此字段**：旧 NDK reader 读取旧六项后跳过新增尾部，导致下层拿不到设备信息。准确说是 Vendor 端旧 AIDL 类型/反序列化不支持，不是 Framework 的 AIDL 发送端不会发送，也不是 Binder 通道不支持字节数组。
+- **本设备现有高通 HAL 及后续下层路径实际能发送 Bootstrap SDEA SSI**：用户确认 legacy 结构体及 putNanBootstrappingReq 路径已有相关字段；本轮只部署用户提供的 Wi-Fi 服务、V4 AIDL NDK 库和版本声明，未替换 libwifi-hal.so、驱动或 Firmware，补通接收与 AIDL→legacy 转换后即抓到带 SDEA 的 Bootstrap Follow-up，iOS 收到完整 TXT 并配对成功。该实机结果证明现有下层在本方法/设备上已具备能力，不再只停留在“结构体字段存在”的推测。
+
+因此，当前问题是 Android 17 Framework 与 Android 16 基线 Vendor 的 **Wi-Fi AIDL 类型及适配层未对齐**；这次无需升级高通底层库、驱动或 Firmware 即修复了该发送路径。AIDL→legacy 的字段复制也必须补齐，不能仅生成 V4 库而不改转换。完整证据见 [Vendor V4 实机验证](vendor-v4-bootstrap-validation.md)。这不意味着所有 Android 16 Vendor 都有相同高通能力，也不宣称该定向版本完整兼容标准 V4。
 
 ## 环境与源码
 
