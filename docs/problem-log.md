@@ -395,3 +395,8 @@ AOSP Android 17 下载完成后，重新安装当前 APK，使用 a0807d7 / iPho
 新证据：设备运行时 getInterfaceVersion 返回 3，VINTF 声明 3，实际服务 ELF 链接且进程 maps 加载 android.hardware.wifi-V3-ndk.so；设备 Java 模块已把 SSI 写入新字段，但 V3 NDK NanBootstrappingRequest::readFromParcel 在读完旧六个字段后跳过剩余 Parcel，没有读取 serviceSpecificInfo。AOSP 冻结接口对照确认该字段 V4 才加入。因此本次已定位到 vendor Binder 接口版本断点，不再仅称“可能是 Framework/HAL/固件”。正常兼容跳过新字段也解释了为何请求受理成功、仍然发出缺少元数据的 Bootstrap。
 
 用户询问 ROM 升级 V4，已记录实际控制位置：default/Android.bp 中 service-lib/service/lazy 的 V4 NDK 依赖、aidl/Android.bp 的冻结 V4 定义及 VINTF fragment；必须同步 V4 实现、SSI 到 legacy 的转换与匹配结构体，并核对高通 wifi_nan_bootstrapping_request 序列化，不能只修改 XML 或库名。本轮没有改 ROM、没有验证 V4 修复，也未取得首次 PIN 成功；V4 解决接口断点不代表下游必然支持。源码提交、二进制哈希/地址、逐帧证据和升级核对步骤详见 [专项分析](android17-bootstrap-hal-v3.md)。原包保存 Ubuntu /home/mxj/NAN/2026-11-18/，未入 Git。测试完成 Android 停止、恢复 30 秒息屏，iPhone 12 锁屏确认，缓存未删除。
+
+
+### P24：Wi-Fi AIDL V3/V4 冻结接口完整对比
+
+2026-11-18 按用户要求递归比较 Android 17 hardware/interfaces 冻结快照：V3 140 个 .aidl，V4 141 个，修改 6 个、新增 1 个，均为 NAN 类型。所有 IWifi* 方法/回调接口文件完全相同，没有新增 Binder 业务方法；修正此前升级文档“包括新接口方法”的宽泛表述。新增内容为 Bootstrap 请求/接收事件的 SSI、Bootstrap 响应方法、NONE 方法枚举、两个组密钥 cipher mask、周期测距间隔 bitmap 及对应枚举。SSI 的 V3 边界缺失结论保持；组密钥枚举新增不能代替此前 GTK 构帧问题的因果验证，发现 SSI 不可解析也不能与 Bootstrap RequestInd 新字段混同。完整表格及回移植范围见 [V3/V4 差异](wifi-hal-aidl-v3-v4-comparison.md)。本轮仅源码分析，未改 ROM、未操作真机或验收配对修复。

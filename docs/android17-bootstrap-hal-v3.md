@@ -187,7 +187,7 @@ Android.bp 将其作为 VINTF fragment 安装到 vendor。**单独修改设备 X
 
 ### SSI 实现不能只改库名
 
-同步 V4 的接口和默认实现（包括新接口方法）后，至少核对：
+同步 V4 的接口和默认实现后，至少核对：
 
 1. `wifi_nan_iface.cpp` 的 `initiateBootstrappingRequestInternal` 调用转换函数。
 2. `aidl_struct_util.cpp` 的 `convertAidlNanBootstrappingInitiatorRequestToLegacy` 把 AIDL serviceSpecificInfo 拷到 legacy `sdea_service_specific_info`，设置对应长度并检查上限。
@@ -211,3 +211,6 @@ rg -n 'wifi_nan_bootstrapping_request|nan_bootstrapping_request' hardware vendor
 最新 APK 安装并运行；仅重现和分析，没有修改 ROM/HAL，也没有清除配对缓存。抓到两份相同 SN 的 Follow-up（原发及 Retry）不代表首次配对成功；失败后约 20 秒超时仍存在。
 
 结束时停止 Android App，恢复 30 秒息屏，关闭 iPhone 系统配对页并锁屏。Ubuntu 保持用户授权的 monitor 模式，未重启下载。原始抓包按日期保存，供用户本机查看。
+
+
+2026-11-18 冻结接口完整对比补充：V3→V4 没有新增 IWifi* Binder 业务方法，主要是 6 个 NAN 类型的字段/枚举变化和 1 个新枚举文件。此前“包括新接口方法”的表述不准确，已修正；回移植仍需补齐新字段转换。详见 [完整 V3/V4 对比](wifi-hal-aidl-v3-v4-comparison.md)。
