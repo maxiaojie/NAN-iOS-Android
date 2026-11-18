@@ -123,3 +123,7 @@ API 37 三参数 Bootstrap 调用实机 App 记录非空 TXT TLV 86 字节，iPh
 ### 最低 Android 版本调整（2026-11-17）
 
 仅支持 Android 17 / API 37 及以上，compileSdk / minSdk / targetSdk 均为 37；移除 API 36 Bootstrap 兼容分支。assembleDebug / lintDebug 通过，最终 APK 元数据确认三个 SDK 值均为 37。本轮未重新安装或执行双端测试，不改变先前配对问题的验收状态。
+
+### Bootstrap 空口与 vendor HAL 版本定位（2026-11-18）
+
+当前 APK 安装 a0807d7，iPhone 12 系统配对页复现失败。App TXT TLV 86 字节；信道 6 第 81821/81824 帧为 Bootstrap Request 的单播 SDF Follow-up 原发/Retry，均没有 SDEA；iPhone 日志 TXT 0 / SSI nil。实际 Wi-Fi HAL 运行时 V3，二进制仅读取旧六个字段；新 SSI 为 V4 字段，丢失断点已定位。确认诊断，不验收首次配对修复，未改 ROM/HAL。详见 [代码、空口和 ROM 升级位置](android17-bootstrap-hal-v3.md)。结束后 Android 停止并恢复 30 秒息屏，iPhone 12 锁屏。

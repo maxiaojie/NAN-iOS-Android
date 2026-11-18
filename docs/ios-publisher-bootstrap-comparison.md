@@ -91,3 +91,7 @@ Android NativeApi 同步记录 method=32、命令受理成功，但最终仍约 
 
 
 2026-11-17 后续版本范围调整：按用户要求仅支持 Android 17 / API 37 及以上，minSdk 与 targetSdk 均升为 37，移除 API 36 两参数兼容分支，直接调用三参数 Bootstrap 接口。上文 min/target 36 是当时接入阶段的历史配置；本次版本调整不代表元数据传输问题已解决。
+
+## 2026-11-18 后续定位
+
+重新抓包并检查设备二进制后，已将此前未确定的丢失层级收敛到 vendor Binder 的 HAL V3 接口：Java 发送新增 SSI，设备 V3 NDK reader 不读取此 V4 字段，跳过剩余 Parcel；空口为没有 SDEA 的单播 NAN SDF Follow-up。具体运行时版本查询、帧号、源码差异与升级步骤见 [HAL V3 断点专项](android17-bootstrap-hal-v3.md)。本轮没有改 ROM，首次反向配对仍失败。
