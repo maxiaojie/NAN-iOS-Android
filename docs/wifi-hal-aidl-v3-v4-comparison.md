@@ -93,3 +93,11 @@ V4 新增的组密钥 HAL mask 为 16、32；它们是能力位掩码，**不是
 只在自有匹配构建中作诊断时，可以保持旧方法签名并验证新字段通路；应使用生成源码的维护流程，不把直接修改生成的 C++ 文件当作持久修复。类型内存布局变化后需重编译匹配的服务/库，不能只替换不匹配的单个 NDK so。旧请求没有尾部字段时仍须兼容读取。
 
 正式产品不应修改冻结 aidl_api/3 内容或悄悄扩展 V3 却沿用原 hash/version：这已构成 parcelable 接口变更。AOSP 已有与 Framework 匹配的完整冻结 V4，优先在 vendor Wi-Fi 服务局部引入 V4，无需因此升级整个 Vendor；没有新增 Binder 业务方法，工作重点仍是字段转换和高通下游能力。保持 V3 的私有回移植可用于验证，但不作为标准 V3 兼容交付方案。当前未访问隔离 ROM 源码、未制作 ROM 补丁、未验证高通对 PIN Keypad SSI 的支持，不能预先承诺仅改 reader 即可配对成功。
+
+### 用户核对高通 legacy 结构体后的范围收敛
+
+2026-11-18 用户在隔离 ROM 代码中确认：putNanBootstrappingReq 使用的 const NanBootstrappingRequest 已有 service_specific_info_len 和 sdea_service_specific_info_len 字段。这是用户提供的代码核对结果，本助手未直接访问其私有实现。说明高通 legacy 请求类型已预留普通 SSI/SDEA SSI，不应预先要求升级高通全部 HAL、驱动或固件。
+
+应区分同名的两个类型：AIDL NanBootstrappingRequest（vendor V3 reader 不认识新增 serviceSpecificInfo）与高通 legacy NanBootstrappingRequest（用户确认已包含长度字段）。优先补齐 vendor AIDL 类型/反序列化及 AIDL→legacy 的 SDEA SSI 拷贝；仅改转换函数仍无法恢复此前被 V3 reader 跳过的数据。沿用 Framework 已构造的数据原样透传到 sdea_service_specific_info[_len]，不误写为普通 service_specific_info，不额外重复套 TXT/SDEA 头。
+
+下一项代码核对是 putNanBootstrappingReq 是否在长度非零时真正序列化 SDEA SSI，以及有无只对 Service Managed 方法生效的条件；字段存在本身不能证明 PIN Keypad 路径已使用它。若序列化已具备，最小修复很可能只需 AIDL 接收/适配层，不必修改高通底层。仍需以修复后 Follow-up 出现 SDEA、iOS 收到非空 TXT 和首次 PIN 成功验收。本轮未修改 ROM。
