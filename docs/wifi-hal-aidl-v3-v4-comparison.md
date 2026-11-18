@@ -116,6 +116,8 @@ V4 新增的组密钥 HAL mask 为 16、32；它们是能力位掩码，**不是
 
 ### 从单文件修改到完整新快照的操作顺序
 
+Vendor 编译反馈（2026-11-18）：用户截图显示 aidl_struct_util.cpp:3693/3694 对 serviceSpecificInfo 直接调用 .size()/.data()，编译器指出其类型为 std::optional<std::vector<unsigned char>>。这是 @nullable byte[] 的 NDK 映射，需先判断 has_value() 再访问内部 vector。建议先把 legacy SDEA SSI 长度清零；有值时检查 vector 大小不超过目标数组容量，非空才 memcpy，再设置长度。不能仅把点改成箭头却不处理 null。此为编译诊断及建议，隔离 ROM 尚未由助手修改、重编译或真机验证。
+
 版本识别补充（2026-11-18）：Framework 的 WifiHalAidlImpl.initialize 在获取 IWifi 后调用 mWifi.getInterfaceVersion() 并保存 sServiceVersion；识别的是生成 Binder 服务公开的版本号，不是逐个检查 parcelable 字段。若服务整体使用私有 V4 生成接口，Framework 将读到 4，无法仅凭版本号区分它与标准 V4。getInterfaceHash 可表达接口定义差异，但本次检查的 Wi-Fi Framework HAL 包未发现对远端 hash 的比较逻辑；其中 getInterfaceHash 定义为 Framework 实现的回调接口返回值，不等于验证 Vendor hash。
 
 本次检索未发现 isServiceVersionAtLeast(4) 分支，因此没有证据表明当前下载的 Framework 会因 3→4 立即打开某个 V4 专属分支；但其他六项 V4 类型变化仍可能被正常调用路径使用。旧 reader 可跳过尾部新增字段、旧 writer 对应的新字段取默认值，并不等于完整语义实现。单字段私有 V4 可能丢失接收 Bootstrap SSI、响应方式或能力值，需逐路径核对。仅增加字段或生成冻结目录不自动改变运行版本，实际链接和服务部署才决定运行结果。正式匹配标准 Android 17 Framework 应优先使用完整标准 V4 定义并适配转换；仅定向验证可使用私有版本，但不能宣称标准 V4 兼容。
