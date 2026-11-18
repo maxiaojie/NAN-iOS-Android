@@ -1,5 +1,15 @@
 # 真机验证记录
 
+### 新高通 Publish 候选库部署（2026-11-18，18:34～18:46）
+
+新 libwifi-hal.so（SHA1837883062e14520511f37cb9411c551421208539af4d20598b79450cc2a876c）已备份后替换、重启，文件 hash 与服务 maps 均确认。部署通过，P19 修复验证未通过：初始 false 和自动关闭后仍缺 0x27，空口 CSIA=00 07 01，iOS 明确报 missing CSIA GTKIGTKBIGTKSupported attribute；true 时才有 04 并建立双向通信。新 ELF 中仍存在 Setup 门限，待用户核对修改片段/构建输出。详细 [部署、帧号和失败证据](csia-candidate-deployment-2026-11-18.md)。Ubuntu 已自行恢复 Wi-Fi/外网200；平板恢复原网络和息屏，iPhone 执行锁屏。
+
+### CSIA 修复产物再次核验（2026-11-18，18:30 左右）
+
+用户要求部署下载目录的新 service 和 so。实际 SHA-256 与 a0807d7 已安装版本完全一致：service 为 b2af3812b34720cf85fe09853f4428fb73ba0211785b6968d9c8b929d96668b2，V4-ndk.so 为 26c5f7d42131d8a2eb0381e8b1e428f48e21b35edd2cad482351c8521c279bc7。当前 libwifi-hal.so 仍为旧 hash 0602a90c34734d335b00dd1d2ce7154e5b1e5b30b8ad47e8a5226ee7f9dc47ae，下载目录尚无新同名库。文件更新时间变化不能证明已包含修改；已通知用户核对真正的构建输出。没有重复覆盖相同文件、重启服务或把旧版本复测写成修复通过。
+
+当前 service、V4 NDK 库、高通 libwifi-hal.so、VINTF XML 已备份到 Mac 分析目录 2026-11-18/vendor-before-csia-fix-1830-a0807d7，等待更新产物后继续部署。Ubuntu 未切换 monitor，iPhone 未解锁或操作。
+
 ### Publish CSIA 与 STA 尾部定位（2026-11-18）
 
 a0807d7 + iPhone 12 保留配对缓存。信道 6 的 Setup 关闭/开启样本为 60/55 个，CSIA 分别 00 07 01 / 04 05 01 07 01。iOS 明确报 missing CSIA GTKIGTKBIGTKSupported attribute；HAL 关闭时省略 0x27、开启时携带 04，定位通过，单字段 ROM 修复未部署验收。

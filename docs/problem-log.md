@@ -1,5 +1,7 @@
 # 问题与解决记录
 
+P19 后续（2026-11-18 晚）：用户提供新的高通 libwifi-hal.so，部署及实际加载已确认，但 Setup=false 时能力声明仍缺失，开窗后才恢复。候选库保留原 Setup 门限；不是旧库未加载，尚待核对隔离树的具体修改和输出路径。本次不标为修复。详见 [候选库部署验证](csia-candidate-deployment-2026-11-18.md)。
+
 最新进展（2026-11-18）：P19 已通过 iOS 明确日志确认 CSIA 组密钥能力缺失导致丢弃；HAL 下发前缺少 0x27，候选转换修复待 ROM 编译验收。P07 独立复现 STA 连接时 76 个 Publish 均额外 23 字节，断开后同一 NMI 的代表帧边界完整且双向 13/13；HAL Publish 请求边界完整，驱动/固件具体责任仍待定位。详见 [HAL dump、帧号及修改建议](vendor-publish-csia-sta-analysis.md)。
 
 P13/P16 管理改进：用户执行一次安装后，助手已可免密执行固定 prepare/capture/stop/restore/status，脚本由 root 持有，不开放任意 sudo 命令。恢复时 NetworkManager 存在就绪延迟，助手自行重试后普通 Wi-Fi、默认路由、外网 HTTPS 200 已恢复。
