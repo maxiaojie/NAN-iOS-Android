@@ -113,3 +113,17 @@ V4 新增的组密钥 HAL mask 为 16、32；它们是能力位掩码，**不是
 2026-11-18 用户询问以前接口是否可继承低版本。源码核对：hardware/interfaces/wifi/1.6/IWifiNanIface.hal:36 明确声明 `interface IWifiNanIface extends @1.5::IWifiNanIface`，1.5 同样 extends 1.4。这是 HIDL 显式跨版本接口继承。HAL 是功能层，HIDL/AIDL 是接口定义与通信技术，不应说成“HAL 能继承、AIDL 不能”。
 
 当前 Stable AIDL 的 aidl_api/.../4 不是继承 3 的增量目录，而是完整冻结快照。用户可以只编辑当前输入 AIDL 中需要的字段，再通过 API 更新/冻结流程生成完整新版本，无需手工重新编写所有旧文件。旧版本可共存、请求新字段被旧 reader 忽略，属于协议兼容，不代表版本目录继承。完整标准 V4 定义的回移植仍需编译与运行回归，不能预先保证厂商分支没有适配问题；单字段私有版本的边界见前文。本次检查的 AOSP Wi-Fi HAL Java 代码存在按服务版本 gating 的逻辑，未搜索到 isServiceVersionAtLeast(4) 的调用；这不是对用户隔离 Framework 分支的保证。
+
+### 从单文件修改到完整新快照的操作顺序
+
+适用前提：用户 Vendor 树最新冻结版本为 3，尚无版本 4。本步骤是私有单字段实验说明，不是在已具有标准 V4 的下载树中执行。
+
+1. 不创建 aidl_api/android.hardware.wifi/4，不修改冻结的 3。编辑输入源文件 hardware/interfaces/wifi/aidl/android/hardware/wifi/NanBootstrappingRequest.aidl，在原有字段末尾追加 `@nullable byte[] serviceSpecificInfo;`，顺序与 Framework 的标准 V4 一致。
+2. 在该接口的 Android.bp 中把 frozen 设为 false，保留原 versions_with_info 的 1～3，不手填版本 4。
+3. 在已初始化且选择本产品 lunch 的 ROM 构建环境执行 `m android.hardware.wifi-update-api`。工具从全部 srcs 生成完整 current 快照，不是从用户放入 4 的单个文件补齐其他文件。
+4. 检查 current 与 3 的差异，确认只有目标 parcelable 的预期字段变化，再执行 `m android.hardware.wifi-freeze-api`。最新版本为 3 时生成完整 4 目录及 .hash，并更新 Android.bp 的 versions_with_info、frozen。已存在 V4 的树不能照此当成创建 V4 的流程。
+5. 检查新快照完整、旧快照未变和 hash 自动生成。私有单字段 V4 不等于标准 AOSP V4，不复制标准 V4 hash。
+6. 目标 Wi-Fi 服务与适配代码实际依赖 android.hardware.wifi-V4-ndk，重新编译匹配的服务/库。转换函数把 AIDL serviceSpecificInfo 复制到 legacy sdea_service_specific_info[_len]，检查长度和可空值，保持 Framework 提供内容原样。
+7. 更新目标 VINTF Wi-Fi 版本声明，构建部署匹配 Vendor 产物，检查实际服务 getInterfaceVersion、加载库和后续空口/iOS 日志。生成快照本身不完成转换、不证明首次配对通过。
+
+依据：下载树 system/tools/aidl/build/aidl_api.go 的 makeApiDumpAsVersion 从完整 API dump 复制新版本目录；migrateAndAppendVersion 调用 bpmodify 追加版本并设 frozen=true。本次仅核对工具源码并记录步骤，未在隔离 Vendor 执行更新、冻结或编译。
