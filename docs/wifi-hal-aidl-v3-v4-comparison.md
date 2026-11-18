@@ -79,3 +79,9 @@ V4 新增的组密钥 HAL mask 为 16、32；它们是能力位掩码，**不是
 后两条为 V4 回移植的检查要求，不作为本轮已经抓到相应方向故障的结论。高通结构体定义、二进制 ABI 以及下层支持仍需配套核对。升级控制文件和编译/验收步骤见 [ROM 升级位置](android17-bootstrap-hal-v3.md#rom-升级-v4-的控制位置)。
 
 本轮仅执行源码接口对比和文档更新，没有操作设备、修改 ROM 或重新验证配对。
+
+## 高通是否已经提供匹配版本
+
+2026-11-18 用户询问高通是否提供 V4 HAL。公开检索未取得可证明“本平板对应 Wi-Fi 芯片/BSP 已交付完整 V4 Bootstrap SSI 支持”的高通发布说明或提交；CodeLinaro 页面访问受 robots 限制。搜索不到不代表高通没有提供，不能据此判断其私有 BSP 交付状态。
+
+已确定的只有 AOSP Android 17 提供 V4 Binder 接口/默认服务，以及当前平板实际运行 V3。android.hardware.wifi-V4-ndk 是 AOSP 接口版本，不是 libwifi-hal-qcom.so 的通用产品版本号。需要向对应 BSP/WLAN 维护方核对高通库、驱动、固件是否支持通过 wifi_nan_bootstrapping_request 在 PIN Keypad 引导请求的 SDEA 中携带 SSI，而不仅是存在该函数指针、支持 Service Managed 方法或已经具备基本 NAN 配对。尚未访问用户隔离服务器，未确认该私有源码是否已有补丁。
