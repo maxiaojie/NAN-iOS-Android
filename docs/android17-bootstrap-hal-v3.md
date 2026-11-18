@@ -218,3 +218,26 @@ rg -n 'wifi_nan_bootstrapping_request|nan_bootstrapping_request' hardware vendor
 ### 对端 V3 是否会让 Framework 裁剪发送字段
 
 2026-11-18 再次直接核对设备 service-wifi.jar，而非仅按 AOSP 推测：IWifiNanIface$Stub$Proxy.initiateBootstrappingRequest（DEX 0x2bc798）直接 writeTypedObject(request) 后执行 Binder transact=21，没有 getInterfaceVersion 或按 V3 裁剪字段的分支。NanBootstrappingRequest.writeToParcel（DEX 0x2c00c0）无条件在 discoverySessionId 后调用 writeByteArray(serviceSpecificInfo)，也没有对端版本参数。WifiNanIfaceAidlImpl 的对应构造/发送路径同样没有按 V3 清空 SSI 的分支。因此，即使 Framework 已知 vendor 为 V3，本设备当前调用路径仍写出新增字段；Binder 传输不会自行按 AIDL 版本改写 payload。接收方 V3 reader 使用 parcelable size 跳过不认识的尾部，完成前向兼容。这是“新发送端写全部已知字段、旧接收端忽略未知字段”，不是协商生成 V3 格式。本轮只读设备已提取的二进制，没有新一轮真机配对操作。
+
+### AIDL 调用端与服务端如何使用和实现
+
+2026-11-18 补充源码核对。调用方位于 system_server，`WifiNanIfaceAidlImpl.java` 持有 `android.hardware.wifi.IWifiNanIface mWifiNanIface`，构造器接收 HAL NAN 接口的 Binder 代理。注意该 Java 类 implements 的同包 `com.android.server.wifi.hal.IWifiNanIface` 是 Framework 内部适配接口，不是 Vendor Binder 服务实现。
+
+调用步骤：`createNanBootstrappingRequest` 构造 AIDL parcelable，并设置 `request.serviceSpecificInfo = joinByteArrays(sdeaHeader, ssi)`；随后 `mWifiNanIface.initiateBootstrappingRequest((char) transactionId, request)`。生成的 Java Proxy 写 interface token、cmdId 和 typed request，writeTypedObject 会调用请求对象的 writeToParcel，最后 transact。应用不需要自己打 Binder Parcel，转换层也不是调用 JNI。
+
+Vendor 服务端 `wifi_nan_iface.h` 定义 `class WifiNanIface : public BnWifiNanIface`，BnWifiNanIface 来自 NDK AIDL 自动生成。生成的 Binder 分发代码读取 cmdId 和 NanBootstrappingRequest（调用 readFromParcel），再分发到 C++ override：
+
+```cpp
+ndk::ScopedAStatus WifiNanIface::initiateBootstrappingRequest(
+        char16_t in_cmdId, const NanBootstrappingRequest& in_msg) {
+    return validateAndCall(this, WifiStatusCode::ERROR_WIFI_IFACE_INVALID,
+                           &WifiNanIface::initiateBootstrappingRequestInternal,
+                           in_cmdId, in_msg);
+}
+```
+
+Internal 构造 `legacy_hal::NanBootstrappingRequest legacy_msg`，调用 `convertAidlNanBootstrappingInitiatorRequestToLegacy`，成功后调用 `legacy_hal_.lock()->nanBootstrappingRequest(ifname_, cmd_id, legacy_msg)`。转换函数为新增 SSI 检查 has_value 和长度，再 memcpy 到 legacy 缓冲区。WifiLegacyHal 再调用厂商函数表。
+
+Java 对应的是 byte[]，NDK 对应 nullable byte vector（serviceSpecificInfo.has_value()）。二者不共享内存，跨进程传的是序列化数据；生成的 reader 必须先保留 SSI，业务 override 才能使用它。生成代码位于编译输出的 out/soong/.intermediates 中，应修改输入 AIDL/编译版本来重新生成，不能只改编译输出文件。
+
+Vendor override 返回 ScopedAStatus / Java 调用没有抛异常，只说明本次命令提交结果，不等于对端接受或配对成功；后续结果仍由 HAL 事件回调进入 Framework。
