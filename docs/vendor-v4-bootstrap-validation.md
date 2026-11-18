@@ -1,5 +1,7 @@
 # Vendor V4 Bootstrap SSI 实机验证（2026-11-18）
 
+具体源文件修改、API 更新/冻结、编译、备份、部署和回退步骤见 [Vendor Wi-Fi HAL 修改与部署](vendor-wifi-hal-bootstrap-build-deploy.md)。
+
 ## 根因与最小修复结论
 
 该产品 Framework 为 Android 17、Vendor 为 Android 16 基线（Vendor 基线由用户说明，未访问其隔离源码）。Android 17 Framework 已支持 Bootstrap message 并写入 SDEA SSI 对应的 AIDL 字段；原 Vendor V3 AIDL 定义没有 serviceSpecificInfo，旧 reader 将其跳过。高通 legacy 结构体和封装路径已具备 SDEA SSI 支持。本次仅替换 Wi-Fi HAL 服务、AIDL NDK 库及 VINTF 声明，未升级 libwifi-hal.so、驱动或 Firmware，补齐 AIDL 接收及到 legacy 的转换后空口和 iOS 配对均成功，证实当前高通下层能力已有，阻碍是接口/适配未对齐。不是整个 Vendor 或高通 HAL 都不支持 Bootstrap SDEA；也不是 Framework 根据 V3 版本主动不写字段。

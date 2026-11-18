@@ -418,6 +418,8 @@ a0807d7 订阅 iPhone 12：App/HAL SSI=86，空口 03-vendor-v4-bootstrap-ch6.pc
 
 ### P24：明确 Framework / Vendor / 高通实现的支持边界
 
+用户要求补齐修改及构建部署记录，已新增 [Vendor Wi-Fi HAL 修改、编译与部署](vendor-wifi-hal-bootstrap-build-deploy.md)，列明 AIDL 输入/快照、Android.bp、optional SSI 转换、VINTF、m/mm、真实备份与 push 命令、权限标签、运行版本检查和回退。隔离服务器实际命令与完整 diff 未直接取得，文档区分操作方法与助手已执行部署，不把建议伪装为原始操作日志。
+
 Framework Android 17、Vendor Android 16 基线为用户提供的产品背景；直接验证的运行接口为 Vendor Wi-Fi AIDL V3。Framework 已写出 Bootstrap SSI，旧 Vendor reader 缺字段而跳过；现有高通下层本来具备 SDEA SSI 能力，本轮不替换高通库/驱动/Firmware，仅补 AIDL 类型及转换后空口、首次 PIN 成功，根因应表述为接口与适配未对齐。已更新 [根因文档](android17-bootstrap-hal-v3.md#修复后确认的层次关系)，避免把 V3 等同整个 Vendor 版本或泛称高通不支持。
 
 Ubuntu 抓包收尾规则已加入 AGENTS.md；退出 monitor 后需额外 sudo nmcli 激活保存连接，用户执行后外网 HTTPS 200 已验证。

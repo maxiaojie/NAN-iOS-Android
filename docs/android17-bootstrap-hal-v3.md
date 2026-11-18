@@ -2,6 +2,8 @@
 
 日期：2026-11-18，Asia/Shanghai。问题索引 P24。此文补充并收敛此前“App 非空、iOS 接收为空，但尚未定位层级”的结论。
 
+本次修复的文件路径、V4 生成、编译命令和实际部署过程见 [修改、编译与部署步骤](vendor-wifi-hal-bootstrap-build-deploy.md)。
+
 ## 结论
 
 a0807d7 的 App 和 Wi-Fi Java 模块已经支持 Bootstrap message，但 vendor Wi-Fi HAL 仍为 AIDL V3。Bootstrap 请求的 `serviceSpecificInfo` 是 V4 才加入的字段；设备实际 V3 NDK 库的反序列化只读取旧六个字段，随后跳过剩余 Parcel 数据，因此无法把新 SSI 交给后续原生 HAL 实现。
