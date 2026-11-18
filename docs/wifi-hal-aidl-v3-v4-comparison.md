@@ -101,3 +101,9 @@ V4 新增的组密钥 HAL mask 为 16、32；它们是能力位掩码，**不是
 应区分同名的两个类型：AIDL NanBootstrappingRequest（vendor V3 reader 不认识新增 serviceSpecificInfo）与高通 legacy NanBootstrappingRequest（用户确认已包含长度字段）。优先补齐 vendor AIDL 类型/反序列化及 AIDL→legacy 的 SDEA SSI 拷贝；仅改转换函数仍无法恢复此前被 V3 reader 跳过的数据。沿用 Framework 已构造的数据原样透传到 sdea_service_specific_info[_len]，不误写为普通 service_specific_info，不额外重复套 TXT/SDEA 头。
 
 下一项代码核对是 putNanBootstrappingReq 是否在长度非零时真正序列化 SDEA SSI，以及有无只对 Service Managed 方法生效的条件；字段存在本身不能证明 PIN Keypad 路径已使用它。若序列化已具备，最小修复很可能只需 AIDL 接收/适配层，不必修改高通底层。仍需以修复后 Follow-up 出现 SDEA、iOS 收到非空 TXT 和首次 PIN 成功验收。本轮未修改 ROM。
+
+### 单字段自定义 V4 的技术边界
+
+2026-11-18 用户提出在 Vendor 新增 V4，仅给 NanBootstrappingRequest 添加 SSI，并在 AIDL→高通 legacy 转换中赋值。从当前发送路径看，此方案可让双方这个请求对象的字段顺序对齐，具备解决已确认 Parcel reader 断点的条件；前提是目标服务确实改为编译/链接新生成的 NDK 类型，且高通 putNanBootstrappingReq 已序列化 SDEA SSI，不能只增加版本目录但继续链接 V3。
+
+但标准 V4 还包含本文列出的其他六项类型变化，仅增加一个字段形成的是私有接口版本，其 API/hash 与 AOSP 标准 V4 不同。工程验证可明确按私有变体处理；正式使用建议引入完整标准 V4 接口快照/对应源定义，不照抄标准 V4 hash 来标记不同内容。完整接口定义的引入不等于升级整个 Vendor，也不意味着硬件必须支持所有新增可选能力；本次优先实现 Bootstrap SSI 的实际传递并按真实能力上报。用户隔离源码尚未修改，方案未构建或上机验收。
