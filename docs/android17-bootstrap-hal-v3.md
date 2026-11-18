@@ -60,6 +60,61 @@ Android 自身时间滞后，不能直接拿它与 Ubuntu/iOS 的墙上时间相
 
 不能把 SSI 的 App 长度 86 与 HAL 最终长度直接等同：Framework 可能按资源开关补 SDEA 头。本轮没有动态抓取 Binder payload，也没有注入进程；断点由设备读写实现和版本差异确认。
 
+### 完整调用关系与源码位置
+
+以下为本设备使用的 vendor Wi-Fi HAL 路径。Java 源码根分别为 `packages/modules/Wifi/framework/java/android/net/wifi/aware/`、`packages/modules/Wifi/service/java/com/android/server/wifi/`；C++ 源码根为 `hardware/interfaces/wifi/aidl/default/`。行号对应本文记录的 android17-release 提交。
+
+```text
+App 进程 / framework-wifi.jar
+DiscoverySession.initiateBootstrappingRequest(peerHandle, method, message)
+  → WifiAwareManager.initiateBootStrappingSetupRequest(..., ssi)
+  → IWifiAwareManager.Proxy.initiateBootStrappingSetupRequest(...)
+    ══ Binder：App → system_server ══
+WifiAwareServiceImpl.initiateBootStrappingSetupRequest(..., ssi)
+  → WifiAwareStateManager.initiateBootStrappingSetupRequest(..., serviceSpecificInfo)
+    → 状态机入队 COMMAND_TYPE_INITIATE_BOOTSTRAPPING_REQUEST
+    → 状态机分发，取 MESSAGE_BUNDLE_KEY_SSI_DATA
+  → WifiAwareStateManager.initiateBootstrappingRequestLocal(..., ssi)
+  → WifiAwareDiscoverySessionState.initiateBootstrapping(..., ssi)
+  → WifiAwareNativeApi.initiateBootstrapping(..., ssi)
+  → WifiNanIface.initiateBootstrapping(..., ssi, sdeaHeader)
+  → WifiNanIfaceAidlImpl.initiateNanBootstrappingRequest(...)
+    → createNanBootstrappingRequest(...)
+    → request.serviceSpecificInfo = joinByteArrays(sdeaHeader, ssi)
+  → android.hardware.wifi.IWifiNanIface.Proxy.initiateBootstrappingRequest(cmdId, request)
+    ══ Binder：system_server → vendor Wi-Fi HAL ══
+    → NanBootstrappingRequest::readFromParcel（当前 V3 在这里跳过 SSI）
+WifiNanIface::initiateBootstrappingRequest(...)
+  → WifiNanIface::initiateBootstrappingRequestInternal(...)
+    → convertAidlNanBootstrappingInitiatorRequestToLegacy(...)
+    → legacy_msg.sdea_service_specific_info_len / sdea_service_specific_info
+  → WifiLegacyHal::nanBootstrappingRequest(...)
+  → global_func_table_.wifi_nan_bootstrapping_request(id, ifaceHandle, &msg_internal)
+  → 厂商实际函数指针实现 → 驱动/固件 → 空口 NAN SDF Follow-up
+```
+
+| 层级 | 文件及行号 | 主要动作 |
+|---|---|---|
+| App SDK | framework/.../DiscoverySession.java:434 | 三参数入口，message 原样传下 |
+| App SDK | framework/.../WifiAwareManager.java:821 | PeerHandle 转 peerId；调用 Binder |
+| App ↔ system_server | framework/.../IWifiAwareManager.aidl:81 | Binder 方法的 SSI 参数 |
+| Wi-Fi Service | service/.../aware/WifiAwareServiceImpl.java:777 | 权限、客户端、能力、SSI 长度检查；调用状态机 |
+| 状态机入队 | service/.../aware/WifiAwareStateManager.java:1533 | SSI 放入 Bundle，发送命令 |
+| 状态机分发 | 同文件:3294 | 从 Bundle 取 SSI，调用 Local 方法 |
+| 状态机执行 | 同文件:4548 | 查找 client/session |
+| 发现会话 | service/.../aware/WifiAwareDiscoverySessionState.java:619 | 应用 peerId 映射为底层 instanceId/MAC，加入 pubSubId |
+| Java HAL 桥接 | service/.../aware/WifiAwareNativeApi.java:926 | 选择 supplicant 或 vendor Wi-Fi HAL；本链展开后者 |
+| Java HAL 门面 | service/.../hal/WifiNanIface.java:523 | validateAndCall，调用 AIDL 实现 |
+| Java HAL AIDL | service/.../hal/WifiNanIfaceAidlImpl.java:519 | 创建请求并调用 HAL Binder |
+| 请求字段构造 | 同文件:606 | 将 SSI 与可选 SDEA header 拼接，写 serviceSpecificInfo |
+| HAL AIDL | hardware/interfaces/wifi/aidl/android/hardware/wifi/IWifiNanIface.aidl:331 | 原生 HAL 的 Bootstrap 请求接口 |
+| 原生 HAL 入口 | default/wifi_nan_iface.cpp:830 | validateAndCall，调用 Internal |
+| 原生 HAL 实现 | 同文件:1012 | 转 legacy 请求并调用 WifiLegacyHal |
+| 数据转换 | default/aidl_struct_util.cpp:3695 | AIDL SSI → legacy 长度与缓冲区；当前旧 V3 实现没有新增字段 |
+| legacy HAL 适配 | default/wifi_legacy_hal.cpp:1733 | 调用厂商函数表的 wifi_nan_bootstrapping_request |
+
+`WifiAwareNativeApi` 本身仍是 Java 类，此路径通过 AIDL Binder 进入原生服务，不是调用同名 JNI。`WifiAwareNativeApi` 还存在 supplicant NAN 分支（getSupplicantNanIface 非空时），不能把所有设备都画成 vendor Wi-Fi HAL 路径；本文针对已确认的 a0807d7 V3 HAL 断点。
+
 ### HAL 实际版本与二进制
 
 运行时执行只读版本查询：
