@@ -142,3 +142,8 @@ Vendor 编译反馈（2026-11-18）：用户截图显示 aidl_struct_util.cpp:36
 重启验证：sys.boot_completed=1；root 下 getInterfaceVersion 返回 4；init.svc.vendor.wifi_hal_legacy=running，PID 1266 的 maps 实际加载 /vendor/lib64/android.hardware.wifi-V4-ndk.so；XML 声明 4。服务与库设备端 SHA-256 均与下载产物一致：服务 b2af3812b34720cf85fe09853f4428fb73ba0211785b6968d9c8b929d96668b2；库 26c5f7d42131d8a2eb0381e8b1e428f48e21b35edd2cad482351c8521c279bc7。日志包含 Wifi HAL started、Configured chip in mode 3 与 wifi-aware0 接口初始化。普通 shell 查询 Binder 曾显示服务不存在，adb root 后可正常查询，不据此前一次输出判断服务启动失败。设备日志日期为 11-12，与本轮操作日期不一致，不能用日志日期作为真实部署日期。
 
 本轮仅验收部署、加载与运行版本；下载产物为用户构建，其完整源码改动未由助手审核。未执行双端发现、Bootstrap SSI 抓包、首次配对或 NDP 测试，不宣称配对问题修复，亦不宣称该私有版本兼容完整标准 V4。回退时恢复备份服务和 XML，移除本轮新增 V4 库并重启，原 V3 库未修改。
+
+
+### 本轮定向实验验收结果（2026-11-18）
+
+后续双端测试已经确认用户构建的 Vendor V4 产物能将 Bootstrap SSI 传到空口 SDEA，iOS 正确解析并完成首次 PIN 配对；本地网络权限补齐后 NDP 双向心跳持续超过两分钟。此前“尚未配对验收”为部署时状态，最新证据见 [专项验证](vendor-v4-bootstrap-validation.md)。这不扩大为完整标准 V4 兼容结论。

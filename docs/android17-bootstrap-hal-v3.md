@@ -241,3 +241,8 @@ Internal 构造 `legacy_hal::NanBootstrappingRequest legacy_msg`，调用 `conve
 Java 对应的是 byte[]，NDK 对应 nullable byte vector（serviceSpecificInfo.has_value()）。二者不共享内存，跨进程传的是序列化数据；生成的 reader 必须先保留 SSI，业务 override 才能使用它。生成代码位于编译输出的 out/soong/.intermediates 中，应修改输入 AIDL/编译版本来重新生成，不能只改编译输出文件。
 
 Vendor override 返回 ScopedAStatus / Java 调用没有抛异常，只说明本次命令提交结果，不等于对端接受或配对成功；后续结果仍由 HAL 事件回调进入 Framework。
+
+
+## 2026-11-18 Vendor 实验修复后验证
+
+用户构建的 V4 服务与库部署后，App/HAL SSI=86 字节；信道 6 抓包 03-vendor-v4-bootstrap-ch6.pcap 第 122062 帧的 Bootstrap SDF Follow-up 包含 SDEA，TXT=83 字节且三项设备信息完整。iOS 接收 SSI 非空、显示平板名称及 PIN，用户协助输入 PIN 后双方首次配对成功；后续缓存验证通过。原始 V3 失败记录保留为历史，当前结果见 [V4 实机验证](vendor-v4-bootstrap-validation.md)。后续数据首包 EPERM 已定位到缺失的 Android 17 本地网络权限，声明并授予后双向心跳开始增长，持续验收结果见同文档。

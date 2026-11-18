@@ -29,6 +29,7 @@ public final class MainActivity extends Activity {
     private final List<SubscriberController.Peer> discovered = new ArrayList<>();
     private static final int PUBLISHER = 1001, SUBSCRIBER = 1002;
     private static final String[] PERMISSIONS = {
+            Manifest.permission.ACCESS_LOCAL_NETWORK,
             Manifest.permission.NEARBY_WIFI_DEVICES,
             Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.ACCESS_FINE_LOCATION

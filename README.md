@@ -82,7 +82,7 @@ xcodebuild -project NAN-iOS/AwareBridge.xcodeproj -scheme AwareBridge \
 4. iOS 固定监听 UDP `45454`；Android 使用 Aware 网络中的对端 IPv6，并主动发出首包。两端每 5 秒心跳并回复 ACK。
 5. 停止发布/订阅后可切换角色。iOS 仅保留一条已接入连接；发布到期后不主动重建发现会话，新的连接需要停止后重新发布。
 
-**当前反向配对限制：** 首次 PIN 配对仍未通过（引导超时）。普通 Subscribe 不再添加设备 TXT，与历史 iPhone Subscribe 样本一致；a0807d7 首次订阅直接成功，已移除旧的 SSI 失败重试和误导提示。设备信息应在首次配对 Bootstrap Request 中单独核对，未确认它与超时的因果关系。已有配对的反向数据连接曾通过；当前两端目标缓存已按用户要求清除。详情见 [反向流程验证](docs/reverse-flow-validation.md) 与 [iPhone 订阅抓包](docs/iphone-subscriber-packet-analysis.md)。
+**反向首次配对已在 2026-11-18 实机通过：** a0807d7 使用用户构建的 Vendor V4 实验产物后，Bootstrap Follow-up 的 SDEA 携带完整设备 TXT，iPhone 12 接受请求，输入 PIN 后双方配对成功。此前 Vendor V3 会跳过新增 SSI 字段，原厂未修复版本仍受限制。数据通信还需授予 Android 17 本地网络访问权限，App 已加入声明和运行时申请。详见 [Vendor V4 实机验证](docs/vendor-v4-bootstrap-validation.md)；不据此宣称私有 HAL 与完整标准 V4 兼容。
 
 ## 协议与扩展
 

@@ -95,3 +95,8 @@ Android NativeApi 同步记录 method=32、命令受理成功，但最终仍约 
 ## 2026-11-18 后续定位
 
 重新抓包并检查设备二进制后，已将此前未确定的丢失层级收敛到 vendor Binder 的 HAL V3 接口：Java 发送新增 SSI，设备 V3 NDK reader 不读取此 V4 字段，跳过剩余 Parcel；空口为没有 SDEA 的单播 NAN SDF Follow-up。具体运行时版本查询、帧号、源码差异与升级步骤见 [HAL V3 断点专项](android17-bootstrap-hal-v3.md)。本轮没有改 ROM，首次反向配对仍失败。
+
+
+## 2026-11-18 Vendor 实验修复后验证
+
+用户构建的 V4 服务与库部署后，App/HAL SSI=86 字节；信道 6 抓包 03-vendor-v4-bootstrap-ch6.pcap 第 122062 帧的 Bootstrap SDF Follow-up 包含 SDEA，TXT=83 字节且三项设备信息完整。iOS 接收 SSI 非空、显示平板名称及 PIN，用户协助输入 PIN 后双方首次配对成功；后续缓存验证通过。原始 V3 失败记录保留为历史，当前结果见 [V4 实机验证](vendor-v4-bootstrap-validation.md)。后续数据首包 EPERM 已定位到缺失的 Android 17 本地网络权限，声明并授予后双向心跳开始增长，持续验收结果见同文档。

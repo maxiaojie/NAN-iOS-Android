@@ -405,3 +405,12 @@ AOSP Android 17 下载完成后，重新安装当前 APK，使用 a0807d7 / iPho
 ### P24：部署用户编译的 Vendor V4 验证产物（2026-11-18）
 
 Downloads 中服务及 V4 NDK 库已备份后部署到 a0807d7，VINTF 同步声明 4，重启后 Binder 返回版本 4、进程实际加载 V4 库，文件 hash 匹配。另一台平板未操作。本轮只通过部署/加载检查，尚未验证 Bootstrap SSI 空口与首次配对；备份位置、证据和回退说明见 [部署记录](wifi-hal-aidl-v3-v4-comparison.md#vendor-私有-v4-产物部署2026-11-18)。
+
+
+### P24：Vendor V4 修复后首次配对通过（2026-11-18）
+
+a0807d7 订阅 iPhone 12：App/HAL SSI=86，空口 03-vendor-v4-bootstrap-ch6.pcap 第 122062 帧为带 SDEA 的 Bootstrap Follow-up；iOS TXT=83、三项设备信息完整，用户协助输入 PIN 后首次配对及后续缓存验证通过。86 包含 3 字节 TXT TLV 头，83 为 TXT，不是截断。详见 [实机验证](vendor-v4-bootstrap-validation.md)。
+
+### P28：Android 17 本地网络权限缺失导致心跳 EPERM
+
+首次配对后 NDP 已建立，但 Android sendto 返回 EPERM，AppOps 记录 ACCESS_LOCAL_NETWORK 被拒绝，原 APK 没有声明该权限。添加权限声明与运行时申请，assembleDebug/lintDebug 通过并覆盖安装 a0807d7；本轮用 pm grant 授权后有效 UID 拒绝消失，双向心跳开始增长。首次系统权限弹窗未单独验收；持续通信结果及设备范围见 [实机验证](vendor-v4-bootstrap-validation.md)。
