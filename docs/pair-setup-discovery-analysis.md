@@ -4,6 +4,8 @@
 
 ## 结论与边界
 
+**2026-11-18 更新：已取得 iOS 明确丢弃日志和 HAL 请求 dump。** Setup=false 时 wifip2pd 报 `missing CSIA GTKIGTKBIGTKSupported attribute`；HAL 下发前缺少 0x27 capability TLV，高通入口仅在 Setup=true 时将零能力补成 4。以下是 11 月 16 日历史判断；最新定位、字段转换缺口及待 ROM 验证的修改见 [HAL/空口专项定位](vendor-publish-csia-sta-analysis.md)。仍未部署单独修复 capability 的版本，不宣称修复验收通过。
+
 已确认一个报文层面的不一致：Android PairSetup=false 时，Publish SDF 的 **SDEA 仍要求 GTK，但 CSIA 声明不支持 GTK/IGTK/BIGTK，且缺少 GTK cipher suite ID 5**；只开启 PairSetup 后，CSIA 改为支持这些组密钥，并增加 ID 5，iPhone 随即发现端点并建立链路。信道 6 与 149 两次受控对照得到相同结果。
 
 这是当前优先排查的 ROM/HAL/固件能力声明问题，**尚未证明 Apple 的实际过滤分支必定就是这个字段**。开启 PairSetup 同时会更新其它内容，例如 Service Update Indicator；仅凭相关性不能排除更新指示、身份校验或其它因素。本次没有修改固件、单独补齐 GTK 声明做因果对照，也没有 Pixel 抓包，因此不宣称根因修复或所有 Android 都有该问题。

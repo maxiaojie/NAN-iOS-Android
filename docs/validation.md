@@ -1,5 +1,13 @@
 # 真机验证记录
 
+### Publish CSIA 与 STA 尾部定位（2026-11-18）
+
+a0807d7 + iPhone 12 保留配对缓存。信道 6 的 Setup 关闭/开启样本为 60/55 个，CSIA 分别 00 07 01 / 04 05 01 07 01。iOS 明确报 missing CSIA GTKIGTKBIGTKSupported attribute；HAL 关闭时省略 0x27、开启时携带 04，定位通过，单字段 ROM 修复未部署验收。
+
+STA 连接 5260MHz 时 76 个 Publish 额外 23 字节；断开后同一 NMI 的代表 Publish 无额外尾部并完成 Pair Verify/NDP，iOS 双向 13/13。原始包 07/09/10 留在 Ubuntu /home/mxj/NAN/2026-11-18 和 Mac 分析目录，不入库。详见 [本轮专项记录](vendor-publish-csia-sta-analysis.md)。本轮没有 Pixel 新对照。
+
+收尾已撤销平板临时自动连接限制、恢复原 STA 网络、停止 Android 并恢复 30 秒息屏；iPhone 执行短按电源锁屏，USB 截图为黑屏，CoreDevice lockState 查询返回 4016，未取得 passcodeRequired 二次确认。Ubuntu 一次性管理授权已安装，实际验证 prepare/capture/stop/restore；NetworkManager 恢复首次存在就绪延迟，助手免密重试后 wlp3s0 managed/connected、无 monitor、默认路由和 HTTPS 200 均确认。
+
 2026-11-17 最终订阅修正：移除 Subscribe DeviceInfo 与降级重试。a0807d7 首次 native startSubscribe 返回 status=0 并发现 iOS 服务，未出现旧提示。首次 PIN 仍未通过；与 Bootstrap 信息承载分开跟踪。
 
 2026-11-17：Android 新增配对缓存查询/刷新、单条删除、清空全部和删除确认。assembleDebug/lintDebug 通过，已安装 a0807d7；空列表查询、刷新、清空禁用和订阅期间管理禁用实机通过。有记录删除 UI 尚未覆盖，详见 [P25](problem-log.md#p25app-缺少配对缓存管理入口)。已有缓存的反向通信再次演示成功，删除后新 PIN 仍未通过，不能混作完整配对验收。

@@ -9,3 +9,4 @@
 - 明确区分编译、真机正常路径、失败恢复分支；没有验证的内容不得宣称通过。
 - 不提交配对密钥、私钥、签名资料或包含敏感字段的完整日志。
 - Ubuntu 抓包测试结束后，必须退出 monitor 模式、恢复普通 Wi-Fi 和上网能力，并检查接口、路由及外网；不要将抓包模式作为默认收尾状态。若恢复操作被 sudo 密码阻止，明确告知用户并在其执行后继续验证。
+- Ubuntu 已于 2026-11-18 一次授权固定命令 `/usr/local/sbin/nan-monitor-control`。使用 `sudo -n` 加 prepare、capture（信道 6/149，10～120 秒）、stop、restore、status；以后不要重复要求用户 sudo 恢复。restore 若因 NetworkManager 接口暂未就绪失败，继续自行重试并验证 HTTPS。安装源文件为 tools/setup-nan-monitor-control.sh，安装后的命令和 sudoers 由 root 持有。
