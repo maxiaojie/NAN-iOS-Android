@@ -107,3 +107,9 @@ V4 新增的组密钥 HAL mask 为 16、32；它们是能力位掩码，**不是
 2026-11-18 用户提出在 Vendor 新增 V4，仅给 NanBootstrappingRequest 添加 SSI，并在 AIDL→高通 legacy 转换中赋值。从当前发送路径看，此方案可让双方这个请求对象的字段顺序对齐，具备解决已确认 Parcel reader 断点的条件；前提是目标服务确实改为编译/链接新生成的 NDK 类型，且高通 putNanBootstrappingReq 已序列化 SDEA SSI，不能只增加版本目录但继续链接 V3。
 
 但标准 V4 还包含本文列出的其他六项类型变化，仅增加一个字段形成的是私有接口版本，其 API/hash 与 AOSP 标准 V4 不同。工程验证可明确按私有变体处理；正式使用建议引入完整标准 V4 接口快照/对应源定义，不照抄标准 V4 hash 来标记不同内容。完整接口定义的引入不等于升级整个 Vendor，也不意味着硬件必须支持所有新增可选能力；本次优先实现 Bootstrap SSI 的实际传递并按真实能力上报。用户隔离源码尚未修改，方案未构建或上机验收。
+
+### HIDL 跨版本继承与 Stable AIDL 快照的区别
+
+2026-11-18 用户询问以前接口是否可继承低版本。源码核对：hardware/interfaces/wifi/1.6/IWifiNanIface.hal:36 明确声明 `interface IWifiNanIface extends @1.5::IWifiNanIface`，1.5 同样 extends 1.4。这是 HIDL 显式跨版本接口继承。HAL 是功能层，HIDL/AIDL 是接口定义与通信技术，不应说成“HAL 能继承、AIDL 不能”。
+
+当前 Stable AIDL 的 aidl_api/.../4 不是继承 3 的增量目录，而是完整冻结快照。用户可以只编辑当前输入 AIDL 中需要的字段，再通过 API 更新/冻结流程生成完整新版本，无需手工重新编写所有旧文件。旧版本可共存、请求新字段被旧 reader 忽略，属于协议兼容，不代表版本目录继承。完整标准 V4 定义的回移植仍需编译与运行回归，不能预先保证厂商分支没有适配问题；单字段私有版本的边界见前文。本次检查的 AOSP Wi-Fi HAL Java 代码存在按服务版本 gating 的逻辑，未搜索到 isServiceVersionAtLeast(4) 的调用；这不是对用户隔离 Framework 分支的保证。
