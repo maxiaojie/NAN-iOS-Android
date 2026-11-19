@@ -18,7 +18,7 @@ import java.util.*;
 public final class MainActivity extends Activity {
     private TextView state, pin, stats, peer, lastMessage, instructions, benchmarkStats, performanceState;
     private LinearLayout performancePanel;
-    private EditText udpRate;
+    private EditText udpRate, testDuration;
     private LinearLayout udpRateRow;
     private Button toggle, pairButton, connectButton, cacheButton;
     private Switch pairingSwitch;
@@ -125,19 +125,29 @@ public final class MainActivity extends Activity {
                 new Integer[]{1,2,4,8,16}));
         testStreams.setSelection(2);
         performancePanel.addView(testStreams);
-        benchmarkStats = label(performancePanel, "iperf3 · 每次测试 10 秒", 16);
+        label(performancePanel, "测试时长（秒，1～3600）", 14);
+        testDuration = new EditText(this);
+        testDuration.setInputType(InputType.TYPE_CLASS_NUMBER);
+        testDuration.setSingleLine(true);
+        testDuration.setText("10");
+        performancePanel.addView(testDuration);
+        benchmarkStats = label(performancePanel, "iperf3 · 默认 10 秒 · 时长可调整", 16);
         for (boolean reverse : new boolean[]{true,false}) {
             Button benchmark = new Button(this);
             benchmark.setAllCaps(false);
             benchmark.setText(reverse ? "Android → iOS" : "iOS → Android");
             performancePanel.addView(benchmark);
             benchmark.setOnClickListener(v -> {
+                int duration;
+                try { duration = Integer.parseInt(testDuration.getText().toString()); }
+                catch (NumberFormatException e) { testDuration.setError("请输入 1～3600 秒"); return; }
+                if (duration < 1 || duration > 3600) { testDuration.setError("请输入 1～3600 秒"); return; }
                 int rate;
                 try { rate = Integer.parseInt(udpRate.getText().toString()); }
                 catch (NumberFormatException e) { udpRate.setError("请输入 0～100000"); return; }
                 if (rate < 0 || rate > 100000) { udpRate.setError("请输入 0～100000"); return; }
                 if (controller != null) controller.benchmark(testProtocol.getSelectedItem().toString(),
-                        (Integer)testStreams.getSelectedItem(), reverse, rate);
+                        (Integer)testStreams.getSelectedItem(), reverse, rate, duration);
                 else benchmarkStats.setText("请先建立数据链路");
             });
         }
@@ -272,7 +282,7 @@ public final class MainActivity extends Activity {
 
     private void sessionControls(boolean running) {
         if (!running) performanceState.setText("请先建立数据链路");
-        if (!running) benchmarkStats.setText("iperf3 · 每次测试 10 秒");
+        if (!running) benchmarkStats.setText("iperf3 · 默认 10 秒 · 时长可调整");
         cacheButton.setEnabled(!running);
         cacheButton.setText(running ? "停止后可管理配对缓存" : "管理配对缓存");
         for (int i = 0; i < roles.getChildCount(); i++) roles.getChildAt(i).setEnabled(!running);

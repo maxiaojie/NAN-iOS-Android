@@ -483,6 +483,8 @@ STA BSSID d0:4d:c6:cb:50:a7，5260MHz / DFS信道52；iPhone14 Pro触发订阅�
 
 ### libiperf3 与 Android 分区改版（2026-11-19）
 
+测试型号：Android 为联想拯救者 Y700 平板 **TB323FU**（a0807d7，Android 17 / API 37）；iOS 为 **Apple iPhone 12**（iPhone13,2，iOS 27.2.1）。以下吞吐样本均对应此组合。
+
 环境补充：本轮吞吐结果来自办公室存在无线干扰的实际环境，尚未量化干扰影响，不代表性能上限。用户后续会在更干净的无线环境复测，另行记录并与本轮结果对照。
 
 初版自定义单线程 UDP 固定负载不满足多线程性能测试要求，现改为内嵌 ESnet libiperf3 3.22。默认 4 并行流，TCP/UDP、双向；取消固定 50 Mbps，UDP 发送速率可配置，0 表示不限速。Android 按用户要求采用配对和连接、数据链路、性能测试、配对缓存管理四区域。心跳统计仅在数据链路区域。双端编译、Android lint、安装通过。
@@ -492,3 +494,12 @@ iPhone App 出现一条 iPhone、两条同名 Y700，系统设置三条却均显
 真实吞吐验证先遇到接口就绪过早读取以及 BSD socket 的 No route to host。Apple 官方答复确认 Aware 应使用 Network framework；加入 loopback → Network framework 适配层，并从公开 NWBrowser 发现结果取得可指定端口的 Aware 端点，修复测试连接。a0807d7 发布 / iPhone12 订阅时，双向 TCP/UDP 4 线程真实测速通过，2 线程切换及 UDP 100 Mbps 总速率参数也通过；结果和本机适配层开销限制见 [专项记录](throughput-test.md)。反向发现角色下新增测试连接尚未验收。
 
 心跳频率已抓包核对：每端约 5 秒，两端相位约差 1 秒，ACK 紧随收到的心跳；不能将两端叠加或每秒 UI 刷新当作单端 1 秒心跳。iOS 将说明移至数据链路区；数字速率键盘增加“完成”按钮。
+
+
+### 性能测试时长可配置（2026-11-19）
+
+表现与原因：双端 UI 只允许测试 10 秒；Android `iperf_request.duration`、iOS 调用 `ab_iperf_run` 也写死 10，原生包装另有限制最长 60 秒。仅改界面不足以改变实际时长。
+
+处理：Android、iOS 性能测试区新增秒数输入，默认 10 秒，允许 1～3600 秒。Android 通过控制消息传递所选时长，iOS 自身发起或处理 Android 请求时均传给 libiperf；两端入口及原生客户端校验范围，运行状态显示本次目标时长。缺少 duration 的旧控制请求仍默认 10 秒。心跳仍独立按原频率运行，目标时长不包含连接建立和结果交换。
+
+验证：Android assembleDebug / lintDebug 与 iOS iphoneos 构建通过；Android APK 已覆盖安装 a0807d7。iOS 本轮为禁用签名的编译检查，尚未安装本次改动；新增时长尚未做双端真机传输验收，不能把上文原有 10 秒测速结果当作可调时长的验收。后续需双端安装后分别从两端发起非 10 秒 TCP/UDP 测试，核对接收汇总时间，并检查非法输入及断链取消。

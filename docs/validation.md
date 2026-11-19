@@ -196,6 +196,8 @@ b2302624 追加 lenovo-internet（5260MHz / DFS52）测试：信道6/149共114�
 
 ### 2026-11-19 libiperf3 真机替代验证
 
+测试型号：Android 为联想拯救者 Y700 平板 **TB323FU**（a0807d7，Android 17 / API 37）；iOS 为 **Apple iPhone 12**（iPhone13,2，iOS 27.2.1）。以下吞吐样本均对应此组合。
+
 本轮结果测于办公室存在无线干扰的环境，未在干净、受控的无线环境下测试，不能作为设备或链路的性能上限。用户计划后续在更干净的无线环境复测；当前未量化干扰对结果的影响。
 
 以上初版自定义 UDP 测试已被内嵌 libiperf3 3.22 替代。a0807d7 发布 / iPhone12（27.2.1）订阅，清理旧配对后重新 PIN 配对和双向心跳通过。Android 四区域为配对和连接、数据链路、性能测试、配对缓存管理，默认 4 线程。
@@ -205,3 +207,8 @@ b2302624 追加 lenovo-internet（5260MHz / DFS52）测试：信道6/149共114�
 iOS 直接 BSD socket 无路由，现通过 loopback 和 Network framework 公开 Aware 端点转发；需要 iOS 26.4+，包括转发开销。反向发现角色的新增测试连接尚未验收。测速中主动断开 iOS 时确认 5 个活动 TCP 连接随后全部释放；未重启 App，重新连接后 TCP 4 线程下行再次完成，58.27 Mbps / 72.88 MB / 10.0 秒。最新双端构建及 Android lint 通过并已安装，签名资料和原始敏感日志不提交。
 
 收尾：停止 a0807d7 App，恢复 30 秒息屏、取消临时 STA 自动连接限制，确认已连接 lenovo-internet（5260MHz，网络 VALIDATED）。iPhone12 执行锁屏并确认 backlightState=off。成功配对保留。本轮未操作 Ubuntu 网卡、未进入 monitor；心跳检查使用平板 aware_data0 抓包。
+
+
+### 2026-11-19 测速时长设置
+
+双端增加 1～3600 秒输入，默认 10 秒；Android 控制消息 → iOS → libiperf 的时长传递已贯通，原生上限同步调整。Android assembleDebug/lintDebug、iOS iphoneos 无签名编译通过，Android 新 APK 已安装 a0807d7。新增非 10 秒时长尚未双端真机验收，本轮未安装 iOS 新版本；原有吞吐表为此前 10 秒结果。实现与待验收项见 [问题记录](problem-log.md)。

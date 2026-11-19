@@ -21,16 +21,16 @@ final class HeartbeatTransport implements AutoCloseable {
     private final Observer observer;
     private IperfServer iperf;
     private final String directory;
-    void benchmark(String protocol, int streams, boolean reverse, int rateMbps) {
+    void benchmark(String protocol, int streams, boolean reverse, int rateMbps, int durationSeconds) {
         synchronized (this) {
             if (peerSession == null || iperf == null || !iperf.available()) {
                 observer.onBenchmark("请先等待双向心跳及 iperf3 服务就绪"); return;
             }
             try {
                 String config = new JSONObject().put("protocol",protocol).put("streams",streams)
-                        .put("reverse",reverse).put("duration",10).put("rate",rateMbps).toString();
+                        .put("reverse",reverse).put("duration",durationSeconds).put("rate",rateMbps).toString();
                 send("iperf_request", sequence++, config);
-                observer.onBenchmark("已请求 iperf3 测试 · " + streams + " 线程 · " + protocol);
+                observer.onBenchmark("已请求 iperf3 测试 · " + streams + " 线程 · " + durationSeconds + " 秒 · " + protocol);
             } catch (Exception e) { observer.onBenchmark("启动失败："+e.getMessage()); }
         }
     }

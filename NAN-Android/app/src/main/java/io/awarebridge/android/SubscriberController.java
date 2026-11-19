@@ -55,8 +55,8 @@ final class SubscriberController implements BridgeController {
     private static final int IOS_UDP_PORT = 45454;
     private static final int CIPHER = Characteristics.WIFI_AWARE_CIPHER_SUITE_NCS_PK_PASN_128;
     private static final int KEYPAD = AwarePairingConfig.PAIRING_BOOTSTRAPPING_PIN_CODE_KEYPAD;
-    @Override public void benchmark(String protocol, int streams, boolean reverse, int rateMbps) {
-        if (transport != null) transport.benchmark(protocol,streams,reverse,rateMbps);
+    @Override public void benchmark(String protocol, int streams, boolean reverse, int rateMbps, int durationSeconds) {
+        if (transport != null) transport.benchmark(protocol,streams,reverse,rateMbps,durationSeconds);
         else observer.benchmark("请先建立数据链路");
     }
 

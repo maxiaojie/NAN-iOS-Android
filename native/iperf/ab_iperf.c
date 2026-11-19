@@ -55,7 +55,7 @@ char *ab_iperf_run(int server,const char *address,const char *device,int port,in
     test->settings->snd_timeout=5000000;
     if (server) iperf_set_test_bind_address(test,address);
     else {
-        if (streams<1 || streams>16 || duration<1 || duration>60) {
+        if (streams<1 || streams>16 || duration<1 || duration>3600) {
             iperf_free_test(test); if(output) fclose(output); atomic_flag_clear(&busy);
             return strdup("{\"error\":\"invalid test parameters\"}");
         }

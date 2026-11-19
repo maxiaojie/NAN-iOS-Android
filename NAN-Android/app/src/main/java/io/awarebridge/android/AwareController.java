@@ -25,8 +25,8 @@ final class AwareController implements BridgeController {
         void stopped();
     }
 
-    @Override public void benchmark(String protocol, int streams, boolean reverse, int rateMbps) {
-        if (transport != null) transport.benchmark(protocol,streams,reverse,rateMbps);
+    @Override public void benchmark(String protocol, int streams, boolean reverse, int rateMbps, int durationSeconds) {
+        if (transport != null) transport.benchmark(protocol,streams,reverse,rateMbps,durationSeconds);
         else observer.benchmark("请先建立数据链路");
     }
 

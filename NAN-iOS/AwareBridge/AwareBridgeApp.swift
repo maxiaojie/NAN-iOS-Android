@@ -87,12 +87,20 @@ struct BridgeView: View {
                             .font(.caption).foregroundStyle(.secondary)
                     }
                     Stepper("并行线程数：\(model.testStreams)", value: $model.testStreams, in: 1...16)
+                    HStack {
+                        Text("测试时长（秒）")
+                        TextField("1～3600", value: $model.testDurationSeconds, format: .number)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    Text("支持 1～3600 秒，默认 10 秒。")
+                        .font(.caption).foregroundStyle(.secondary)
                     Text(model.benchmarkStatus).font(.footnote)
                     Button("iOS → Android") { model.startBenchmark(reverse: false) }
                         .disabled(!model.active || model.lastReceived == nil)
                     Button("Android → iOS") { model.startBenchmark(reverse: true) }
                         .disabled(!model.active || model.lastReceived == nil)
-                    Text("iperf3 · 每次测试 10 秒 · TCP 不限速。")
+                    Text("iperf3 · 按设置的时长测试 · TCP 不限速。")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 Section {

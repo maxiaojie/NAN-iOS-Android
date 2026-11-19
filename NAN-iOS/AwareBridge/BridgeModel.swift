@@ -37,16 +37,17 @@ final class BridgeModel {
     var lastMessage = "每 5 秒双向心跳，收到后回复确认"
     var lastReceived: Date?
     var now = Date()
-    var benchmarkStatus = "libiperf · 10 秒 · 默认 4 线程"
+    var benchmarkStatus = "libiperf · 默认 10 秒 / 4 线程 · 参数可调整"
     var testProtocol = "TCP"
     var testStreams = 4
+    var testDurationSeconds = 10
     var testRateMbps = 0
     @ObservationIgnored private var benchmark: IperfClient?
     func startBenchmark(reverse: Bool) {
         guard let benchmark, let lastReceived, Date().timeIntervalSince(lastReceived) < 20 else {
             benchmarkStatus = "请先等待双向心跳建立"; return
         }
-        benchmark.start(proto: testProtocol, streams: testStreams, reverse: reverse, rateMbps: testRateMbps)
+        benchmark.start(proto: testProtocol, streams: testStreams, reverse: reverse, rateMbps: testRateMbps, durationSeconds: testDurationSeconds)
     }
     @ObservationIgnored private var connectionTask: Task<Void, Never>?
     @ObservationIgnored private var incomingTask: Task<Void, Never>?
@@ -311,7 +312,7 @@ final class BridgeModel {
     func stop() {
         benchmark?.close()
         benchmark = nil
-        benchmarkStatus = "libiperf · 10 秒 · 默认 4 线程"
+        benchmarkStatus = "libiperf · 默认 10 秒 / 4 线程 · 参数可调整"
         generation = UUID()
         connectionTask?.cancel()
         connectionTask = nil

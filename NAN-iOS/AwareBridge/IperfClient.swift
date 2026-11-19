@@ -24,17 +24,20 @@ import Network
               let streams = object["streams"] as? Int, let proto = object["protocol"] as? String,
               let reverse = object["reverse"] as? Bool,
               let rate = object["rate"] as? Int else { return }
-        start(proto: proto, streams: streams, reverse: reverse, rateMbps: rate)
+        // Older peers omitted duration; preserve their ten-second default.
+        let duration = object["duration"] as? Int ?? 10
+        start(proto: proto, streams: streams, reverse: reverse, rateMbps: rate, durationSeconds: duration)
     }
-    func start(proto: String, streams: Int, reverse: Bool, rateMbps: Int) {
+    func start(proto: String, streams: Int, reverse: Bool, rateMbps: Int, durationSeconds: Int) {
         guard !closed else { return }
         guard !Self.running else { publish("已有 iperf3 测试运行中"); return }
         guard (1...16).contains(streams), (0...100000).contains(rateMbps), ["TCP","UDP"].contains(proto) else { return }
+        guard (1...3600).contains(durationSeconds) else { publish("测试时长请输入 1～3600 秒"); return }
         guard host != nil else { publish("等待 Android iperf3 服务地址"); return }
         Self.running = true
         ownsRun = true
         let direction = reverse ? "Android → iOS" : "iOS → Android"
-        publish("iperf3 \(proto) · \(streams) 线程 · \(direction) · 测试中…")
+        publish("iperf3 \(proto) · \(streams) 线程 · \(direction) · \(durationSeconds) 秒 · 测试中…")
         ab_set_temp_dir(NSTemporaryDirectory())
         ab_prepare(0)
         Task {
@@ -49,7 +52,7 @@ import Network
             guard !closed else { relay?.close(); relay = nil; Self.running = false; ownsRun = false; return }
             let result = await Task.detached(priority: .userInitiated) {
                 let output = ab_iperf_run(0, "::1", "", 5201, proto == "UDP" ? 1 : 0,
-                                          reverse ? 1 : 0, Int32(streams), 10, Int32(rateMbps))
+                                          reverse ? 1 : 0, Int32(streams), Int32(durationSeconds), Int32(rateMbps))
                 let json = output.map { String(cString: $0) } ?? "{}"
                 ab_free(output)
                 return Self.summary(json, proto: proto, streams: streams, direction: direction)
