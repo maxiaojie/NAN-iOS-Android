@@ -171,3 +171,8 @@ sudo -n /usr/local/sbin/nan-monitor-control status
 ### P19：2026-11-19 Publish 修复通过当前组合验证
 
 用户确认前一候选库误改 Subscribe，本次改正 Publish。新库 SHA-256 `0cd80cb19390ebb38cf46f982359bf53545e8f2ed386a244550c782237c6a546` 已部署并重启、确认实际加载。默认 Setup=false 时 HAL 0x27=04，空口 CSIA=04 07 01，iPhone 缓存 Pair Verify、NDP 和双向通信通过。开关 true→一分钟自动 false 均保留 capability=4，链路持续到 48/48；随后重新 Publish(false) 也再次连接成功。P19 的当前硬件/ROM正常路径修复已验证，非首次清缓存配对、非跨机型全面验收；STA 23 字节 P07 未因此解决。另观察 iOS 主动断开后 App 心跳超时会停止 Publish，重连需先重新发布，避免与 CSIA 过滤混淆。详见 [完整部署和证据](csia-publish-fix-validation-2026-11-19.md)。
+
+
+### P07：303fdedc 第二台平板同会话复现（2026-11-19）
+
+303fdedc 与 iPhone14 Pro 均安装当前 App，保留该平板原 HAL。信道6同一 NMI/Publish 的 STA 断开72帧无零尾，连接后75帧多23字节，后续Setup开启25帧仍多23；再次断开取得35帧（Setup关闭）与49帧（开启）无零尾。STA切换窗口没有重新下发Publish。代表帧正常528字节→异常566字节，38字节差含合法调度属性变化及23字节异常尾部，不能直接相减判定。新线索是 STA 并发/Availability/Unaligned Schedule 路径；尚不能判定驱动还是Firmware。昨日两份347字节HAL请求复核仅头部偏移6不同，payload完全相同。完整 [驱动日志及空口对照](303fdedc-sta-sdf-driver-analysis.md)。Ubuntu已恢复Wi-Fi和HTTPS200；303fdedc恢复原网络，iPhone14 Pro已锁屏。

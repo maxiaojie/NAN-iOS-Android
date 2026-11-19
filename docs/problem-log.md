@@ -449,3 +449,8 @@ Ubuntu 抓包收尾规则已加入 AGENTS.md；退出 monitor 后需额外 sudo 
 ### 2026-11-19 反向 STA 并发验证
 
 a0807d7 订阅 iPhone12：STA 5260 MHz 下两次 NDP reason=2（其中一次 Pair Verify 成功），STA 断开后双向 29/29；重新连到另一 BSSID、5320 MHz 后已有链路持续，重新建链也通过、iPhone 15/15。不能概括连接 STA 必然失败，亦未证明与 Publish 23 字节同根因。固定信道重复对照及空口待补；详见 [时序及限制](reverse-sta-validation-2026-11-19.md)。
+
+
+### P07：303fdedc 第二台平板同会话复现（2026-11-19）
+
+303fdedc 与 iPhone14 Pro 均安装当前 App，保留该平板原 HAL。信道6同一 NMI/Publish 的 STA 断开72帧无零尾，连接后75帧多23字节，后续Setup开启25帧仍多23；再次断开取得35帧（Setup关闭）与49帧（开启）无零尾。STA切换窗口没有重新下发Publish。代表帧正常528字节→异常566字节，38字节差含合法调度属性变化及23字节异常尾部，不能直接相减判定。新线索是 STA 并发/Availability/Unaligned Schedule 路径；尚不能判定驱动还是Firmware。昨日两份347字节HAL请求复核仅头部偏移6不同，payload完全相同。完整 [驱动日志及空口对照](303fdedc-sta-sdf-driver-analysis.md)。Ubuntu已恢复Wi-Fi和HTTPS200；303fdedc恢复原网络，iPhone14 Pro已锁屏。

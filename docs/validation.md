@@ -1,5 +1,9 @@
 # 真机验证记录
 
+### 第二台 TB323FU 的 STA 零尾问题复现（2026-11-19）
+
+303fdedc + iPhone14 Pro 当前 App，保留原 HAL。同一 Publish/NMI 在 STA 连接前无零尾，连接5260MHz后多23字节，再次断开恢复；72/75帧直接对照，Setup变化单独计数。驱动STA切换日志没有新的Publish下发，尚未取得NAN WMI buffer或确定构帧责任层。详见 [证据与限制](303fdedc-sta-sdf-driver-analysis.md)。本轮未操作另一台平板及iPhone12。
+
 ### 自动重连双端验收通过（2026-11-19，10:18～10:21）
 
 首版保留 Publish 的恢复实测失败，旧 NDP 终止状态阻挡新请求；仅重建 Publish 也失败。最终自动重建 attach/Publish，保留配对状态后，a0807d7 与 iPhone12 在 Setup=false 下完成主动断开、心跳超时、自动恢复、仅 iOS 点击重连、Pair Verify/NDP 和双向 13/13。编译/lint、安装通过。STA 并发及底层 teardown 未解决。详见 [完整测试](publisher-reconnect-recovery.md)。以下“待验收”保留为首版历史。
