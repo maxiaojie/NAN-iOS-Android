@@ -212,3 +212,10 @@ iOS 直接 BSD socket 无路由，现通过 loopback 和 Network framework 公�
 ### 2026-11-19 测速时长设置
 
 双端增加 1～3600 秒输入，默认 10 秒；Android 控制消息 → iOS → libiperf 的时长传递已贯通，原生上限同步调整。Android assembleDebug/lintDebug、iOS iphoneos 无签名编译通过，Android 新 APK 已安装 a0807d7。新增非 10 秒时长尚未双端真机验收，本轮未安装 iOS 新版本；原有吞吐表为此前 10 秒结果。实现与待验收项见 [问题记录](problem-log.md)。
+
+
+### 2026-11-19 可调时长补充安装与真机验证
+
+iOS 使用已有本机开发签名配置重建并成功覆盖安装 iPhone 12；Android 同版 APK 额外成功覆盖安装 303fdedc。303fdedc 本轮仅确认安装，不计入以下测速组合。
+
+a0807d7（联想 TB323FU，Android 17 / API 37）发布，iPhone 12（iOS 27.2.1）订阅，复用已有配对建立双向心跳。Android UI 将时长改为 15 秒，发起 TCP / 4 线程 / Android→iOS；iOS 运行状态收到 15 秒，完整可访问性结果为 **63.45 Mbps / 119.01 MB / 15.0 秒**。确认 Android 配置经控制消息传至 iOS/libiperf 后实际生效。办公室干扰环境，临时断开 Android STA，包含 iOS 转发开销，不能视为性能上限。该结果只验收 15 秒 TCP 单方向；iOS 本地输入发起、UDP 非 10 秒及 3600 秒长稳尚未验收。
