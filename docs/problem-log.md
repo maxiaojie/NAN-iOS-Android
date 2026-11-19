@@ -429,3 +429,8 @@ a0807d7 订阅 iPhone 12：App/HAL SSI=86，空口 03-vendor-v4-bootstrap-ch6.pc
 Framework Android 17、Vendor Android 16 基线为用户提供的产品背景；直接验证的运行接口为 Vendor Wi-Fi AIDL V3。Framework 已写出 Bootstrap SSI，旧 Vendor reader 缺字段而跳过；现有高通下层本来具备 SDEA SSI 能力，本轮不替换高通库/驱动/Firmware，仅补 AIDL 类型及转换后空口、首次 PIN 成功，根因应表述为接口与适配未对齐。已更新 [根因文档](android17-bootstrap-hal-v3.md#修复后确认的层次关系)，避免把 V3 等同整个 Vendor 版本或泛称高通不支持。
 
 Ubuntu 抓包收尾规则已加入 AGENTS.md；退出 monitor 后需额外 sudo nmcli 激活保存连接，用户执行后外网 HTTPS 200 已验证。
+
+
+### P19：2026-11-19 Publish 修复通过当前组合验证
+
+用户确认前一候选库误改 Subscribe，本次改正 Publish。新库 SHA-256 `0cd80cb19390ebb38cf46f982359bf53545e8f2ed386a244550c782237c6a546` 已部署并重启、确认实际加载。默认 Setup=false 时 HAL 0x27=04，空口 CSIA=04 07 01，iPhone 缓存 Pair Verify、NDP 和双向通信通过。开关 true→一分钟自动 false 均保留 capability=4，链路持续到 48/48；随后重新 Publish(false) 也再次连接成功。P19 的当前硬件/ROM正常路径修复已验证，非首次清缓存配对、非跨机型全面验收；STA 23 字节 P07 未因此解决。另观察 iOS 主动断开后 App 心跳超时会停止 Publish，重连需先重新发布，避免与 CSIA 过滤混淆。详见 [完整部署和证据](csia-publish-fix-validation-2026-11-19.md)。

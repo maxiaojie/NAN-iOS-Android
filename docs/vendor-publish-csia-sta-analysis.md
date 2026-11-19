@@ -166,3 +166,8 @@ sudo -n /usr/local/sbin/nan-monitor-control status
 仅允许固定动作；抓包入口仍限制 6/149 信道及 10～120 秒，stop 只匹配 wlp3s0mon 上的固定 tcpdump 调用，restore 删除 monitor 并激活固定保存网络 lenovo-internet，不改有线 SSH。没有开放任意命令、PID、接口、输出路径或任意 sudo。
 
 实际验收：安装后免密执行 prepare、10 秒抓包、status、restore；另启动 120 秒抓包后通过 stop 主动终止，tcpdump 正常结束并输出统计，随后恢复。首次 restore 的 nmcli 曾因接口尚未就绪返回 unavailable，助手再次执行 restore 后成功；此情况不需要重新授权。最终确认 wlp3s0 managed、连接 lenovo-internet、无 monitor、默认路由恢复，清华镜像 HTTPS 返回 200。11/12 两份管理测试包也保存在上述日期目录，不作为 Publish 问题的业务证据。
+
+
+### P19：2026-11-19 Publish 修复通过当前组合验证
+
+用户确认前一候选库误改 Subscribe，本次改正 Publish。新库 SHA-256 `0cd80cb19390ebb38cf46f982359bf53545e8f2ed386a244550c782237c6a546` 已部署并重启、确认实际加载。默认 Setup=false 时 HAL 0x27=04，空口 CSIA=04 07 01，iPhone 缓存 Pair Verify、NDP 和双向通信通过。开关 true→一分钟自动 false 均保留 capability=4，链路持续到 48/48；随后重新 Publish(false) 也再次连接成功。P19 的当前硬件/ROM正常路径修复已验证，非首次清缓存配对、非跨机型全面验收；STA 23 字节 P07 未因此解决。另观察 iOS 主动断开后 App 心跳超时会停止 Publish，重连需先重新发布，避免与 CSIA 过滤混淆。详见 [完整部署和证据](csia-publish-fix-validation-2026-11-19.md)。

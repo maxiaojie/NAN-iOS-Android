@@ -1,5 +1,9 @@
 # 真机验证记录
 
+### Publish CSIA 修复通过（2026-11-19）
+
+新高通库修正 Publish 入口，在 Setup=false 时仍下发 0x27=04；空口 CSIA=04 07 01。默认关闭时 iPhone 已配对设备发现、Pair Verify、NDP、双向通信通过；开启一分钟自动关闭后链路保持，关闭状态重新发布后再次连接通过。完整 [部署与验证记录](csia-publish-fix-validation-2026-11-19.md)。使用已有缓存、STA 断开；P07 和首次配对不在本次验收范围。前一库误改 Subscribe 的失败历史保留如下。
+
 ### 新高通 Publish 候选库部署（2026-11-18，18:34～18:46）
 
 新 libwifi-hal.so（SHA1837883062e14520511f37cb9411c551421208539af4d20598b79450cc2a876c）已备份后替换、重启，文件 hash 与服务 maps 均确认。部署通过，P19 修复验证未通过：初始 false 和自动关闭后仍缺 0x27，空口 CSIA=00 07 01，iOS 明确报 missing CSIA GTKIGTKBIGTKSupported attribute；true 时才有 04 并建立双向通信。新 ELF 中仍存在 Setup 门限，待用户核对修改片段/构建输出。详细 [部署、帧号和失败证据](csia-candidate-deployment-2026-11-18.md)。Ubuntu 已自行恢复 Wi-Fi/外网200；平板恢复原网络和息屏，iPhone 执行锁屏。

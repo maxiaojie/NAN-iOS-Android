@@ -84,3 +84,8 @@ App 继续保留用户要求的默认关闭及一分钟窗口；暂时打开窗�
 2026-11-16 补充核对：并非所有关闭状态样本都来自 updatePublish。信道 149 有效第二轮之前，旧会话已因停止收发后的心跳超时清理；唤醒平板后 UI 为“开始发布”，配对开关关闭。点击开始发布后 UI 显示 UDP 40813、按钮“停止”、配对开关仍关闭。代码此时走 `aware.publish(publishConfig(false), ...)`，不是用 updatePublish 将旧会话改为关闭。该轮抓包首个代表 Publish（13525）依然是 SDEA=0x0440、CSIA cipher=7、group-key support=0，iPhone 仍停留发现。之后开启窗口才恢复 GTK 声明并连接。
 
 因此，新建 Setup=false 的 Publish 也能复现，现有证据不支持“仅 updatePublish 更新遗留状态，重建后就正常”。这个测试包含完整 Aware 资源清理后重新启动；尚未单独实现“保留原 attach/网络请求，只 close PublishDiscoverySession 再创建 Publish”的替代关闭分支，不将两种生命周期操作混为完全相同。配对缓存保留，未通过删除凭据改变条件。本节是对现有记录及本机 XML/抓包的复核，不是新增真机重测。
+
+
+### P19：2026-11-19 Publish 修复通过当前组合验证
+
+用户确认前一候选库误改 Subscribe，本次改正 Publish。新库 SHA-256 `0cd80cb19390ebb38cf46f982359bf53545e8f2ed386a244550c782237c6a546` 已部署并重启、确认实际加载。默认 Setup=false 时 HAL 0x27=04，空口 CSIA=04 07 01，iPhone 缓存 Pair Verify、NDP 和双向通信通过。开关 true→一分钟自动 false 均保留 capability=4，链路持续到 48/48；随后重新 Publish(false) 也再次连接成功。P19 的当前硬件/ROM正常路径修复已验证，非首次清缓存配对、非跨机型全面验收；STA 23 字节 P07 未因此解决。另观察 iOS 主动断开后 App 心跳超时会停止 Publish，重连需先重新发布，避免与 CSIA 过滤混淆。详见 [完整部署和证据](csia-publish-fix-validation-2026-11-19.md)。

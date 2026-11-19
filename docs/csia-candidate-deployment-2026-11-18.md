@@ -2,6 +2,8 @@
 
 时间：2026-11-18 18:34～18:46。设备 a0807d7 / TB323FU Android 17，iPhone 12 / iOS 27.2.1。对应问题 P19。
 
+> 后续：用户确认本轮误改了 Subscribe 入口。11 月 19 日更正 Publish 后的部署和通过结果见 [新验证记录](csia-publish-fix-validation-2026-11-19.md)，以下保留当时失败证据。
+
 ## 结果
 
 **部署成功，但本次库没有实现“Setup=false 时仍下发 cipher capability=4”的预期行为。** 新库确实被 Wi-Fi 服务加载，初始关闭、开启、超时自动关闭三种状态仍表现为：
