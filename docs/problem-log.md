@@ -459,3 +459,8 @@ a0807d7 订阅 iPhone12：STA 5260 MHz 下两次 NDP reason=2（其中一次 Pai
 ### P07：b2302624 新刷 TB522FU 对照（2026-11-19）
 
 已 push Wi-Fi Aware XML、重启确认 feature 并安装当前 API37 App；保留原厂 HAL。STA 断开、mxj-5G（5765MHz / 信道153）、mxj-5G_3（5240MHz / 信道48），信道6和149共246个目标Publish均未见额外23字节，CSIA始终00 07 01。不是配对/NDP验收，也不代表TB323FU问题已修复。详见 [部署、帧号与双频抓包](b2302624-sta-sdf-validation.md)。
+
+
+### P07：b2302624 的 lenovo-internet 补测（2026-11-19）
+
+STA BSSID d0:4d:c6:cb:50:a7，5260MHz / DFS信道52；iPhone14 Pro触发订阅，信道6取得47个、149取得67个目标Publish，共114个均无额外23字节。与先前TB323FU同为STA信道52也未复现，不能归结为只要DFS52就必然异常。详见 [追加抓包记录](b2302624-sta-sdf-validation.md#追加lenovo-internet--dfs-信道-52)。

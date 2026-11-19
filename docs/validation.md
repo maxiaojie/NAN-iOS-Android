@@ -185,3 +185,6 @@ a0807d7 订阅 iPhone12：STA 5260 MHz 下两次 NDP reason=2（其中一次 Pai
 ### 2026-11-19 b2302624 STA 双接入点检查
 
 TB522FU Android17启用Aware声明、安装当前App通过。未连接STA及连接mxj-5G/153、mxj-5G_3/48，空口6/149共246个目标Publish无额外23字节。仅验收当前环境未复现，不验收首次配对或NDP，也未修复TB323FU。详见 [完整记录](b2302624-sta-sdf-validation.md)。
+
+
+b2302624 追加 lenovo-internet（5260MHz / DFS52）测试：信道6/149共114个目标Publish均无额外23字节；保留原厂HAL、Setup=false。结论仍限于本机当前版本，未验收配对/NDP。详见 [追加记录](b2302624-sta-sdf-validation.md)。

@@ -42,3 +42,22 @@ Ubuntu 原始抓包保存 `/home/mxj/NAN/2026-11-19/b2302624-sta/`；Mac 副本�
 ## 收尾
 
 停止平板 App，恢复原 30 秒息屏，解除临时 auto-join restriction，平板保留连接 mxj-5G；权限、功能声明和两个用户要求的网络配置保留。iPhone 14 Pro 已手动锁屏，devicectl 确认 passcodeRequired=true。Ubuntu restore 首次因设备暂不可用失败，重试成功，wlp3s0 managed/connected、默认路由恢复，清华镜像 HTTPS 返回 HTTP/2 200。
+
+## 追加：lenovo-internet / DFS 信道 52
+
+用户将 b2302624 连接 lenovo-internet 后，使用同一 APK、原厂 HAL 和 Setup=false 再测，未切换用户指定的 STA 网络。实际 BSSID `d0:4d:c6:cb:50:a7`、5260 MHz（信道 52，DFS）、11ax。平板系统时钟本轮已为 11 月 19 日，与上一轮不同。
+
+新 Aware 会话 NMI `02:5b:ff:06:91:5b`，11:32:32.184 驱动 `NAN_NEW_MAC_ADDR` 确认，报文 TXT 中 modelName=TB522FU。iPhone14 Pro 打开系统添加页触发订阅。
+
+| 文件 | 目标 Publish 数量 | 额外零尾 | 代表帧 / 抓包机时间 |
+| --- | ---: | --- | --- |
+| 06-lenovo-internet-ch6.pcap | 47 | 全部 0 字节 | 11745 / 11:33:05.641836 |
+| 07-lenovo-internet-ch149.pcap | 67 | 全部 0 字节 | 613 / 11:34:01.351631 |
+
+合计 114 个目标 Publish 均没有额外 23 字节。CSIA=`00 07 01`、SDEA control=`40 00`，记录总长 469、radiotap 56，SDA/SDEA payload 为 92/91，两个 Availability payload 都是 51。06 代表帧 cap_len=frame.len=469，FCS-present=false；末尾合法属性后没有残留字节。
+
+与前轮 mxj-5G、mxj-5G_3 对照，本机在三个接入点上均未复现；即使 STA 主信道与之前 TB323FU 复现时同为 52，也不足以触发本机异常。不能将“STA 位于 DFS 信道 52”单独当作充分条件，也不能由本轮反推 TB323FU 已修复。未进行配对/NDP 验收。
+
+06/07 原始包已保存到前述 Ubuntu 日期目录，Mac 同目录保留对应状态、logcat 与 dmesg。测试结束停止 App、恢复 30 秒息屏，保留平板连接 lenovo-internet。
+
+本轮收尾复核：Ubuntu 已恢复 managed/connected、默认路由和 HTTPS HTTP/2 200；iPhone14 Pro 已锁屏，passcodeRequired=true。
