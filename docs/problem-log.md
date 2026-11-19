@@ -469,3 +469,8 @@ STA BSSID d0:4d:c6:cb:50:a7，5260MHz / DFS信道52；iPhone14 Pro触发订阅�
 ### P07：正常/异常 Publish 逐属性对照（2026-11-19）
 
 303fdedc第32181/33004帧同机对照：除MAC序号、抓包元数据，NAN属性仅两份Availability变化（Map2仅Sequence；Map1调整Potential并减4字节）及新增19字节Unaligned Schedule；SDA/SDEA/CSIA/安全上下文/NIRA/Vendor内容完全一致。TB522FU正常STA帧的两份Availability去掉前3字节后，与TB323FU异常帧逐字节相同，不能据此把候选信道/bitmap调整认定为异常。完整偏移、长度、条目及97字节跨机差额对账见 [逐属性分析](publish-sdf-field-comparison.md)。未改代码或进行新真机测试。
+
+
+### P07：三台均STA条件的跨机对照（2026-11-19）
+
+以b230正常11745、303异常33004、a080异常99373重新比较。Availability去头3字节后主体完全一致；异常两台共有额外Capability Extension、Country Code及33字节type41 Vendor属性，但这些同机STA断开时也存在。Unaligned Schedule只在303出现；CSIA和Setup测试状态不统一。SDA差4来自TXT，SDEA另差1来自更新指示。97/80字节整帧差均完整对账，无额外未解释长度。详见 [三台STA逐属性对照](three-tablets-sta-publish-comparison.md)。只读分析，未重新操作设备。
