@@ -41,6 +41,7 @@ final class AwareController implements BridgeController {
     private ConnectivityManager.NetworkCallback networkCallback;
     private HeartbeatTransport transport;
     private boolean networkReady;
+    private int networkGeneration;
     private boolean receiverRegistered;
 
     AwareController(Context context, Observer observer) {
@@ -260,19 +261,20 @@ final class AwareController implements BridgeController {
 
     private void requestNetwork() {
         if (closed) return;
+        final int generation = ++networkGeneration;
         try {
             transport = new HeartbeatTransport(new HeartbeatTransport.Observer() {
                 @Override
                 public void onStats(long tx, long rx, long age, String peer, String text) {
                     handler.post(() -> {
-                        if (!closed) observer.stats(tx, rx, age, peer, text);
+                        if (!closed && generation == networkGeneration) observer.stats(tx, rx, age, peer, text);
                     });
                 }
 
                 @Override
                 public void onError(String message) {
                     handler.post(() -> {
-                        if (!closed) fail(message);
+                        if (!closed && generation == networkGeneration) recoverNetwork(message);
                     });
                 }
             });
@@ -284,7 +286,7 @@ final class AwareController implements BridgeController {
             networkCallback = new ConnectivityManager.NetworkCallback() {
                 @Override
                 public void onAvailable(Network network) {
-                    if (closed || networkReady) return;
+                    if (closed || generation != networkGeneration || networkReady) return;
                     try {
                         transport.start(network);
                         networkReady = true;
@@ -296,17 +298,17 @@ final class AwareController implements BridgeController {
 
                 @Override
                 public void onLinkPropertiesChanged(Network network, LinkProperties properties) {
-                    if (!closed) android.util.Log.i("AwareBridge", "Aware IP: " + properties.getLinkAddresses());
+                    if (!closed && generation == networkGeneration) android.util.Log.i("AwareBridge", "Aware IP: " + properties.getLinkAddresses());
                 }
 
                 @Override
                 public void onLost(Network network) {
-                    fail("数据链路已断开，请重新开始并连接");
+                    if (!closed && generation == networkGeneration) recoverNetwork("数据链路已断开");
                 }
 
                 @Override
                 public void onUnavailable() {
-                    fail("数据链路请求失败，请重新开始");
+                    if (!closed && generation == networkGeneration) recoverNetwork("数据链路请求不可用");
                 }
             };
             NetworkRequest request = new NetworkRequest.Builder()
@@ -317,6 +319,35 @@ final class AwareController implements BridgeController {
             observer.status("服务已发布；添加新设备请打开允许配对开关\nUDP 端口 " + transport.port());
         } catch (IOException | RuntimeException e) {
             fail("网络请求失败：" + e.getMessage());
+        }
+    }
+
+    private void recoverNetwork(String reason) {
+        if (closed) return;
+        android.util.Log.w("AwareBridge", reason + "; retaining Publish and rearming data path");
+        releaseNetwork();
+        observer.stats(0, 0, -1, "—", "等待 iOS 重新连接");
+        observer.status("数据链路已释放，服务继续发布；等待 iOS 重新连接");
+        // Allow the previous NDP to tear down before advertising a fresh UDP port.
+        handler.postDelayed(() -> {
+            if (!closed) requestNetwork();
+        }, 1_000);
+    }
+
+    private void releaseNetwork() {
+        // Invalidate queued callbacks from the previous socket/network request.
+        networkGeneration++;
+        networkReady = false;
+        if (networkCallback != null) {
+            try {
+                connectivity.unregisterNetworkCallback(networkCallback);
+            } catch (IllegalArgumentException ignored) {
+            }
+            networkCallback = null;
+        }
+        if (transport != null) {
+            transport.close();
+            transport = null;
         }
     }
 
@@ -335,17 +366,7 @@ final class AwareController implements BridgeController {
         pins.clear();
         observer.pin("");
         observer.pairing(false, false);
-        if (networkCallback != null) {
-            try {
-                connectivity.unregisterNetworkCallback(networkCallback);
-            } catch (IllegalArgumentException ignored) {
-            }
-            networkCallback = null;
-        }
-        if (transport != null) {
-            transport.close();
-            transport = null;
-        }
+        releaseNetwork();
         if (publisher != null) {
             publisher.close();
             publisher = null;

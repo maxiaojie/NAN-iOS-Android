@@ -434,3 +434,8 @@ Ubuntu 抓包收尾规则已加入 AGENTS.md；退出 monitor 后需额外 sudo 
 ### P19：2026-11-19 Publish 修复通过当前组合验证
 
 用户确认前一候选库误改 Subscribe，本次改正 Publish。新库 SHA-256 `0cd80cb19390ebb38cf46f982359bf53545e8f2ed386a244550c782237c6a546` 已部署并重启、确认实际加载。默认 Setup=false 时 HAL 0x27=04，空口 CSIA=04 07 01，iPhone 缓存 Pair Verify、NDP 和双向通信通过。开关 true→一分钟自动 false 均保留 capability=4，链路持续到 48/48；随后重新 Publish(false) 也再次连接成功。P19 的当前硬件/ROM正常路径修复已验证，非首次清缓存配对、非跨机型全面验收；STA 23 字节 P07 未因此解决。另观察 iOS 主动断开后 App 心跳超时会停止 Publish，重连需先重新发布，避免与 CSIA 过滤混淆。详见 [完整部署和证据](csia-publish-fix-validation-2026-11-19.md)。
+
+
+### P11：发布端断链后保留 Publish（2026-11-19）
+
+已修改 AwareController：心跳/UDP 错误及网络丢失只释放旧数据链路，一秒后重新请求网络并更新端口，保留 Publish/attach 和配对开关；generation 过滤旧回调。手动停止和发现会话失败仍完整清理。编译及 lint 通过，完整双端重连尚未验收。详见 [恢复策略](publisher-reconnect-recovery.md)。

@@ -51,7 +51,7 @@ final class HeartbeatTransport implements AutoCloseable {
                     // Release the socket and its locked peer/session on liveness loss.
                     long lastActivity = lastReceived == 0 ? startedAt : lastReceived;
                     if (peer != null && SystemClock.elapsedRealtime() - lastActivity > 20_000) {
-                        observer.onError("心跳超时，连接已释放；请重新发布并连接");
+                        observer.onError("心跳超时，数据链路已失去响应");
                         return;
                     }
                     if (peer != null) {

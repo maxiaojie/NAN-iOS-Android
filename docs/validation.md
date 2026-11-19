@@ -1,5 +1,9 @@
 # 真机验证记录
 
+### 发布端自动恢复数据链路（2026-11-19）
+
+代码已修改，Android assembleDebug/lintDebug 通过；APK 覆盖安装 a0807d7 成功、冷启动正常。断链后保留 Publish、重建 socket/网络请求。完整双端重连真机验证待完成，详见 [修改范围](publisher-reconnect-recovery.md)。
+
 ### Publish CSIA 修复通过（2026-11-19）
 
 新高通库修正 Publish 入口，在 Setup=false 时仍下发 0x27=04；空口 CSIA=04 07 01。默认关闭时 iPhone 已配对设备发现、Pair Verify、NDP、双向通信通过；开启一分钟自动关闭后链路保持，关闭状态重新发布后再次连接通过。完整 [部署与验证记录](csia-publish-fix-validation-2026-11-19.md)。使用已有缓存、STA 断开；P07 和首次配对不在本次验收范围。前一库误改 Subscribe 的失败历史保留如下。
