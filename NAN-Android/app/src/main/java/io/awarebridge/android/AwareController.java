@@ -143,7 +143,14 @@ final class AwareController implements BridgeController {
 
     private void publish() {
         try {
-            aware.publish(publishConfig(pairingEnabled), discovery(++publishGeneration), handler);
+            // Each newly created Publish starts a fresh, time-limited pairing window.
+            pairingEnabled = true;
+            pairingRequested = true;
+            handler.removeCallbacks(pairingTimeout);
+            acceptedPairingRequests.clear();
+            pins.clear();
+            observer.pin("");
+            aware.publish(publishConfig(true), discovery(++publishGeneration), handler);
         } catch (RuntimeException | LinkageError e) {
             fail("服务发布失败；请核对 ROM 的 Aware 接口支持：" + e.getMessage());
         }
@@ -194,6 +201,7 @@ final class AwareController implements BridgeController {
                     return;
                 }
                 publisher = session;
+                if (pairingEnabled && pairingRequested) handler.postDelayed(pairingTimeout, 60_000);
                 observer.pairing(pairingEnabled, true);
                 requestNetwork();
                 updatePairing();
@@ -395,7 +403,7 @@ final class AwareController implements BridgeController {
                     .setNetworkSpecifier(specifier)
                     .build();
             connectivity.requestNetwork(request, networkCallback, handler);
-            observer.status("服务已发布；添加新设备请打开允许配对开关\nUDP 端口 " + transport.port());
+            observer.status((pairingEnabled ? "服务已发布；默认允许配对 1 分钟" : "服务已发布；添加新设备请打开允许配对开关") + "\nUDP 端口 " + transport.port());
         } catch (IOException | RuntimeException e) {
             fail("网络请求失败：" + e.getMessage());
         }

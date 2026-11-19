@@ -190,7 +190,7 @@ public final class MainActivity extends Activity {
         connectButton.setEnabled(controller != null && !discovered.isEmpty());
         instructions.setText(subscribing()
                 ? "1. iOS 选择发布角色，打开允许配对\n2. Android 开始订阅，选择设备并配对\n3. 输入 iOS 显示的代码，iOS 开始发布后点击连接\n\n请保持两端 App 在前台。"
-                : "1. 点击开始发布\n2. 打开允许配对，iOS 添加设备并输入代码\n3. iOS 点击连接\n\n请保持两端 App 在前台。");
+                : "1. 点击开始发布，默认允许配对 1 分钟\n2. iOS 添加设备并输入 Android 显示的代码\n3. iOS 点击连接\n\n请保持两端 App 在前台。");
     }
 
     private LinearLayout section(LinearLayout parent, String title) {

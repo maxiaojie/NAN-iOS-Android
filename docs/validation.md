@@ -224,3 +224,8 @@ a0807d7（联想 TB323FU，Android 17 / API 37）发布，iPhone 12（iOS 27.2.1
 ### 2026-11-19 单端删除配对后的状态防护
 
 发布端新增本次 Setup 接受记录、成功回调关联及缓存验证独立提示，重新 Bootstrap 使用新 PIN，避免无本次请求的成功回调直接显示新配对完成。该改动为 App 状态防护，未确定用户所述行为的底层根因，也未完成只删 iOS 配对、Android 保留的真机验收；详见 [问题台账](problem-log.md)。
+
+
+### 每次发布默认配对与单端删除后重新配对（2026-11-19）
+
+每次新建 Android Publish 默认开启 60 秒 PairSetup（含自动重建），成功或超时后关闭；UI/README 已同步。iOS 仅删除 303fdedc 记录、Android 保留缓存后，新 PIN → Setup → 成功回调通过；Android 仅删除 a0807d7 缓存、iOS 保留记录后，反向 Bootstrap 设备信息非空、新 PIN 配对通过。两种场景分别在两台 TB323FU 上完成，不能说 303fdedc 的 V3 反向路径通过；该尝试尚未完成。旧别名可能累积，未自动清全量缓存。本轮不验收 NDP/吞吐，不认定原始误报根因已修复。Android assembleDebug/lintDebug 通过，完整环境、操作及时序见 [专项记录](single-sided-repair-validation-2026-11-19.md)。

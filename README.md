@@ -67,7 +67,7 @@ xcodebuild -project NAN-iOS/AwareBridge.xcodeproj -scheme AwareBridge \
 ### Android 发布 → iOS 连接
 
 1. Android 点击「开始发布」。
-2. 首次配对时，Android 打开「允许新设备配对（1 分钟）」；iOS 点击「添加 Android 设备」，选择 Android 设备；将 Android 显示的 6 位代码输入 iOS 系统配对界面。
+2. 每次开始发布（含自动重建 Publish），Android 默认开启「允许新设备配对（1 分钟）」；窗口超时后需要配对可手动重新打开。iOS 点击「添加 Android 设备」，选择 Android 设备；将 Android 显示的 6 位代码输入 iOS 系统配对界面。
 3. 配对成功或开启满 1 分钟后，Android 自动关闭新配对，继续发布服务；设计上已配对设备连接无需打开此开关，当前实机限制见下方说明。配对成功后，在 iOS 选择该设备并点击「连接」。Android 无需再点连接。
 4. 两端出现双向通信状态，发送/接收计数每 5 秒增长。持续观察至少 2 分钟，确认链路不会因无流量而断开。
 5. iOS 点「断开」，Android 点「停止」；再次开始可复用系统已保存的配对。

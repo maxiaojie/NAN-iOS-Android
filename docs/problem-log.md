@@ -519,3 +519,8 @@ App 防护：发布端记录当前已接受的 Setup 请求，仅该请求的成
 使用方案：Android 打开一分钟配对开关，对端重新添加，应该重新执行 Bootstrap→Setup→PIN 校验；保留其他设备缓存。App 不全量清除缓存，不按名称或 PeerHandle 猜测并删除旧配对。若设备层未上报新 Bootstrap/Setup、或不上报请求却报成功，本次防护可避免误报，但还需 ROM/HAL/FW 日志定位；必要时用户可在配对缓存管理中仅删除目标旧记录后重新配对，不能把此绕过称为自动重配修复。
 
 验证状态：Android 编译/lint 检查，不代表单端删配对真机验收。后续需只删除 iOS 目标记录、保留 Android 缓存，核对回调和 PIN、新缓存及 NDP；本轮不删除用户配对记录。
+
+
+### 每次发布默认配对与单端删除后重新配对（2026-11-19）
+
+每次新建 Android Publish 默认开启 60 秒 PairSetup（含自动重建），成功或超时后关闭；UI/README 已同步。iOS 仅删除 303fdedc 记录、Android 保留缓存后，新 PIN → Setup → 成功回调通过；Android 仅删除 a0807d7 缓存、iOS 保留记录后，反向 Bootstrap 设备信息非空、新 PIN 配对通过。两种场景分别在两台 TB323FU 上完成，不能说 303fdedc 的 V3 反向路径通过；该尝试尚未完成。旧别名可能累积，未自动清全量缓存。本轮不验收 NDP/吞吐，不认定原始误报根因已修复。Android assembleDebug/lintDebug 通过，完整环境、操作及时序见 [专项记录](single-sided-repair-validation-2026-11-19.md)。
