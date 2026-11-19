@@ -36,6 +36,7 @@ final class AwareController implements BridgeController {
     private final WifiAwareManager manager;
     private final ConnectivityManager connectivity;
     private final Map<PeerHandle, String> pins = new HashMap<>();
+    private final Map<PeerHandle, Integer> acceptedPairingRequests = new HashMap<>();
     private boolean closed;
     private boolean pairingEnabled, pairingRequested, pairingUpdatePending, pairingUpdateValue;
     private final Runnable pairingUpdateTimeout = () -> {
@@ -160,6 +161,7 @@ final class AwareController implements BridgeController {
         pairingRequested = enabled;
         if (!enabled) {
             handler.removeCallbacks(pairingTimeout);
+            acceptedPairingRequests.clear();
             pins.clear();
             observer.pin("");
         }
@@ -224,7 +226,15 @@ final class AwareController implements BridgeController {
             @Override
             public void onBootstrappingSucceeded(PeerHandle peer, int method) {
                 if (closed || generation != publishGeneration || !pairingEnabled || !pairingRequested) return;
-                if ((method & AwarePairingConfig.PAIRING_BOOTSTRAPPING_PIN_CODE_DISPLAY) != 0) showPin(peer);
+                android.util.Log.i("AwareBridge", "Publish bootstrap succeeded: method=" + method
+                        + ", setupEnabled=" + pairingEnabled);
+                if ((method & AwarePairingConfig.PAIRING_BOOTSTRAPPING_PIN_CODE_DISPLAY) != 0) {
+                    // A fresh bootstrap starts a new PIN exchange, even if a previous pairing exists.
+                    // Do not rotate the PIN after accepting a setup that is already in progress.
+                    if (!acceptedPairingRequests.containsKey(peer)) clearPin(peer);
+                    showPin(peer);
+                    observer.status("请在 iOS 输入 Android 显示的代码，正在等待新配对请求");
+                }
             }
 
             @Override
@@ -237,6 +247,8 @@ final class AwareController implements BridgeController {
             @Override
             public void onPairingSetupRequestReceived(PeerHandle peer, int requestId) {
                 if (closed || generation != publishGeneration) return;
+                android.util.Log.i("AwareBridge", "Publish setup request: id=" + requestId
+                        + ", enabled=" + pairingEnabled + ", requested=" + pairingRequested);
                 if (!pairingEnabled || !pairingRequested) {
                     try {
                         publisher.rejectPairingRequest(requestId, peer);
@@ -245,11 +257,25 @@ final class AwareController implements BridgeController {
                     }
                     return;
                 }
+                if (acceptedPairingRequests.containsKey(peer)) {
+                    if (acceptedPairingRequests.get(peer) == requestId) return;
+                    try {
+                        publisher.rejectPairingRequest(requestId, peer);
+                    } catch (RuntimeException e) {
+                        android.util.Log.w("AwareBridge", "Cannot reject concurrent setup request", e);
+                    }
+                    return;
+                }
                 try {
+                    // Existing cached pairings must not bypass a newly requested PIN setup.
+                    acceptedPairingRequests.put(peer, requestId);
                     publisher.acceptPairingRequest(
                             requestId, peer, "awarebridge-" + peer.hashCode(), CIPHER, showPin(peer));
+                    observer.status("已接受新配对请求，正在等待 PIN 配对结果");
                 } catch (RuntimeException e) {
+                    acceptedPairingRequests.remove(peer);
                     clearPin(peer);
+                    android.util.Log.w("AwareBridge", "Cannot accept setup request", e);
                     observer.status("配对失败：" + e.getMessage());
                 }
             }
@@ -257,14 +283,38 @@ final class AwareController implements BridgeController {
             @Override
             public void onPairingSetupSucceeded(PeerHandle peer, String alias) {
                 if (closed || generation != publishGeneration) return;
-                observer.status("配对成功，正在关闭新配对；请在 iOS 上点击连接");
+                boolean expected = acceptedPairingRequests.remove(peer) != null;
+                android.util.Log.i("AwareBridge", "Publish setup succeeded: acceptedThisAttempt=" + expected);
+                if (!expected) {
+                    android.util.Log.w("AwareBridge", "Ignoring setup success without an accepted current request");
+                    return;
+                }
+                observer.status("新配对成功，正在关闭新配对；请在 iOS 上点击连接");
                 setPairingEnabled(false);
+            }
+
+            @Override
+            public void onPairingVerificationSucceed(PeerHandle peer, String alias) {
+                if (closed || generation != publishGeneration) return;
+                android.util.Log.i("AwareBridge", "Publish cached pairing verification succeeded");
+                if (!pairingRequested) observer.status("已有配对验证成功，可继续连接；未执行新的 PIN 配对");
+            }
+
+            @Override
+            public void onPairingVerificationFailed(PeerHandle peer) {
+                if (closed || generation != publishGeneration) return;
+                android.util.Log.w("AwareBridge", "Publish cached pairing verification failed");
+                if (!acceptedPairingRequests.containsKey(peer)) {
+                    observer.status("已有配对验证失败；如对端已删除配对，请打开配对开关后重新添加");
+                }
             }
 
             @Override
             public void onPairingSetupFailed(PeerHandle peer) {
                 if (closed || generation != publishGeneration) return;
+                acceptedPairingRequests.remove(peer);
                 clearPin(peer);
+                android.util.Log.w("AwareBridge", "Publish setup failed");
                 observer.status("配对失败，请核对代码后重试");
             }
         };
@@ -360,6 +410,9 @@ final class AwareController implements BridgeController {
         // This ROM can leave the old NDP in STATE_TERMINATING indefinitely.
         // Closing attach clears stale NDP state that survives discovery-session close.
         publishGeneration++;
+        acceptedPairingRequests.clear();
+        pins.clear();
+        observer.pin("");
         pairingUpdatePending = false;
         handler.removeCallbacks(pairingUpdateTimeout);
         if (publisher != null) {
@@ -406,6 +459,7 @@ final class AwareController implements BridgeController {
         if (closed) return;
         closed = true;
         handler.removeCallbacksAndMessages(null);
+        acceptedPairingRequests.clear();
         pins.clear();
         observer.pin("");
         observer.pairing(false, false);

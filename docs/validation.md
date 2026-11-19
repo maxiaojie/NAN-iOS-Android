@@ -219,3 +219,8 @@ iOS 直接 BSD socket 无路由，现通过 loopback 和 Network framework 公�
 iOS 使用已有本机开发签名配置重建并成功覆盖安装 iPhone 12；Android 同版 APK 额外成功覆盖安装 303fdedc。303fdedc 本轮仅确认安装，不计入以下测速组合。
 
 a0807d7（联想 TB323FU，Android 17 / API 37）发布，iPhone 12（iOS 27.2.1）订阅，复用已有配对建立双向心跳。Android UI 将时长改为 15 秒，发起 TCP / 4 线程 / Android→iOS；iOS 运行状态收到 15 秒，完整可访问性结果为 **63.45 Mbps / 119.01 MB / 15.0 秒**。确认 Android 配置经控制消息传至 iOS/libiperf 后实际生效。办公室干扰环境，临时断开 Android STA，包含 iOS 转发开销，不能视为性能上限。该结果只验收 15 秒 TCP 单方向；iOS 本地输入发起、UDP 非 10 秒及 3600 秒长稳尚未验收。
+
+
+### 2026-11-19 单端删除配对后的状态防护
+
+发布端新增本次 Setup 接受记录、成功回调关联及缓存验证独立提示，重新 Bootstrap 使用新 PIN，避免无本次请求的成功回调直接显示新配对完成。该改动为 App 状态防护，未确定用户所述行为的底层根因，也未完成只删 iOS 配对、Android 保留的真机验收；详见 [问题台账](problem-log.md)。

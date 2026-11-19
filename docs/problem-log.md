@@ -506,3 +506,16 @@ iPhone App 出现一条 iPhone、两条同名 Y700，系统设置三条却均显
 
 
 时长验证补充：上轮只完成无签名编译，遗漏 iOS 安装。本轮已使用现有开发签名配置成功安装 iPhone 12，并为 303fdedc 覆盖安装同版 Android APK。a0807d7→iPhone 12 的 TCP 4 线程从 Android UI 设置 15 秒并运行完成，iOS 完整结果 **63.45 Mbps / 119.01 MB / 15.0 秒**，确认非固定 10 秒。界面单行结果会省略显示，最终通过 iOS 可访问性接口读取完整汇总；期间 Android 曾切到后台、之后 iOS 报 connectionTerminated(-11985)，不能将该收尾断链混作时长测试失败，也未确定切到后台的触发来源。iOS 输入发起及其他时长/协议待验收。详见 [验收补充](validation.md)。
+
+
+### 单端删除配对后的重新配对与成功状态防护（2026-11-19）
+
+用户观察：iPhone 删除配对、Android 保留时，重新添加可能不显示 Android PIN，却提示配对完成。本轮未复现该完整操作链，不能确认由缓存直接导致，也不能确认 UI 提示意味着两端完成新配对。
+
+流程核对：公开 AOSP `WifiAwareStateManager.onPairingRequestReceivedLocal` 区分 Setup 与 Verification；Setup 通知应用，Verification 才查询缓存并响应。因此接到真正的新 Setup 应继续 PIN 配对，不应仅因存在本地缓存而直接成功。当前发布端原本已经在配对窗口内使用 `acceptPairingRequest(..., PIN)`，并无按缓存跳过 PIN 的 App 分支。公开参考：https://android.googlesource.com/platform/packages/modules/Wifi/+/c1981d605012aff5ed9729359d1ffaa0670576a6/service/java/com/android/server/wifi/aware/WifiAwareStateManager.java 。该参考不能替代设备 ROM 对应实现。
+
+App 防护：发布端记录当前已接受的 Setup 请求，仅该请求的成功回调才提示新配对成功、关闭配对窗口；没有本次接受记录的成功回调记录警告并忽略。新的 Display Bootstrap 生成新 PIN，已接受的在途 Setup 不旋转 PIN；同一 peer 的重复请求去重，不同并发请求拒绝。Pair Verification 回调独立显示已有配对验证，不冒充新配对，也不提前关闭配对窗口。关闭配对、停止与重建发布时清理本次请求状态；日志只记录事件和请求编号，不打印 PIN 或密钥。
+
+使用方案：Android 打开一分钟配对开关，对端重新添加，应该重新执行 Bootstrap→Setup→PIN 校验；保留其他设备缓存。App 不全量清除缓存，不按名称或 PeerHandle 猜测并删除旧配对。若设备层未上报新 Bootstrap/Setup、或不上报请求却报成功，本次防护可避免误报，但还需 ROM/HAL/FW 日志定位；必要时用户可在配对缓存管理中仅删除目标旧记录后重新配对，不能把此绕过称为自动重配修复。
+
+验证状态：Android 编译/lint 检查，不代表单端删配对真机验收。后续需只删除 iOS 目标记录、保留 Android 缓存，核对回调和 PIN、新缓存及 NDP；本轮不删除用户配对记录。
