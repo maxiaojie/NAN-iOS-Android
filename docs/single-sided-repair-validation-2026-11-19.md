@@ -49,3 +49,27 @@ iOS 显示新的 PIN，输入 Android 后，Android UI 显示“配对成功，�
 ## 安装与收尾
 
 最终 APK 已覆盖安装 303fdedc、a0807d7；最终修改含 UI 文案，assembleDebug/lintDebug 均通过。停止两端测试日志、停止 Android App；两台平板取消临时 STA 自动连接限制，恢复 30 秒息屏与 USB 非常亮，均重新连接 lenovo-internet 且网络标记 VALIDATED。iPhone 12 执行锁屏，读取 backlightState=off。成功配对保留。本轮未切换 Ubuntu monitor。
+
+## 303fdedc 补齐 HAL 后的反向重新配对（同日追加）
+
+用户指出该机尚未替换 Bootstrap HAL 服务和 so，要求替换后再验证。部署前确实没有 V4 NDK 库。先将原服务、VINTF XML、libwifi-hal.so 备份至 Mac `/Users/mxj/workspace/nan-capture-analysis/2026-11-19/vendor-v4-backup-303fdedc/`，未覆盖其他设备备份。
+
+本次将 Downloads 中与 a0807d7 实际运行文件 SHA-256 完全相同的三个产物部署到 303fdedc：
+
+| 设备目标 | SHA-256 |
+| --- | --- |
+| /vendor/bin/hw/android.hardware.wifi-service | b2af3812b34720cf85fe09853f4428fb73ba0211785b6968d9c8b929d96668b2 |
+| /vendor/lib64/android.hardware.wifi-V4-ndk.so | 26c5f7d42131d8a2eb0381e8b1e428f48e21b35edd2cad482351c8521c279bc7 |
+| /vendor/lib64/libwifi-hal.so | 0cd80cb19390ebb38cf46f982359bf53545e8f2ed386a244550c782237c6a546 |
+
+root/remount 成功，停止 vendor.wifi_hal_legacy 后替换文件，将该 Wi-Fi VINTF fragment 声明改为 4，恢复权限/SELinux 标签并重启。原 V3 NDK 库保留。重启后 boot_completed=1、服务 running，getInterfaceVersion 返回 4，三份文件校验与 Mac 一致。本次没有重新编译厂商源码，使用用户提供并已在另一台验证的产物；不是宣称实现完整标准 V4。
+
+初次复测 19:42:01，App 输入 86 字节，HAL 新日志确认 input length=86、sdeaLength=86；iOS 已收到 TXT 83 字节并解析三项 SSI，证明原先元数据丢失已解除。但最初几轮没有显示 PIN、未完成配对，不计通过。Android 此时仍有两条更早的旧别名；随后通过 App 配对缓存管理清除这两条，iOS 两条已配对 Y700 记录均保留。整个过程没有删除 iOS 配对。
+
+中间 iOS 日志记录 `Failed to update nan0 pairing custom attributes to [] ... Apple80211Error Invalid argument`，并观察到 Android 所选服务离开/peer 变化。曾重启 App、重开系统配对页及终止配对选择器 UI；这些尝试未通过。之后保留 iOS 配对记录，关闭再打开两端 Wi-Fi，重新开始会话。平板 Wi-Fi 重启后自动重新连接 STA，首次未发现服务；再次取消 STA 自动连接后完成下面成功轮次。**尚未隔离清缓存、Wi-Fi 重置和 STA 状态分别对 PIN 恢复的影响，不能确认该 Invalid argument 为根因，也不能把一次成功概括为所有旧状态都能无干预恢复。**
+
+20:06:12.706 Android App 发起 Bootstrap、TXT TLV=86；20:06:12.708 HAL 转换 input length=86、sdeaLength=86。20:06:12.998536 iOS 记录 TXT Record size: 83 bytes；紧接着 SSI 非空，pairingName=34、modelName=7、vendorName=6 字节。iOS 显示新 PIN，工具读取后输入 Android，Android 随后显示“配对成功，选择设备后点击连接”。本轮实际走新 PIN，而非仅用旧缓存验证。
+
+结论更新：此前“303fdedc 反向未通过”的结论仅适用于原 V3/此前失败轮次；**部署匹配 HAL 后，303fdedc 反向新 PIN 配对已通过**。本轮确认 SDEA 信息从 HAL 到 iOS 接收日志闭环，没有另行空口抓包，不据此声称抓到了新 SDF；没有进行 NDP/吞吐验收。配对成功不代表已消除上述会话恢复限制。
+
+成功后停止订阅，通过 App 查询到一条新缓存 `awarebridge-ios-108`。HAL 进程 maps 确认实际加载 V4 NDK 和本次 libwifi-hal.so。收尾停止日志及 Android App，303fdedc 恢复 USB 非常亮、30 秒息屏、连接 lenovo-internet 且网络 VALIDATED；iPhone Wi-Fi 已重新开启，锁屏确认 backlightState=off。本轮没有操作 Ubuntu，没有删除 iOS 记录，也没有改动其他平板。

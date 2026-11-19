@@ -229,3 +229,8 @@ a0807d7（联想 TB323FU，Android 17 / API 37）发布，iPhone 12（iOS 27.2.1
 ### 每次发布默认配对与单端删除后重新配对（2026-11-19）
 
 每次新建 Android Publish 默认开启 60 秒 PairSetup（含自动重建），成功或超时后关闭；UI/README 已同步。iOS 仅删除 303fdedc 记录、Android 保留缓存后，新 PIN → Setup → 成功回调通过；Android 仅删除 a0807d7 缓存、iOS 保留记录后，反向 Bootstrap 设备信息非空、新 PIN 配对通过。两种场景分别在两台 TB323FU 上完成，不能说 303fdedc 的 V3 反向路径通过；该尝试尚未完成。旧别名可能累积，未自动清全量缓存。本轮不验收 NDP/吞吐，不认定原始误报根因已修复。Android assembleDebug/lintDebug 通过，完整环境、操作及时序见 [专项记录](single-sided-repair-validation-2026-11-19.md)。
+
+
+### 303fdedc 替换 HAL 后反向配对通过（2026-11-19）
+
+备份原文件后，部署与 a0807d7 校验一致的 V4 Wi-Fi 服务、V4 NDK 和 libwifi-hal.so，VINTF 改 4；重启运行版本 4、校验一致。HAL Bootstrap SDEA SSI=86，iPhone 12 收到 TXT=83 且三项设备信息非空。清理 Android 更早的两条旧缓存、保留 iOS 配对记录，重置 Wi-Fi 会话并断开 STA 后，20:06 新 PIN 配对成功。此前几轮 PIN 未显示，iOS 有属性更新 Invalid argument，恢复因素未隔离；不能宣称无干预重配全部修复。本轮不验收 NDP/吞吐，也未抓新空口包。完整部署、失败对照与成功时序见 [追加记录](single-sided-repair-validation-2026-11-19.md#303fdedc-补齐-hal-后的反向重新配对同日追加)。
