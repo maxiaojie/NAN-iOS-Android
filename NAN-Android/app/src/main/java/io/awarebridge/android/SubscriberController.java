@@ -55,8 +55,8 @@ final class SubscriberController implements BridgeController {
     private static final int IOS_UDP_PORT = 45454;
     private static final int CIPHER = Characteristics.WIFI_AWARE_CIPHER_SUITE_NCS_PK_PASN_128;
     private static final int KEYPAD = AwarePairingConfig.PAIRING_BOOTSTRAPPING_PIN_CODE_KEYPAD;
-    @Override public void benchmark() {
-        if (transport != null) transport.benchmark();
+    @Override public void benchmark(String protocol, int streams, boolean reverse, int rateMbps) {
+        if (transport != null) transport.benchmark(protocol,streams,reverse,rateMbps);
         else observer.benchmark("请先建立数据链路");
     }
 
@@ -273,7 +273,7 @@ final class SubscriberController implements BridgeController {
                 @Override public void onError(String error) {
                     handler.post(() -> { if (!closed) fail(error); });
                 }
-            });
+            }, context.getCacheDir().getAbsolutePath());
             WifiAwareNetworkSpecifier specifier = new WifiAwareNetworkSpecifier.Builder(subscriber, peer.handle)
                     .build();
             networkCallback = new ConnectivityManager.NetworkCallback() {
@@ -312,6 +312,7 @@ final class SubscriberController implements BridgeController {
             return;
         }
         try {
+            transport.configureIperf(network,connectivity.getLinkProperties(network));
             transport.start(network, new InetSocketAddress(networkInfo.getPeerIpv6Addr(),
                     networkInfo.getPort() > 0 ? networkInfo.getPort() : IOS_UDP_PORT));
             networkReady = true;

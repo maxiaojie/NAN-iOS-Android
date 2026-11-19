@@ -19,18 +19,20 @@ final class HeartbeatTransport implements AutoCloseable {
     private final DatagramSocket socket = new DatagramSocket(null);
     private final ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor();
     private final Observer observer;
-    private final ThroughputTest benchmark;
-    private ThroughputTest makeBenchmark() { return new ThroughputTest(data -> {
-        InetSocketAddress target;
-        synchronized (this) { target = peer; }
-        if (closed || target == null) throw new IOException("尚未收到对端心跳");
-        socket.send(new DatagramPacket(data, data.length, target));
-    }, text -> observer.onBenchmark(text)); }
-    void benchmark() {
+    private IperfServer iperf;
+    private final String directory;
+    void benchmark(String protocol, int streams, boolean reverse, int rateMbps) {
         synchronized (this) {
-            if (peerSession == null) { observer.onBenchmark("请先等待双向心跳建立"); return; }
+            if (peerSession == null || iperf == null || !iperf.available()) {
+                observer.onBenchmark("请先等待双向心跳及 iperf3 服务就绪"); return;
+            }
+            try {
+                String config = new JSONObject().put("protocol",protocol).put("streams",streams)
+                        .put("reverse",reverse).put("duration",10).put("rate",rateMbps).toString();
+                send("iperf_request", sequence++, config);
+                observer.onBenchmark("已请求 iperf3 测试 · " + streams + " 线程 · " + protocol);
+            } catch (Exception e) { observer.onBenchmark("启动失败："+e.getMessage()); }
         }
-        benchmark.start();
     }
     private final String session = UUID.randomUUID().toString();
     private volatile boolean closed;
@@ -40,10 +42,14 @@ final class HeartbeatTransport implements AutoCloseable {
     private long startedAt;
     private String lastText = "等待 iOS 发送首个心跳";
 
-    HeartbeatTransport(Observer observer) throws SocketException {
+    HeartbeatTransport(Observer observer, String directory) throws SocketException {
         this.observer = observer;
-        benchmark = makeBenchmark();
+        this.directory = directory;
         socket.bind(new InetSocketAddress(0));
+    }
+    synchronized void configureIperf(Network network, android.net.LinkProperties properties) {
+        if (iperf == null && properties != null && properties.getLinkAddresses().stream()
+                .anyMatch(a -> a.getAddress().isLinkLocalAddress())) iperf = new IperfServer(network,properties,directory);
     }
     int port() { return socket.getLocalPort(); }
 
@@ -73,7 +79,6 @@ final class HeartbeatTransport implements AutoCloseable {
                         String type = sequence == 0 ? "hello" : "heartbeat";
                         send(type, sequence++, "Android " + type);
                     }
-                    benchmark.tick();
                     report();
                 }
             } catch (Exception e) {
@@ -89,13 +94,6 @@ final class HeartbeatTransport implements AutoCloseable {
             try {
                 socket.receive(packet);
                 if (packet.getLength() > 4096 || !packet.getAddress().isLinkLocalAddress()) continue;
-                if (ThroughputTest.matches(packet.getData(), packet.getLength())) {
-                    synchronized (this) {
-                        if (peerSession != null && peer != null && peer.equals(new InetSocketAddress(packet.getAddress(), packet.getPort())))
-                            benchmark.receive(packet.getData(), packet.getLength());
-                    }
-                    continue;
-                }
                 JSONObject message;
                 try {
                     message = new JSONObject(new String(packet.getData(), packet.getOffset(),
@@ -104,7 +102,7 @@ final class HeartbeatTransport implements AutoCloseable {
                             || message.getString("session").isEmpty() || message.getLong("seq") < 0) continue;
                 } catch (Exception malformed) { continue; }
                 String type = message.optString("type");
-                if (!type.equals("hello") && !type.equals("heartbeat") && !type.equals("ack")) continue;
+                if (!type.equals("hello") && !type.equals("heartbeat") && !type.equals("ack") && !type.equals("iperf_result")) continue;
                 synchronized (this) {
                     if (closed) return;
                     InetSocketAddress source = new InetSocketAddress(packet.getAddress(), packet.getPort());
@@ -117,6 +115,10 @@ final class HeartbeatTransport implements AutoCloseable {
                     if (type.equals("ack") && !session.equals(message.optString("ackSession"))) continue;
                     if (peerSession == null) peerSession = message.getString("session");
                     if (!peerSession.equals(message.getString("session"))) continue;
+                    if (type.equals("iperf_result")) {
+                        observer.onBenchmark(message.optString("text"));
+                        continue;
+                    }
                     rx++;
                     lastReceived = SystemClock.elapsedRealtime();
                     lastText = message.optString("text", type);
@@ -134,6 +136,9 @@ final class HeartbeatTransport implements AutoCloseable {
         JSONObject message = new JSONObject().put("v", 1).put("type", type)
                 .put("platform", "android").put("session", session).put("seq", seq)
                 .put("timestampMs", System.currentTimeMillis()).put("text", text);
+        if (iperf != null && iperf.available()) {
+            message.put("iperfPort",5201).put("iperfAddress",iperf.host());
+        }
         if (type.equals("ack")) message.put("ackSession", peerSession);
         byte[] data = message.toString().getBytes(StandardCharsets.UTF_8);
         socket.send(new DatagramPacket(data, data.length, peer));
@@ -146,7 +151,7 @@ final class HeartbeatTransport implements AutoCloseable {
     @Override public synchronized void close() {
         if (closed) return;
         closed = true;
-        benchmark.close();
+        if (iperf != null) iperf.close();
         timer.shutdownNow();
         socket.close();
     }

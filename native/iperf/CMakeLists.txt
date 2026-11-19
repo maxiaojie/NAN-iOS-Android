@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.22)
+project(awareiperf C)
+get_filename_component(ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../.." ABSOLUTE)
+add_library(awareiperf SHARED ab_iperf.c ab_jni.c)
+target_include_directories(awareiperf PRIVATE . "${ROOT}/third_party/iperf3/src" "${ROOT}/.native-build/android/src")
+target_link_libraries(awareiperf "${ROOT}/.native-build/android/src/.libs/libiperf.a" android m)
+target_link_options(awareiperf PRIVATE "-Wl,-z,max-page-size=16384")

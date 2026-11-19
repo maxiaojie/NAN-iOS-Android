@@ -15,7 +15,8 @@ NAN-iOS-Android/
 
 ## 功能与范围
 
-- 简洁单页 UI：开始/停止、允许配对开关、配对码、连接状态、发送/接收计数。
+- 分区单页 UI：配对和连接、数据链路、性能测试；Android 另设配对缓存管理区域。
+- 内嵌 libiperf3，支持 TCP/UDP、双向测试、可配置并行线程数（默认 4）；UDP 发送速率可设，0 表示不限速。见 [性能测试说明](docs/throughput-test.md)。
 - Android 停止会话后可通过“管理配对缓存”查询、逐条删除或清空本应用的系统配对别名；iOS 端需在“设置 → 隐私与安全 → 配对设备”单独删除。
 - 两端可切换发布/订阅角色，使用 `_aware-bridge._udp`；每次仅连接一个对端。
 - UDP socket 绑定 Android 的 Aware `Network`；在 NDP 响应中通知监听端口和协议号 `17`。
@@ -31,7 +32,7 @@ NAN-iOS-Android/
 
 - Android 17 / API 37 或更高，硬件及 ROM 支持 Wi-Fi Aware **和 Aware 配对**。
 - 开启 Wi-Fi 和系统定位，授予附近设备、定位权限。
-- JDK **21**、Android SDK Platform **37.0**；Gradle wrapper **9.3.1**、AGP **9.1.1**。compileSdk / minSdk / targetSdk 均为 37；使用新增 Bootstrap message 接口携带配对设备信息，不再支持 Android 17 以下版本。
+- JDK **21**、NDK **28.0.12433566**、CMake **3.22.1**、Android SDK Platform **37.0**；Gradle wrapper **9.3.1**、AGP **9.1.1**。compileSdk / minSdk / targetSdk 均为 37；使用新增 Bootstrap message 接口携带配对设备信息，不再支持 Android 17 以下版本。
 - 使用标准 Android SDK 编译，不需要 `setVendorData` 或 `framework-wifi.jar`，不覆盖 SDK 的 Wi-Fi 编译接口。不同 ROM 仍需验证 Aware 配对和数据链路能力，见 [Android ROM 条件](docs/android-rom.md)。
 
 ```sh
@@ -47,7 +48,8 @@ adb -s YOUR_ANDROID_SERIAL install -r app/build/outputs/apk/debug/app-debug.apk
 ### iOS
 
 - 支持 Wi-Fi Aware 的 iPhone / iPad，iOS / iPadOS 26+；真机验证需要设备与系统支持，模拟器编译不能代替无线测试。
-- 使用支持 WiFiAware 和新版 Network API 的 Xcode，本项目在 Xcode 27.2 编译验证。
+- 使用支持 WiFiAware 和新版 Network API 的 Xcode，本项目在 Xcode 27.2 编译验证；内嵌 libiperf 当前仅构建 iphoneos arm64，暂不提供模拟器 slice。
+- 性能测试的 Aware 新连接适配需要 iOS 26.4+；已验证 Android 发布 / iOS 订阅时的双向 TCP/UDP，结果包含 iOS Network framework 适配开销，见性能测试文档。
 - 打开 `NAN-iOS/AwareBridge.xcodeproj`，选择 `AwareBridge` scheme。
 - 配置自己的 Bundle Identifier / Development Team；签名 profile 必须包含 Wi-Fi Aware 的 `Subscribe` 和 `Publish` entitlement。
 - 默认 Bundle Identifier：`io.awarebridge.ios`。仓库不包含个人 Team、profile、证书或私钥。

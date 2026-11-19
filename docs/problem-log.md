@@ -479,3 +479,14 @@ STA BSSID d0:4d:c6:cb:50:a7，5260MHz / DFS信道52；iPhone14 Pro触发订阅�
 ### 双端UDP吞吐测试集成（2026-11-19）
 
 用户要求Android/iOS都增加性能测试。已实现现有Aware UDP链路上10秒/目标50Mbps的单向测试、唯一接收计数与结果回报，心跳保留；两端分别点击可切换方向。双端编译、Android lint与Java/Swift协议互通及本地发送循环通过，APK安装b2302624。iPhone14当前unavailable，双端真实吞吐尚未验收，不将Mac回环值当Aware性能。见 [用法、协议与限制](throughput-test.md)。
+
+
+### libiperf3 与 Android 分区改版（2026-11-19）
+
+初版自定义单线程 UDP 固定负载不满足多线程性能测试要求，现改为内嵌 ESnet libiperf3 3.22。默认 4 并行流，TCP/UDP、双向；取消固定 50 Mbps，UDP 发送速率可配置，0 表示不限速。Android 按用户要求采用配对和连接、数据链路、性能测试、配对缓存管理四区域。心跳统计仅在数据链路区域。双端编译、Android lint、安装通过。
+
+iPhone App 出现一条 iPhone、两条同名 Y700，系统设置三条却均显示 iPhone。用户授权清除全部，系统取消配对后显示“先前配对的设备”，App 列表为空；a0807d7 仍有一个旧别名，通过新 UI 清空并确认零条。重新发布和配对，输入 PIN 后 iPhone 只剩一条 Y700，并建立双向心跳。仅确认名称显示差异，未确定系统名称来源。单端删除后以及配对窗口过期的尝试未取得有效 PIN，不计成功。
+
+真实吞吐验证先遇到接口就绪过早读取以及 BSD socket 的 No route to host。Apple 官方答复确认 Aware 应使用 Network framework；加入 loopback → Network framework 适配层，并从公开 NWBrowser 发现结果取得可指定端口的 Aware 端点，修复测试连接。a0807d7 发布 / iPhone12 订阅时，双向 TCP/UDP 4 线程真实测速通过，2 线程切换及 UDP 100 Mbps 总速率参数也通过；结果和本机适配层开销限制见 [专项记录](throughput-test.md)。反向发现角色下新增测试连接尚未验收。
+
+心跳频率已抓包核对：每端约 5 秒，两端相位约差 1 秒，ACK 紧随收到的心跳；不能将两端叠加或每秒 UI 刷新当作单端 1 秒心跳。iOS 将说明移至数据链路区；数字速率键盘增加“完成”按钮。

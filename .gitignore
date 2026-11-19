@@ -18,3 +18,7 @@ NAN-iOS/Local.xcconfig
 # Test output
 artifacts/
 __pycache__/
+
+# Generated native builds
+.native-build/
+NAN-Android/app/.cxx/

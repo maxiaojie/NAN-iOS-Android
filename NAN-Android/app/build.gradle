@@ -8,9 +8,25 @@ android {
         targetSdk 37
         versionCode 1
         versionName '1.0'
+        ndk { abiFilters 'arm64-v8a' }
+        externalNativeBuild { cmake { arguments '-DANDROID_STL=none' } }
     }
+    ndkVersion '28.0.12433566'
+    externalNativeBuild { cmake { path file('../../native/iperf/CMakeLists.txt'); version '3.22.1' } }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+}
+
+def buildIperf = tasks.register('buildIperf', Exec) {
+    workingDir rootProject.projectDir.parentFile
+    commandLine 'bash', 'tools/build-libiperf.sh', 'android'
+    inputs.dir rootProject.file('../third_party/iperf3/src')
+    inputs.dir rootProject.file('../native/iperf')
+    inputs.file rootProject.file('../tools/build-libiperf.sh')
+    outputs.file rootProject.file('../.native-build/android/src/.libs/libiperf.a')
+}
+tasks.configureEach { task ->
+    if (task.name.startsWith('configureCMake') || task.name.startsWith('buildCMake')) task.dependsOn(buildIperf)
 }

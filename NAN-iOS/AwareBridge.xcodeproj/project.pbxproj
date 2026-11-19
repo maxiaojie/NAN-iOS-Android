@@ -88,6 +88,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = D15DBF6B2D9789DF00EDA4E0 /* Build configuration list for PBXNativeTarget "AwareBridge" */;
 			buildPhases = (
+				AB1B1B1B1B1B1B1B1B1B1B01 /* Build libiperf */,
 				D15DBF5C2D9789DE00EDA4E0 /* Sources */,
 				D15DBF5D2D9789DE00EDA4E0 /* Frameworks */,
 				D15DBF5E2D9789DE00EDA4E0 /* Resources */,
@@ -148,6 +149,20 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+        AB1B1B1B1B1B1B1B1B1B1B01 /* Build libiperf */ = {
+            isa = PBXShellScriptBuildPhase;
+            buildActionMask = 2147483647;
+            files = ();
+            inputPaths = ();
+            outputPaths = ();
+            name = "Build libiperf";
+            runOnlyForDeploymentPostprocessing = 0;
+            shellPath = /bin/bash;
+            shellScript = "bash \"$SRCROOT/../tools/build-libiperf.sh\" ios";
+        };
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		D15DBF5C2D9789DE00EDA4E0 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -197,7 +212,7 @@
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -262,7 +277,7 @@
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -292,7 +307,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "${PRODUCT_NAME}/Resources/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "AwareBridge";
@@ -332,7 +347,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "${PRODUCT_NAME}/Resources/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "AwareBridge";

@@ -68,17 +68,45 @@ struct BridgeView: View {
                         LabeledContent("最近接收", value: "\(max(0, Int(model.now.timeIntervalSince(date)))) 秒前")
                     }
                     Text(model.lastMessage).font(.footnote).foregroundStyle(.secondary)
+                    Text("心跳间隔 5 秒，收到后立即确认。")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
-                Section("吞吐测试") {
+                Section("iperf3 性能测试") {
+                    Picker("协议", selection: $model.testProtocol) {
+                        Text("TCP").tag("TCP")
+                        Text("UDP").tag("UDP")
+                    }
+                    if model.testProtocol == "UDP" {
+                        HStack {
+                            Text("总发送速率（Mbps）")
+                            TextField("0 表示不限速", value: $model.testRateMbps, format: .number)
+                                .keyboardType(.numberPad)
+                                .multilineTextAlignment(.trailing)
+                        }
+                        Text("0 表示不限速；总速率由各线程均分。")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    Stepper("并行线程数：\(model.testStreams)", value: $model.testStreams, in: 1...16)
                     Text(model.benchmarkStatus).font(.footnote)
-                    Button("测试本端 → 对端") { model.startBenchmark() }
+                    Button("iOS → Android") { model.startBenchmark(reverse: false) }
                         .disabled(!model.active || model.lastReceived == nil)
-                    Text("UDP · 10 秒 · 目标 50 Mbps；显示对端实际接收量及丢包率。请在两端分别测试方向。")
+                    Button("Android → iOS") { model.startBenchmark(reverse: true) }
+                        .disabled(!model.active || model.lastReceived == nil)
+                    Text("iperf3 · 每次测试 10 秒 · TCP 不限速。")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 Section {
-                    Text("两端每 5 秒发送心跳并回复确认。请保持两端 App 在前台；切到后台会主动断开。")
+                    Text("请保持两端 App 在前台；切到后台会主动断开。")
                         .font(.footnote).foregroundStyle(.secondary)
+                }
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("完成") {
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    }
                 }
             }
             .navigationTitle("AwareBridge")

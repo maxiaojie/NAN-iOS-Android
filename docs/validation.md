@@ -193,3 +193,13 @@ b2302624 追加 lenovo-internet（5260MHz / DFS52）测试：信道6/149共114�
 ### 2026-11-19 吞吐功能
 
 双端代码/构建通过，Android lint通过，Java/Swift测试包和报告互通、去重/重试及10秒本地发送循环通过。b2302624 APK覆盖安装、测试入口可见。iPhone14 unavailable，真机双向吞吐、拥塞下心跳和断开重测仍待验证。详见 [测试说明](throughput-test.md)。
+
+### 2026-11-19 libiperf3 真机替代验证
+
+以上初版自定义 UDP 测试已被内嵌 libiperf3 3.22 替代。a0807d7 发布 / iPhone12（27.2.1）订阅，清理旧配对后重新 PIN 配对和双向心跳通过。Android 四区域为配对和连接、数据链路、性能测试、配对缓存管理，默认 4 线程。
+
+真实 TCP 4 线程：Android→iOS 64.69 Mbps、iOS→Android 50.20 Mbps；UDP 4 线程不限速：79.24 / 54.39 Mbps。切换 TCP 2 线程下行 80.51 Mbps；Android 发起 UDP 2 线程/总 100 Mbps，上行接收 70.32 Mbps，参数传递通过。Android TCP 连接数确认 1 控制 + 4 数据。各轮心跳持续，结果在双端显示。UDP 丢包包含 iOS 本地适配层，不能直接当作射频丢包；详情见专项表格。
+
+iOS 直接 BSD socket 无路由，现通过 loopback 和 Network framework 公开 Aware 端点转发；需要 iOS 26.4+，包括转发开销。反向发现角色的新增测试连接尚未验收。测速中主动断开 iOS 时确认 5 个活动 TCP 连接随后全部释放；未重启 App，重新连接后 TCP 4 线程下行再次完成，58.27 Mbps / 72.88 MB / 10.0 秒。最新双端构建及 Android lint 通过并已安装，签名资料和原始敏感日志不提交。
+
+收尾：停止 a0807d7 App，恢复 30 秒息屏、取消临时 STA 自动连接限制，确认已连接 lenovo-internet（5260MHz，网络 VALIDATED）。iPhone12 执行锁屏并确认 backlightState=off。成功配对保留。本轮未操作 Ubuntu 网卡、未进入 monitor；心跳检查使用平板 aware_data0 抓包。

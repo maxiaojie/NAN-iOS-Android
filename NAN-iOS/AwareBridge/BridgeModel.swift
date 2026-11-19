@@ -37,13 +37,16 @@ final class BridgeModel {
     var lastMessage = "每 5 秒双向心跳，收到后回复确认"
     var lastReceived: Date?
     var now = Date()
-    var benchmarkStatus = "UDP 吞吐：10 秒 / 目标 50 Mbps"
-    @ObservationIgnored private var benchmark: ThroughputTest?
-    func startBenchmark() {
+    var benchmarkStatus = "libiperf · 10 秒 · 默认 4 线程"
+    var testProtocol = "TCP"
+    var testStreams = 4
+    var testRateMbps = 0
+    @ObservationIgnored private var benchmark: IperfClient?
+    func startBenchmark(reverse: Bool) {
         guard let benchmark, let lastReceived, Date().timeIntervalSince(lastReceived) < 20 else {
             benchmarkStatus = "请先等待双向心跳建立"; return
         }
-        Task { await benchmark.start() }
+        benchmark.start(proto: testProtocol, streams: testStreams, reverse: reverse, rateMbps: testRateMbps)
     }
     @ObservationIgnored private var connectionTask: Task<Void, Never>?
     @ObservationIgnored private var incomingTask: Task<Void, Never>?
@@ -232,13 +235,16 @@ final class BridgeModel {
             }
         }
         let session = UUID().uuidString
-        let engine = ThroughputTest(send: { data in try await connection.send(data) }, status: { [weak self] text in
-            await self?.benchmarkUpdate(text, token: token, attempt: attemptToken)
+        let engine = IperfClient(connection: connection, report: { [weak self] text in
+            self?.benchmarkUpdate(text, token: token, attempt: attemptToken)
+        }, sendResult: { text in
+            let message = BridgeMessage.make("iperf_result", session: session, seq: 0, text: text)
+            try? await connection.send(JSONEncoder().encode(message))
         })
         benchmark = engine
         defer {
             if connectionAttempt == attemptToken { benchmark = nil }
-            Task { await engine.close() }
+            engine.close()
         }
         // Both tasks retain the connection only for this scope. Cancelling the receive
         // operation cancels the underlying connection, releasing the Aware data path.
@@ -260,16 +266,17 @@ final class BridgeModel {
                 var remoteSession: String?
                 while !Task.isCancelled {
                     let (data, _) = try await connection.receive()
-                    if ThroughputTest.matches(data) {
-                        if remoteSession != nil { try await engine.receive(data) }
-                        continue
-                    }
                     guard data.count <= 4096,
                           let message = try? JSONDecoder().decode(BridgeMessage.self, from: data),
                           message.validAndroidMessage else { continue }
                     if let remoteSession, message.session != remoteSession { continue }
                     if message.type == "ack" && message.ackSession != session { continue }
                     remoteSession = message.session
+                    await engine.configure(message.iperfAddress, port: message.iperfPort)
+                    if message.type == "iperf_request" {
+                        await engine.request(message.text)
+                        continue
+                    }
                     await self?.didReceive(message, token: token)
                     if message.type != "ack" {
                         let ack = BridgeMessage.make("ack", session: session, seq: message.seq, ackSession: message.session)
@@ -296,16 +303,15 @@ final class BridgeModel {
         status = "已连接 · 双向数据通信中"
     }
     func tick() {
-        if let benchmark { Task { await benchmark.tick() } }
         now = Date()
         if active, let lastReceived, now.timeIntervalSince(lastReceived) > 20 {
             status = "心跳超时，请检查 Android 是否在前台"
         }
     }
     func stop() {
-        if let benchmark { Task { await benchmark.close() } }
+        benchmark?.close()
         benchmark = nil
-        benchmarkStatus = "UDP 吞吐：10 秒 / 目标 50 Mbps"
+        benchmarkStatus = "libiperf · 10 秒 · 默认 4 线程"
         generation = UUID()
         connectionTask?.cancel()
         connectionTask = nil

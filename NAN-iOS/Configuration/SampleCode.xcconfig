@@ -1,2 +1,7 @@
 // Optional local signing overrides; never commit your local signing settings.
 #include? "../Local.xcconfig"
+
+// Embedded libiperf; generated archive is intentionally outside Git.
+SWIFT_OBJC_BRIDGING_HEADER = $(SRCROOT)/AwareBridge/AwareBridge-Bridging-Header.h
+HEADER_SEARCH_PATHS = $(inherited) $(SRCROOT)/../native/iperf $(SRCROOT)/../third_party/iperf3/src $(SRCROOT)/../.native-build/ios/src
+OTHER_LDFLAGS = $(inherited) -L$(SRCROOT)/../.native-build/ios/src/.libs -liperf

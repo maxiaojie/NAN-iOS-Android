@@ -16,11 +16,14 @@ import java.util.*;
 
 /** Foreground publisher or subscriber. Role changes require stopping the session. */
 public final class MainActivity extends Activity {
-    private TextView state, pin, stats, peer, lastMessage, instructions, benchmarkStats;
+    private TextView state, pin, stats, peer, lastMessage, instructions, benchmarkStats, performanceState;
+    private LinearLayout performancePanel;
+    private EditText udpRate;
+    private LinearLayout udpRateRow;
     private Button toggle, pairButton, connectButton, cacheButton;
     private Switch pairingSwitch;
     private RadioGroup roles;
-    private Spinner peerPicker;
+    private Spinner peerPicker, testProtocol, testStreams;
     private LinearLayout subscriberControls;
     private AlertDialog pinDialog;
     private PairingCacheDialog cacheDialog;
@@ -44,6 +47,7 @@ public final class MainActivity extends Activity {
         content.setBackgroundColor(0xfff5f7fb);
         label(content, "AwareBridge", 30).setTypeface(null, android.graphics.Typeface.BOLD);
         label(content, "Wi-Fi Aware · iOS ↔ Android", 16);
+        LinearLayout pairingPanel = section(content, "配对和连接");
         roles = new RadioGroup(this);
         for (int id : new int[]{PUBLISHER, SUBSCRIBER}) {
             RadioButton choice = new RadioButton(this);
@@ -52,15 +56,16 @@ public final class MainActivity extends Activity {
             roles.addView(choice);
         }
         roles.check(PUBLISHER);
-        content.addView(roles);
-        state = label(content, "准备就绪", 20);
-        pin = label(content, "", 32);
+        pairingPanel.addView(roles);
+        state = label(pairingPanel, "准备就绪", 20);
+        pin = label(pairingPanel, "", 32);
+        pin.setVisibility(View.GONE);
         toggle = new Button(this);
-        content.addView(toggle);
+        pairingPanel.addView(toggle);
         pairingSwitch = new Switch(this);
         pairingSwitch.setText("允许新设备配对（1 分钟）");
         pairingSwitch.setEnabled(false);
-        content.addView(pairingSwitch);
+        pairingPanel.addView(pairingSwitch);
         pairingSwitch.setOnCheckedChangeListener((button, checked) -> {
             if (!syncingPairing && controller != null) controller.setPairingEnabled(checked);
         });
@@ -74,7 +79,7 @@ public final class MainActivity extends Activity {
         connectButton = new Button(this);
         connectButton.setText("连接所选 iOS 设备");
         subscriberControls.addView(connectButton);
-        content.addView(subscriberControls);
+        pairingPanel.addView(subscriberControls);
         pairButton.setOnClickListener(v -> {
             SubscriberController.Peer selected = selectedPeer();
             if (controller instanceof SubscriberController && selected != null) {
@@ -87,21 +92,60 @@ public final class MainActivity extends Activity {
                 ((SubscriberController) controller).connect(selected);
             }
         });
-        peer = label(content, "对端：—", 14);
-        stats = label(content, "发送 0  ·  接收 0", 20);
-        lastMessage = label(content, "每 5 秒双向心跳，收到后回复确认", 16);
-        benchmarkStats = label(content, "UDP 吞吐：10 秒 / 目标 50 Mbps", 16);
-        Button benchmark = new Button(this);
-        benchmark.setText("测试本端 → 对端");
-        content.addView(benchmark);
-        benchmark.setOnClickListener(v -> {
-            if (controller != null) controller.benchmark();
-            else benchmarkStats.setText("请先建立数据链路");
+        instructions = label(pairingPanel, "", 15);
+        LinearLayout dataPanel = section(content, "数据链路");
+        peer = label(dataPanel, "对端：—", 14);
+        stats = label(dataPanel, "发送 0  ·  接收 0", 20);
+        lastMessage = label(dataPanel, "每 5 秒双向心跳，收到后回复确认", 16);
+        performancePanel = section(content, "性能测试");
+        performanceState = label(performancePanel, "请先建立数据链路", 16);
+        label(performancePanel, "协议", 14);
+        testProtocol = new Spinner(this);
+        testProtocol.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
+                new String[]{"TCP", "UDP"}));
+        performancePanel.addView(testProtocol);
+        udpRateRow = new LinearLayout(this);
+        udpRateRow.setOrientation(LinearLayout.VERTICAL);
+        label(udpRateRow, "UDP 总发送速率（Mbps，0 表示不限速）", 14);
+        udpRate = new EditText(this);
+        udpRate.setInputType(InputType.TYPE_CLASS_NUMBER);
+        udpRate.setText("0");
+        udpRateRow.addView(udpRate);
+        performancePanel.addView(udpRateRow);
+        udpRateRow.setVisibility(View.GONE);
+        testProtocol.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                udpRateRow.setVisibility(position == 1 ? View.VISIBLE : View.GONE);
+            }
+            @Override public void onNothingSelected(AdapterView<?> parent) { }
         });
-        instructions = label(content, "", 15);
+        label(performancePanel, "并行线程数", 14);
+        testStreams = new Spinner(this);
+        testStreams.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
+                new Integer[]{1,2,4,8,16}));
+        testStreams.setSelection(2);
+        performancePanel.addView(testStreams);
+        benchmarkStats = label(performancePanel, "iperf3 · 每次测试 10 秒", 16);
+        for (boolean reverse : new boolean[]{true,false}) {
+            Button benchmark = new Button(this);
+            benchmark.setAllCaps(false);
+            benchmark.setText(reverse ? "Android → iOS" : "iOS → Android");
+            performancePanel.addView(benchmark);
+            benchmark.setOnClickListener(v -> {
+                int rate;
+                try { rate = Integer.parseInt(udpRate.getText().toString()); }
+                catch (NumberFormatException e) { udpRate.setError("请输入 0～100000"); return; }
+                if (rate < 0 || rate > 100000) { udpRate.setError("请输入 0～100000"); return; }
+                if (controller != null) controller.benchmark(testProtocol.getSelectedItem().toString(),
+                        (Integer)testStreams.getSelectedItem(), reverse, rate);
+                else benchmarkStats.setText("请先建立数据链路");
+            });
+        }
+        LinearLayout cachePanel = section(content, "配对缓存管理");
+        label(cachePanel, "查看已配对设备，或清除不再使用的配对记录。", 14);
         cacheButton = new Button(this);
         cacheButton.setText("管理配对缓存");
-        content.addView(cacheButton);
+        cachePanel.addView(cacheButton);
         cacheButton.setOnClickListener(v -> {
             if (controller != null) return;
             if (cacheDialog != null) cacheDialog.dismiss();
@@ -137,6 +181,22 @@ public final class MainActivity extends Activity {
         instructions.setText(subscribing()
                 ? "1. iOS 选择发布角色，打开允许配对\n2. Android 开始订阅，选择设备并配对\n3. 输入 iOS 显示的代码，iOS 开始发布后点击连接\n\n请保持两端 App 在前台。"
                 : "1. 点击开始发布\n2. 打开允许配对，iOS 添加设备并输入代码\n3. iOS 点击连接\n\n请保持两端 App 在前台。");
+    }
+
+    private LinearLayout section(LinearLayout parent, String title) {
+        TextView heading = label(parent, title, 16);
+        heading.setTextColor(0xff6b7280);
+        heading.setTypeface(null, android.graphics.Typeface.BOLD);
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        int padding = (int) (16 * getResources().getDisplayMetrics().density);
+        panel.setPadding(padding, padding / 2, padding, padding / 2);
+        android.graphics.drawable.GradientDrawable background = new android.graphics.drawable.GradientDrawable();
+        background.setColor(0xffffffff);
+        background.setCornerRadius(padding);
+        panel.setBackground(background);
+        parent.addView(panel, new LinearLayout.LayoutParams(-1, -2));
+        return panel;
     }
 
     private TextView label(LinearLayout parent, String value, int size) {
@@ -178,6 +238,7 @@ public final class MainActivity extends Activity {
             @Override public void status(String value) { state.setText(value); }
             @Override public void pin(String value) {
                 pin.setText(value.isEmpty() ? "" : "配对代码\n" + value);
+                pin.setVisibility(value.isEmpty() ? View.GONE : View.VISIBLE);
                 if (value.isEmpty() && pinDialog != null) {
                     pinDialog.dismiss();
                     pinDialog = null;
@@ -187,6 +248,8 @@ public final class MainActivity extends Activity {
                 stats.setText(String.format(Locale.ROOT, "发送 %d  ·  接收 %d", tx, rx));
                 peer.setText("对端：" + remote);
                 lastMessage.setText(text + (ageMs < 0 ? "" : "\n最近接收：" + ageMs / 1000 + " 秒前"));
+                if (rx > 0) performanceState.setText(ageMs > 20_000 ? "链路无响应，请检查连接" : "Aware 数据链路已连接");
+                else performanceState.setText("请先建立数据链路");
                 if (rx > 0) state.setText(ageMs > 20_000 ? "心跳超时，请检查 iOS 是否在前台" : "已连接 · 双向数据通信中");
             }
             @Override public void pairing(boolean enabled, boolean available) {
@@ -208,7 +271,8 @@ public final class MainActivity extends Activity {
     }
 
     private void sessionControls(boolean running) {
-        if (!running) benchmarkStats.setText("UDP 吞吐：10 秒 / 目标 50 Mbps");
+        if (!running) performanceState.setText("请先建立数据链路");
+        if (!running) benchmarkStats.setText("iperf3 · 每次测试 10 秒");
         cacheButton.setEnabled(!running);
         cacheButton.setText(running ? "停止后可管理配对缓存" : "管理配对缓存");
         for (int i = 0; i < roles.getChildCount(); i++) roles.getChildAt(i).setEnabled(!running);

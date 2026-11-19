@@ -25,8 +25,8 @@ final class AwareController implements BridgeController {
         void stopped();
     }
 
-    @Override public void benchmark() {
-        if (transport != null) transport.benchmark();
+    @Override public void benchmark(String protocol, int streams, boolean reverse, int rateMbps) {
+        if (transport != null) transport.benchmark(protocol,streams,reverse,rateMbps);
         else observer.benchmark("请先建立数据链路");
     }
 
@@ -304,7 +304,7 @@ final class AwareController implements BridgeController {
                         if (!closed && generation == networkGeneration) recoverNetwork(message);
                     });
                 }
-            });
+            }, context.getCacheDir().getAbsolutePath());
             WifiAwareNetworkSpecifier specifier = new WifiAwareNetworkSpecifier.Builder(publisher)
                     .setPskPassphrase(DEMO_PASSPHRASE)
                     .setPort(transport.port())
@@ -315,6 +315,7 @@ final class AwareController implements BridgeController {
                 public void onAvailable(Network network) {
                     if (closed || generation != networkGeneration || networkReady) return;
                     try {
+                        transport.configureIperf(network,connectivity.getLinkProperties(network));
                         transport.start(network);
                         networkReady = true;
                         observer.status("数据链路已建立，等待双向心跳");
@@ -325,6 +326,7 @@ final class AwareController implements BridgeController {
 
                 @Override
                 public void onLinkPropertiesChanged(Network network, LinkProperties properties) {
+                    if (!closed && generation == networkGeneration && transport != null) transport.configureIperf(network,properties);
                     if (!closed && generation == networkGeneration) android.util.Log.i("AwareBridge", "Aware IP: " + properties.getLinkAddresses());
                 }
 
