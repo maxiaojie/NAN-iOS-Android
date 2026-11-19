@@ -1,5 +1,9 @@
 # 真机验证记录
 
+### 自动重连双端验收通过（2026-11-19，10:18～10:21）
+
+首版保留 Publish 的恢复实测失败，旧 NDP 终止状态阻挡新请求；仅重建 Publish 也失败。最终自动重建 attach/Publish，保留配对状态后，a0807d7 与 iPhone12 在 Setup=false 下完成主动断开、心跳超时、自动恢复、仅 iOS 点击重连、Pair Verify/NDP 和双向 13/13。编译/lint、安装通过。STA 并发及底层 teardown 未解决。详见 [完整测试](publisher-reconnect-recovery.md)。以下“待验收”保留为首版历史。
+
 ### 发布端自动恢复数据链路（2026-11-19）
 
 代码已修改，Android assembleDebug/lintDebug 通过；APK 覆盖安装 a0807d7 成功、冷启动正常。断链后保留 Publish、重建 socket/网络请求。完整双端重连真机验证待完成，详见 [修改范围](publisher-reconnect-recovery.md)。

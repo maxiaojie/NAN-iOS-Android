@@ -439,3 +439,8 @@ Ubuntu 抓包收尾规则已加入 AGENTS.md；退出 monitor 后需额外 sudo 
 ### P11：发布端断链后保留 Publish（2026-11-19）
 
 已修改 AwareController：心跳/UDP 错误及网络丢失只释放旧数据链路，一秒后重新请求网络并更新端口，保留 Publish/attach 和配对开关；generation 过滤旧回调。手动停止和发现会话失败仍完整清理。编译及 lint 通过，完整双端重连尚未验收。详见 [恢复策略](publisher-reconnect-recovery.md)。
+
+
+### P11：自动恢复双端复测与最终修正（2026-11-19）
+
+首版只重建网络请求未通过双端实测：Framework 旧 NDP state=104 阻挡新请求；只重建 Publish 也失败。最终改为自动重建 attach/Publish，保留系统配对缓存、App 配对状态及定时关窗任务，并过滤三层旧回调。a0807d7/iPhone12，STA 断开、Setup=false，iOS 主动断开 → Android 心跳超时自动恢复 → 仅点 iOS 连接 → Pair Verify/NDP/双向心跳 13/13 通过。无需 Android 手动重新发布。底层 teardown 根因未修复，此为 App 恢复方案；详见 [失败对照及成功时序](publisher-reconnect-recovery.md)。
