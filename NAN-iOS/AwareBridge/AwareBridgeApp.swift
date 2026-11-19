@@ -69,6 +69,13 @@ struct BridgeView: View {
                     }
                     Text(model.lastMessage).font(.footnote).foregroundStyle(.secondary)
                 }
+                Section("吞吐测试") {
+                    Text(model.benchmarkStatus).font(.footnote)
+                    Button("测试本端 → 对端") { model.startBenchmark() }
+                        .disabled(!model.active || model.lastReceived == nil)
+                    Text("UDP · 10 秒 · 目标 50 Mbps；显示对端实际接收量及丢包率。请在两端分别测试方向。")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
                 Section {
                     Text("两端每 5 秒发送心跳并回复确认。请保持两端 App 在前台；切到后台会主动断开。")
                         .font(.footnote).foregroundStyle(.secondary)

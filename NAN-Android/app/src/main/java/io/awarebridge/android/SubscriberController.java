@@ -55,6 +55,11 @@ final class SubscriberController implements BridgeController {
     private static final int IOS_UDP_PORT = 45454;
     private static final int CIPHER = Characteristics.WIFI_AWARE_CIPHER_SUITE_NCS_PK_PASN_128;
     private static final int KEYPAD = AwarePairingConfig.PAIRING_BOOTSTRAPPING_PIN_CODE_KEYPAD;
+    @Override public void benchmark() {
+        if (transport != null) transport.benchmark();
+        else observer.benchmark("请先建立数据链路");
+    }
+
     private final Context context;
     private final Observer observer;
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -259,6 +264,9 @@ final class SubscriberController implements BridgeController {
         if (!peer.paired) { observer.status("请先配对所选 iOS 设备"); return; }
         try {
             transport = new HeartbeatTransport(new HeartbeatTransport.Observer() {
+                @Override public void onBenchmark(String text) {
+                    handler.post(() -> { if (!closed) observer.benchmark(text); });
+                }
                 @Override public void onStats(long tx, long rx, long age, String remote, String text) {
                     handler.post(() -> { if (!closed) observer.stats(tx, rx, age, remote, text); });
                 }

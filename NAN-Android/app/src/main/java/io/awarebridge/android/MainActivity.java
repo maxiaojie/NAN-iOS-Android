@@ -16,7 +16,7 @@ import java.util.*;
 
 /** Foreground publisher or subscriber. Role changes require stopping the session. */
 public final class MainActivity extends Activity {
-    private TextView state, pin, stats, peer, lastMessage, instructions;
+    private TextView state, pin, stats, peer, lastMessage, instructions, benchmarkStats;
     private Button toggle, pairButton, connectButton, cacheButton;
     private Switch pairingSwitch;
     private RadioGroup roles;
@@ -90,6 +90,14 @@ public final class MainActivity extends Activity {
         peer = label(content, "对端：—", 14);
         stats = label(content, "发送 0  ·  接收 0", 20);
         lastMessage = label(content, "每 5 秒双向心跳，收到后回复确认", 16);
+        benchmarkStats = label(content, "UDP 吞吐：10 秒 / 目标 50 Mbps", 16);
+        Button benchmark = new Button(this);
+        benchmark.setText("测试本端 → 对端");
+        content.addView(benchmark);
+        benchmark.setOnClickListener(v -> {
+            if (controller != null) controller.benchmark();
+            else benchmarkStats.setText("请先建立数据链路");
+        });
         instructions = label(content, "", 15);
         cacheButton = new Button(this);
         cacheButton.setText("管理配对缓存");
@@ -166,6 +174,7 @@ public final class MainActivity extends Activity {
         stats.setText("发送 0  ·  接收 0");
         lastMessage.setText("等待心跳…");
         SubscriberController.Observer observer = new SubscriberController.Observer() {
+            @Override public void benchmark(String text) { benchmarkStats.setText(text); }
             @Override public void status(String value) { state.setText(value); }
             @Override public void pin(String value) {
                 pin.setText(value.isEmpty() ? "" : "配对代码\n" + value);
@@ -199,6 +208,7 @@ public final class MainActivity extends Activity {
     }
 
     private void sessionControls(boolean running) {
+        if (!running) benchmarkStats.setText("UDP 吞吐：10 秒 / 目标 50 Mbps");
         cacheButton.setEnabled(!running);
         cacheButton.setText(running ? "停止后可管理配对缓存" : "管理配对缓存");
         for (int i = 0; i < roles.getChildCount(); i++) roles.getChildAt(i).setEnabled(!running);

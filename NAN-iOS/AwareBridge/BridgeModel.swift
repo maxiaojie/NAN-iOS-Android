@@ -37,6 +37,14 @@ final class BridgeModel {
     var lastMessage = "每 5 秒双向心跳，收到后回复确认"
     var lastReceived: Date?
     var now = Date()
+    var benchmarkStatus = "UDP 吞吐：10 秒 / 目标 50 Mbps"
+    @ObservationIgnored private var benchmark: ThroughputTest?
+    func startBenchmark() {
+        guard let benchmark, let lastReceived, Date().timeIntervalSince(lastReceived) < 20 else {
+            benchmarkStatus = "请先等待双向心跳建立"; return
+        }
+        Task { await benchmark.start() }
+    }
     @ObservationIgnored private var connectionTask: Task<Void, Never>?
     @ObservationIgnored private var incomingTask: Task<Void, Never>?
     @ObservationIgnored private var generation = UUID()
@@ -224,6 +232,14 @@ final class BridgeModel {
             }
         }
         let session = UUID().uuidString
+        let engine = ThroughputTest(send: { data in try await connection.send(data) }, status: { [weak self] text in
+            await self?.benchmarkUpdate(text, token: token, attempt: attemptToken)
+        })
+        benchmark = engine
+        defer {
+            if connectionAttempt == attemptToken { benchmark = nil }
+            Task { await engine.close() }
+        }
         // Both tasks retain the connection only for this scope. Cancelling the receive
         // operation cancels the underlying connection, releasing the Aware data path.
         try await withThrowingTaskGroup(of: Void.self) { group in
@@ -244,6 +260,10 @@ final class BridgeModel {
                 var remoteSession: String?
                 while !Task.isCancelled {
                     let (data, _) = try await connection.receive()
+                    if ThroughputTest.matches(data) {
+                        if remoteSession != nil { try await engine.receive(data) }
+                        continue
+                    }
                     guard data.count <= 4096,
                           let message = try? JSONDecoder().decode(BridgeMessage.self, from: data),
                           message.validAndroidMessage else { continue }
@@ -262,6 +282,10 @@ final class BridgeModel {
             try await group.next()
         }
     }
+    private func benchmarkUpdate(_ text: String, token: UUID, attempt: UUID) {
+        guard generation == token, connectionAttempt == attempt else { return }
+        benchmarkStatus = text
+    }
     private func didSend(token: UUID) {
         guard generation == token else { return }
         tx += 1
@@ -272,12 +296,16 @@ final class BridgeModel {
         status = "已连接 · 双向数据通信中"
     }
     func tick() {
+        if let benchmark { Task { await benchmark.tick() } }
         now = Date()
         if active, let lastReceived, now.timeIntervalSince(lastReceived) > 20 {
             status = "心跳超时，请检查 Android 是否在前台"
         }
     }
     func stop() {
+        if let benchmark { Task { await benchmark.close() } }
+        benchmark = nil
+        benchmarkStatus = "UDP 吞吐：10 秒 / 目标 50 Mbps"
         generation = UUID()
         connectionTask?.cancel()
         connectionTask = nil

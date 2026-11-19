@@ -188,3 +188,8 @@ TB522FU Android17启用Aware声明、安装当前App通过。未连接STA及连�
 
 
 b2302624 追加 lenovo-internet（5260MHz / DFS52）测试：信道6/149共114个目标Publish均无额外23字节；保留原厂HAL、Setup=false。结论仍限于本机当前版本，未验收配对/NDP。详见 [追加记录](b2302624-sta-sdf-validation.md)。
+
+
+### 2026-11-19 吞吐功能
+
+双端代码/构建通过，Android lint通过，Java/Swift测试包和报告互通、去重/重试及10秒本地发送循环通过。b2302624 APK覆盖安装、测试入口可见。iPhone14 unavailable，真机双向吞吐、拥塞下心跳和断开重测仍待验证。详见 [测试说明](throughput-test.md)。

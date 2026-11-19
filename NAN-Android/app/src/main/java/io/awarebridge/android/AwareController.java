@@ -18,10 +18,16 @@ final class AwareController implements BridgeController {
     private static final int CIPHER = Characteristics.WIFI_AWARE_CIPHER_SUITE_NCS_PK_PASN_128;
     interface Observer {
         void status(String status);
+        default void benchmark(String text) { }
         void pin(String pin);
         void stats(long tx, long rx, long ageMs, String peer, String text);
         void pairing(boolean enabled, boolean available);
         void stopped();
+    }
+
+    @Override public void benchmark() {
+        if (transport != null) transport.benchmark();
+        else observer.benchmark("请先建立数据链路");
     }
 
     private final Context context;
@@ -282,6 +288,9 @@ final class AwareController implements BridgeController {
         final int generation = ++networkGeneration;
         try {
             transport = new HeartbeatTransport(new HeartbeatTransport.Observer() {
+                @Override public void onBenchmark(String text) {
+                    handler.post(() -> { if (!closed) observer.benchmark(text); });
+                }
                 @Override
                 public void onStats(long tx, long rx, long age, String peer, String text) {
                     handler.post(() -> {

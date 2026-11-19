@@ -14,10 +14,24 @@ final class HeartbeatTransport implements AutoCloseable {
     interface Observer {
         void onStats(long tx, long rx, long ageMs, String peer, String text);
         void onError(String message);
+        default void onBenchmark(String text) { }
     }
     private final DatagramSocket socket = new DatagramSocket(null);
     private final ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor();
     private final Observer observer;
+    private final ThroughputTest benchmark;
+    private ThroughputTest makeBenchmark() { return new ThroughputTest(data -> {
+        InetSocketAddress target;
+        synchronized (this) { target = peer; }
+        if (closed || target == null) throw new IOException("尚未收到对端心跳");
+        socket.send(new DatagramPacket(data, data.length, target));
+    }, text -> observer.onBenchmark(text)); }
+    void benchmark() {
+        synchronized (this) {
+            if (peerSession == null) { observer.onBenchmark("请先等待双向心跳建立"); return; }
+        }
+        benchmark.start();
+    }
     private final String session = UUID.randomUUID().toString();
     private volatile boolean closed;
     private InetSocketAddress peer;
@@ -28,6 +42,7 @@ final class HeartbeatTransport implements AutoCloseable {
 
     HeartbeatTransport(Observer observer) throws SocketException {
         this.observer = observer;
+        benchmark = makeBenchmark();
         socket.bind(new InetSocketAddress(0));
     }
     int port() { return socket.getLocalPort(); }
@@ -58,6 +73,7 @@ final class HeartbeatTransport implements AutoCloseable {
                         String type = sequence == 0 ? "hello" : "heartbeat";
                         send(type, sequence++, "Android " + type);
                     }
+                    benchmark.tick();
                     report();
                 }
             } catch (Exception e) {
@@ -73,6 +89,13 @@ final class HeartbeatTransport implements AutoCloseable {
             try {
                 socket.receive(packet);
                 if (packet.getLength() > 4096 || !packet.getAddress().isLinkLocalAddress()) continue;
+                if (ThroughputTest.matches(packet.getData(), packet.getLength())) {
+                    synchronized (this) {
+                        if (peerSession != null && peer != null && peer.equals(new InetSocketAddress(packet.getAddress(), packet.getPort())))
+                            benchmark.receive(packet.getData(), packet.getLength());
+                    }
+                    continue;
+                }
                 JSONObject message;
                 try {
                     message = new JSONObject(new String(packet.getData(), packet.getOffset(),
@@ -123,6 +146,7 @@ final class HeartbeatTransport implements AutoCloseable {
     @Override public synchronized void close() {
         if (closed) return;
         closed = true;
+        benchmark.close();
         timer.shutdownNow();
         socket.close();
     }

@@ -474,3 +474,8 @@ STA BSSID d0:4d:c6:cb:50:a7，5260MHz / DFS信道52；iPhone14 Pro触发订阅�
 ### P07：三台均STA条件的跨机对照（2026-11-19）
 
 以b230正常11745、303异常33004、a080异常99373重新比较。Availability去头3字节后主体完全一致；异常两台共有额外Capability Extension、Country Code及33字节type41 Vendor属性，但这些同机STA断开时也存在。Unaligned Schedule只在303出现；CSIA和Setup测试状态不统一。SDA差4来自TXT，SDEA另差1来自更新指示。97/80字节整帧差均完整对账，无额外未解释长度。详见 [三台STA逐属性对照](three-tablets-sta-publish-comparison.md)。只读分析，未重新操作设备。
+
+
+### 双端UDP吞吐测试集成（2026-11-19）
+
+用户要求Android/iOS都增加性能测试。已实现现有Aware UDP链路上10秒/目标50Mbps的单向测试、唯一接收计数与结果回报，心跳保留；两端分别点击可切换方向。双端编译、Android lint与Java/Swift协议互通及本地发送循环通过，APK安装b2302624。iPhone14当前unavailable，双端真实吞吐尚未验收，不将Mac回环值当Aware性能。见 [用法、协议与限制](throughput-test.md)。
