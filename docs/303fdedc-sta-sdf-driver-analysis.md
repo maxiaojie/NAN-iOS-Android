@@ -88,3 +88,6 @@ STA 连接附近还有 __hdd_start_tsf_sync: Host Target sync has not initialize
 3. 如果 SDF 在固件构建，检查 STA 并发可选属性的 length calculation 与实际填充的差值；重点记录最后合法属性后到发送总长的 23 字节区域。如果在 host 构建，则同样记录提交管理帧前的这些值。
 
 本轮没有读取隔离服务器源码、没有确定具体责任函数、没有部署 ROM 修复。收尾：303fdedc 停止 App，撤销 auto-join 限制、恢复 lenovo-internet，息屏时长恢复原值 1800000；iPhone 14 Pro 手动锁屏、backlightState=off，保持用户设定的永不自动锁屏选项。Ubuntu 已移除 monitor、managed/connected、默认路由恢复，HTTPS 清华镜像 HTTP/2 200。
+
+
+追加：正常/异常逐属性与TB522FU补充对照已完成，见 [字段、偏移及调度条目](publish-sdf-field-comparison.md)。TB522FU正常帧和本机异常帧的Availability在去掉序号/控制头后内容一致，不能将调度bitmap变化本身作为零尾根因。

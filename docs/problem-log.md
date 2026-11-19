@@ -464,3 +464,8 @@ a0807d7 订阅 iPhone12：STA 5260 MHz 下两次 NDP reason=2（其中一次 Pai
 ### P07：b2302624 的 lenovo-internet 补测（2026-11-19）
 
 STA BSSID d0:4d:c6:cb:50:a7，5260MHz / DFS信道52；iPhone14 Pro触发订阅，信道6取得47个、149取得67个目标Publish，共114个均无额外23字节。与先前TB323FU同为STA信道52也未复现，不能归结为只要DFS52就必然异常。详见 [追加抓包记录](b2302624-sta-sdf-validation.md#追加lenovo-internet--dfs-信道-52)。
+
+
+### P07：正常/异常 Publish 逐属性对照（2026-11-19）
+
+303fdedc第32181/33004帧同机对照：除MAC序号、抓包元数据，NAN属性仅两份Availability变化（Map2仅Sequence；Map1调整Potential并减4字节）及新增19字节Unaligned Schedule；SDA/SDEA/CSIA/安全上下文/NIRA/Vendor内容完全一致。TB522FU正常STA帧的两份Availability去掉前3字节后，与TB323FU异常帧逐字节相同，不能据此把候选信道/bitmap调整认定为异常。完整偏移、长度、条目及97字节跨机差额对账见 [逐属性分析](publish-sdf-field-comparison.md)。未改代码或进行新真机测试。
