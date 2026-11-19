@@ -180,3 +180,8 @@ Ubuntu 网络收尾已通过：wlp3s0mon 删除、wlp3s0 managed 并连接 lenov
 ### 2026-11-19 反向 STA 并发验证
 
 a0807d7 订阅 iPhone12：STA 5260 MHz 下两次 NDP reason=2（其中一次 Pair Verify 成功），STA 断开后双向 29/29；重新连到另一 BSSID、5320 MHz 后已有链路持续，重新建链也通过、iPhone 15/15。不能概括连接 STA 必然失败，亦未证明与 Publish 23 字节同根因。固定信道重复对照及空口待补；详见 [时序及限制](reverse-sta-validation-2026-11-19.md)。
+
+
+### 2026-11-19 b2302624 STA 双接入点检查
+
+TB522FU Android17启用Aware声明、安装当前App通过。未连接STA及连接mxj-5G/153、mxj-5G_3/48，空口6/149共246个目标Publish无额外23字节。仅验收当前环境未复现，不验收首次配对或NDP，也未修复TB323FU。详见 [完整记录](b2302624-sta-sdf-validation.md)。

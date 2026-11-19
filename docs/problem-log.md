@@ -454,3 +454,8 @@ a0807d7 订阅 iPhone12：STA 5260 MHz 下两次 NDP reason=2（其中一次 Pai
 ### P07：303fdedc 第二台平板同会话复现（2026-11-19）
 
 303fdedc 与 iPhone14 Pro 均安装当前 App，保留该平板原 HAL。信道6同一 NMI/Publish 的 STA 断开72帧无零尾，连接后75帧多23字节，后续Setup开启25帧仍多23；再次断开取得35帧（Setup关闭）与49帧（开启）无零尾。STA切换窗口没有重新下发Publish。代表帧正常528字节→异常566字节，38字节差含合法调度属性变化及23字节异常尾部，不能直接相减判定。新线索是 STA 并发/Availability/Unaligned Schedule 路径；尚不能判定驱动还是Firmware。昨日两份347字节HAL请求复核仅头部偏移6不同，payload完全相同。完整 [驱动日志及空口对照](303fdedc-sta-sdf-driver-analysis.md)。Ubuntu已恢复Wi-Fi和HTTPS200；303fdedc恢复原网络，iPhone14 Pro已锁屏。
+
+
+### P07：b2302624 新刷 TB522FU 对照（2026-11-19）
+
+已 push Wi-Fi Aware XML、重启确认 feature 并安装当前 API37 App；保留原厂 HAL。STA 断开、mxj-5G（5765MHz / 信道153）、mxj-5G_3（5240MHz / 信道48），信道6和149共246个目标Publish均未见额外23字节，CSIA始终00 07 01。不是配对/NDP验收，也不代表TB323FU问题已修复。详见 [部署、帧号与双频抓包](b2302624-sta-sdf-validation.md)。
