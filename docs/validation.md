@@ -171,3 +171,8 @@ a0807d7 订阅 iPhone 12，HAL 转换 SSI=86 字节；空口 03-vendor-v4-bootst
 本轮收尾：停止 iOS 发布与 Android 订阅，Android 恢复 30 秒息屏；用户恢复 USB 后 iPhone 12 锁屏，devicectl 确认 passcodeRequired=true。成功配对缓存保留，未操作另一台平板。
 
 Ubuntu 网络收尾已通过：wlp3s0mon 删除、wlp3s0 managed 并连接 lenovo-internet，默认路由恢复，清华镜像 HTTPS 返回 200；有线 SSH 保留。后续测试必须恢复网络的要求已写入 AGENTS.md。
+
+
+### 2026-11-19 反向 STA 并发验证
+
+a0807d7 订阅 iPhone12：STA 5260 MHz 下两次 NDP reason=2（其中一次 Pair Verify 成功），STA 断开后双向 29/29；重新连到另一 BSSID、5320 MHz 后已有链路持续，重新建链也通过、iPhone 15/15。不能概括连接 STA 必然失败，亦未证明与 Publish 23 字节同根因。固定信道重复对照及空口待补；详见 [时序及限制](reverse-sta-validation-2026-11-19.md)。

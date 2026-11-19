@@ -444,3 +444,8 @@ Ubuntu 抓包收尾规则已加入 AGENTS.md；退出 monitor 后需额外 sudo 
 ### P11：自动恢复双端复测与最终修正（2026-11-19）
 
 首版只重建网络请求未通过双端实测：Framework 旧 NDP state=104 阻挡新请求；只重建 Publish 也失败。最终改为自动重建 attach/Publish，保留系统配对缓存、App 配对状态及定时关窗任务，并过滤三层旧回调。a0807d7/iPhone12，STA 断开、Setup=false，iOS 主动断开 → Android 心跳超时自动恢复 → 仅点 iOS 连接 → Pair Verify/NDP/双向心跳 13/13 通过。无需 Android 手动重新发布。底层 teardown 根因未修复，此为 App 恢复方案；详见 [失败对照及成功时序](publisher-reconnect-recovery.md)。
+
+
+### 2026-11-19 反向 STA 并发验证
+
+a0807d7 订阅 iPhone12：STA 5260 MHz 下两次 NDP reason=2（其中一次 Pair Verify 成功），STA 断开后双向 29/29；重新连到另一 BSSID、5320 MHz 后已有链路持续，重新建链也通过、iPhone 15/15。不能概括连接 STA 必然失败，亦未证明与 Publish 23 字节同根因。固定信道重复对照及空口待补；详见 [时序及限制](reverse-sta-validation-2026-11-19.md)。
