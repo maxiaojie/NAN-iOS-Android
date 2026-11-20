@@ -24,6 +24,7 @@ final class PairingCacheDialog {
     private AlertDialog confirmation;
     private int query;
     private boolean closed;
+    private NanIdentityClient identityClient;
 
     PairingCacheDialog(Activity activity) {
         this.activity = activity;
@@ -37,11 +38,15 @@ final class PairingCacheDialog {
         status = new TextView(activity);
         status.setPadding(pad, pad, pad, 0);
         content.addView(status);
+        Button identities = new Button(activity);
+        identities.setText("读取配对身份");
+        content.addView(identities);
+        identities.setOnClickListener(v -> readIdentities());
         ScrollView scroll = new ScrollView(activity);
         scroll.addView(rows);
         content.addView(scroll);
         dialog = new AlertDialog.Builder(activity)
-                .setTitle("配对缓存")
+                .setTitle("配对缓存管理")
                 .setView(content)
                 .setNegativeButton("关闭", null)
                 .setNeutralButton("刷新", null)
@@ -49,6 +54,7 @@ final class PairingCacheDialog {
                 .create();
         dialog.setOnDismissListener(ignored -> {
             closed = true;
+            if (identityClient != null) identityClient.close();
             query++;
             handler.removeCallbacksAndMessages(null);
             if (confirmation != null) confirmation.dismiss();
@@ -66,6 +72,7 @@ final class PairingCacheDialog {
 
     private void refresh(String result) {
         if (closed) return;
+        if (identityClient != null) identityClient.close();
         final int token = ++query;
         rows.removeAllViews();
         status.setText("正在获取本应用的配对缓存…");
@@ -102,6 +109,29 @@ final class PairingCacheDialog {
             handler.removeCallbacks(timeout);
             error("获取失败：" + e.getMessage());
         }
+    }
+
+    private void readIdentities() {
+        if (closed) return;
+        query++; // Invalidate an older alias-list callback.
+        if (identityClient != null) identityClient.close();
+        rows.removeAllViews();
+        status.setText("正在读取配对身份…");
+        dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setEnabled(true);
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+        identityClient = new NanIdentityClient(activity, (records, source, message) -> {
+            if (closed) return;
+            if (message != null) { status.setText(message); return; }
+            status.setText("身份记录：" + records.size() + " 条\n"
+                    + "相同 peerId 表示同一配对身份；对端重置身份后会变化。");
+            for (NanIdentityClient.Identity record : records) {
+                TextView row = new TextView(activity);
+                row.setText(record.alias + "\npeerId：" + record.peerId + "\n");
+                row.setTextIsSelectable(true);
+                rows.addView(row);
+            }
+        });
+        identityClient.read();
     }
 
     private void confirmRemoval(String alias) {
