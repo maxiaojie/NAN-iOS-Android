@@ -529,3 +529,13 @@ App 防护：发布端记录当前已接受的 Setup 请求，仅该请求的成
 ### 303fdedc 替换 HAL 后反向配对通过（2026-11-19）
 
 备份原文件后，部署与 a0807d7 校验一致的 V4 Wi-Fi 服务、V4 NDK 和 libwifi-hal.so，VINTF 改 4；重启运行版本 4、校验一致。HAL Bootstrap SDEA SSI=86，iPhone 12 收到 TXT=83 且三项设备信息非空。清理 Android 更早的两条旧缓存、保留 iOS 配对记录，重置 Wi-Fi 会话并断开 STA 后，20:06 新 PIN 配对成功。此前几轮 PIN 未显示，iOS 有属性更新 Invalid argument，恢复因素未隔离；不能宣称无干预重配全部修复。本轮不验收 NDP/吞吐，也未抓新空口包。完整部署、失败对照与成功时序见 [追加记录](single-sided-repair-validation-2026-11-19.md#303fdedc-补齐-hal-后的反向重新配对同日追加)。
+
+
+### iPhone 14 Pro 最新 App 覆盖安装（2026-11-20）
+
+按用户要求，从当前仓库源码重新签名构建 iOS App（构建成功），通过 devicectl 覆盖安装 USB 连接的 iPhone 14 Pro（iPhone15,2），返回 App installed，bundleID=com.slab.wifiawaredemo。本轮仅验收构建及安装，不重测配对、数据链路或吞吐，没有删除配对记录或操作 Ubuntu。
+
+
+### baldur-1 重配后验证失败：重复身份缓存（2026-11-20）
+
+a0807d7 改名、iOS 删配对后新 PIN Setup 成功，但 Pair Verification 被 iOS 以 Invalid Security Parameters 拒绝。Android 三条缓存 LocalNik/PeerNik 相同、NPK 不同；实际设备 service-wifi.jar 的 PairingConfigManager 按身份首条匹配而不优先最新凭据。经用户授权仅删除旧 awarebridge-139/awarebridge-ios-138，保留新 awarebridge-141，iOS 配对不动、不重输 PIN，重新发布后 Verification/NDP 成功，双向心跳持续超过两分钟至 42/42。最终只剩新缓存，安全字段未变；未捕获失败轮次实际选中别名，保留这一诊断边界。未改 App/ROM，不把单次清理说成自动重配永久修复。完整 [证据、ROM 方法与处理建议](baldur1-repair-cache-verification-2026-11-20.md)。
