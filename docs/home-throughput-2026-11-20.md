@@ -46,6 +46,18 @@ TCP 三轮平均：Android→iOS **328.24 Mbps**，iOS→Android **359.84 Mbps**
 
 第三轮准备时 a0807d7 USB 消失，客户端 JSON 为空，该轮无效；剩余重复轮次及 Android 双机 UDP 尚未完成。已询问用户重新接入设备，不能报告完整测试矩阵通过。
 
+### 更新：用户确认 Crash，正在高通收集
+
+用户随后确认 a0807d7 正在进行高通 Crash 收集。本次事件由“USB 失联待确认”更新为“用户确认设备 Crash，具体崩溃层级和原因待 dump 分析”。助手暂停所有 a0807d7 操作，不重启、不恢复/重刷固件、不启动下一轮；保留当前收集现场。此前“重新插拔 USB”的请求已由保留 Crash 收集现场取代。
+
+Mac 文件时间（北京时间）：第一轮双端 JSON 于 20:58:00 保存；第二轮客户端接收结果于 20:58:11.977 保存、服务端 JSON 于 20:58:12.101 保存；第三轮客户端文件于 20:58:33.516 写出，长度为 0。第二轮后等待 0.5 秒，脚本即启动第三轮 server/client；现有证据不足以区分第三轮连接建立阶段或其他并发路径触发问题，不能精确宣称崩溃发生在首个数据包前后。
+
+只读保存 303fdedc 对端日志：20:58:33.685 附近记录 `NDP_END ndp_id=1, reason: KEEPALIVE active_ndp_cnt=0`，Framework 收到 `onDataPathEnd: ndpId=1`；同一对端日志还有 firmware alert 4099 以及 debug dump NOT_SUPPORTED。这些是 **303fdedc 的对端记录**，不能当成 a0807d7 的 panic/assert 栈，也不能据此认定两台设备均发生相同固件崩溃。该机 ADB 和普通 Wi-Fi 后续仍正常。
+
+首两轮有效接收吞吐保留为“崩溃前样本”，不再只看速率而忽略稳定性；不宣称 Android 双机连续运行通过。a0807d7 正运行实验 amss20 补丁，303fdedc 使用不同固件，因此不能排除实验固件或其他版本差异。未取得 a0807d7 高通 dump、assert/调用栈前，不将根因归到 App、HAL、驱动、Firmware 或补丁中的任何一层。后续应先关联该设备实际运行 build、异常 PC/线程和 NDP 收尾/重新建立路径，再决定是否恢复原固件做单变量对照。
+
+只读证据保存在本轮目录的 `crash-review/`：303fdedc logcat/dmesg（私有文件），以及 `test-files.json` 的文件时间、长度、SHA-256 和接收摘要。高通 Crash 收集由用户进行，本轮没有访问或修改其收集流程。
+
 这是绕过 iOS loopback/Network framework 适配层的原生基线，但还同时改变了接收设备、协议栈、固件和安全配置：双 Android 使用 NCS-SK PSK，App 与 iOS 使用配对凭据。它能说明本组平板当前原生路径取得了更高吞吐，不能单凭这两轮量化 iOS 转发成本或证明 iOS 是唯一瓶颈。
 
 ## 原始证据

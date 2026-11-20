@@ -593,3 +593,7 @@ a0807d7 / TB323FU / Android 17 与 iPhone 12 / iOS 27.2.1：NDP/心跳正常，A
 ### 家庭性能复测：UDP300结束未返回、Android双机USB中断（2026-11-20 晚）
 
 家中a0807d7+iPhone12无Android STA，TCP双向各三轮与UDP100双向正常；UDP300 Android→iOS返回测试中后持续无汇总、心跳仍通，具体结束分支待定位。原生Android双机PSK-NDP已取得560.46/621.74 Mbps两向TCP，但第三轮a080 USB消失，不能报告剩余重复/UDP通过。USB重连问题已向用户询问；303临时选网限制撤销并恢复普通Wi-Fi。详见 [完整条件与证据](home-throughput-2026-11-20.md)。
+
+### 家庭双 Android 性能测试：用户确认 a0807d7 Crash（2026-11-20 晚）
+
+用户确认a0807d7正进行高通Crash收集，取代此前仅USB失联的判断；暂停该设备操作，不重启/重刷/重连测试。前两轮JSON于20:58:00、20:58:12保存，第三轮客户端20:58:33为空；303对端20:58:33报NDP_END KEEPALIVE及onDataPathEnd，不能替代a080异常栈。a080运行实验amss20补丁、303固件不同，根因及补丁关联待dump分析，不宣称连续稳定性通过。详见 [事件更新和证据边界](home-throughput-2026-11-20.md)。

@@ -286,3 +286,7 @@ a0807d7 / TB323FU / Android 17、iPhone 12 / iPhone13,2 / iOS 27.2.1，STA 保�
 ### 家庭性能样本（2026-11-20 晚）
 
 iPhone12+iOS发布、a0807d7+Android17订阅，无Android STA，TCP双向各3轮平均328.24/359.84 Mbps，UDP100双向接收100.02/99.95 Mbps、显示丢包0.00%。UDP300 Android→iOS结束无汇总，不通过。303fdedc+a0807d7原生PSK-NDP首轮TCP双向560.46/621.74 Mbps，5745MHz/80MHz/2SS；两机固件不同，非单变量A/B。第三轮a080USB失联，重复/UDP未完成。保留 [原始条件及限制](home-throughput-2026-11-20.md)。本轮不修改App/ROM，不操作Ubuntu。
+
+### 家庭双 Android Crash 验收状态更正（2026-11-20 晚）
+
+用户确认a0807d7发生Crash且正在高通收集，双Android验收暂停，原两向TCP速率仅为崩溃前有效样本；第三轮和后续测试未通过。保留现场，助手不再操作该设备；303对端KEEPALIVE日志和Mac文件时间已保存，a080崩溃层级与原因待高通dump。详见 [更新记录](home-throughput-2026-11-20.md)。
