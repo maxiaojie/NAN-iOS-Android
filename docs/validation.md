@@ -251,3 +251,8 @@ a0807d7 改名、iOS 删配对后新 PIN Setup 成功，但 Pair Verification �
 按用户要求，回退提交 4040c2f 的 App 入口、客户端和 Framework 补丁/工具/测试，仅保留 [问题及后续 ROM 建议](paired-peer-identity-api.md)。App 源码恢复至 bbda302；未曾部署该查询接口的 ROM，也未安装该轮 APK，因此无设备侧回滚。身份查询和同身份凭据更新均未真机验收，后续在 ROM 中处理，不标记为已修复。
 
 回退检查补充：Android 源码与 bbda302 的差异为空，回退后 assembleDebug/lintDebug 再次通过，APK 已由回退后源码重新生成；未安装到设备。
+
+
+### P07 23 字节 Extended WLAN Infrastructure 假设复核（2026-11-20）
+
+只读旧包确认：303 抓包 33004 Publish、141/33305 Subscribe 的合法属性后各有 23 个零；Subscribe 发送地址未核对物理设备，不算 Android 订阅 STA 切换实验。522 的合法 0x1e 属性头为 1e 14 00，总长确为 23；官方 Wireshark 源码格式一致。支持优先检查属性预估长度/实际填充不一致，未证明驱动或 Firmware 责任，未修复；本轮未操作 Ubuntu/设备。见 [专项记录](sta-zero-tail-extended-wlan-hypothesis.md)。

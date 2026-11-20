@@ -548,3 +548,10 @@ a0807d7 改名、iOS 删配对后新 PIN Setup 成功，但 Pair Verification �
 提交 4040c2f 曾实现 App 身份读取入口和 Framework 查询补丁草案，未部署 ROM、未安装该轮 APK。本轮按要求回退全部实现、补丁工具和测试，App 恢复至该提交前，仅保留问题及后续 ROM 修改建议；不保留 Priv-App，不解析配对文件，不自动删除缓存。原先仅编译/合成测试通过，不计真机功能验收。
 
 后续优先在 PairingConfigManager 按应用范围和已确认 Peer NIK 更新同身份安全关联，避免旧 NPK 累积；如确需 App 识别，再考虑 Framework 直接返回 alias + 派生 peerId，无需暴露密钥或 Priv-App 中转。方案尚未实施。详见 [问题、回退范围与后续验收要求](paired-peer-identity-api.md)。
+
+
+### P07：Extended WLAN Infrastructure 23 字节候选路径（2026-11-20）
+
+用户补充 Android Subscribe 在 STA 连接时也有 23 字节零尾，并提出 Extended WLAN Infrastructure 属性。官方 Wireshark 解析定义该属性 ID=0x1e、payload=20，连头恰为 23；合法头应为 1e 14 00。既有异常 Publish 零尾连头也全零，因此重点候选是长度已计入、实际属性未写入/被覆盖或发送长度未回退，尚未证明 Firmware 具体缺陷。
+
+旧 303 抓包 141/33305 确有 Subscribe 类型 SDF 在合法属性外多 23 零（两源共 13/116 帧，物理设备映射未核对）；522 有真实 1e 14 00 属性可对照。Publish 33004、a080 的 99373 继续确认零尾。未新抓包/操作设备，未改变代码或固件。已记录后续 builder 长度/cursor 日志判据及静态分析限制，详见 [候选、帧号与排查步骤](sta-zero-tail-extended-wlan-hypothesis.md)。
