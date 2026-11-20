@@ -122,3 +122,26 @@ unsigned build_ext_wlan_infra(unsigned char *buffer) {
 函数内 `0x01a4f7dc..7e4` 引用日志标识 `0xf2032080`，对应 Data20.msc 消息 29192：`[ wlan_nan_attr_ext.c : 1157 ] STA_CHAN NULL!`。因此可以将这一 Extended WLAN Infrastructure builder 定位到 **wlan_nan_attr_ext.c 的 1157 行附近**；该行是函数内部日志行，并非定义起始行。另一个断言路径传入 `0x46d`（1133），与该范围相容，但不单独将这个数字当作已解析的源码行号。
 
 与前面三个调用者不同，此日志没有打印函数名，现有 ELF 没有可用的常规符号表，所以目前不能给出经过证实的原始 C 函数名。可以用语义名 `build_ext_wlan_infra` 标注分析，但它只是逆向命名，不是恢复出的符号。固件源码侧应先查 `wlan_nan_attr_ext.c` 中 `STA_CHAN NULL!`，或用同版本 map/未剥离 ELF 对照虚拟地址 `0x01a4f6d8`。
+
+
+### 二进制修改可行性与应改位置（2026-11-20）
+
+用户询问能否修改 amss.bin，让 BuildSDFFrame 和 Beacon 扩展路径实际填充属性。静态结论：Beacon 已在 `0x0184cb60` 传 buffer 调用属性 builder，不应重复添加；重点仍为 BuildSDFFrame 查询后缺少填充的候选路径。Beacon 当前能力并不等于已动态验收所有 Beacon 场景。
+
+不能简单把 `0x0184fd2c` 的 `R0=0` 替换成 buffer 参数：原流程在查询返回后才做 `capacity > used + attrLen` 检查，改成直接写会把容量检查移到写入之后。该调用前还有最后 Vendor 属性的写入，旧追加指针也不能不经核对直接复用，否则可能覆盖 Vendor 属性。安全的候选改动应保留先查询、再检查、再填充，追加位置以实际 buffer 与 used 为准。
+
+概念伪代码如下，不是可直接编译或刷入的原始代码补丁：
+
+```c
+attr_len = build_ext_wlan_infra(NULL);
+if (attr_len != 0 && capacity > used + attr_len) {
+    written = build_ext_wlan_infra(buffer + used);
+    used += written;  // 按实际写入更新，保留原代码相应的错误/状态处理。
+}
+```
+
+二进制层面需要在容量检查成功的控制流中增加第二次调用，保留 Hexagon packet、调用约定、寄存器与后续长度处理。是否有安全的原地空间或跳板、以及该路径是否实际运行，仍未验证；本轮不生成未经这些检查的可刷写补丁。
+
+镜像完整性已进一步直接核对：内层 ELF 的主可执行段（原文件 `0x13a000` 起、长度 `0x2f6000`）计算出的 SHA-256，可在原文件 `0x80660` 找到；另外两个段的 SHA-256 也分别在 `0x80520`、`0x805e0` 找到。说明实际代码段受镜像内哈希表覆盖，不只是根据文件名推断有签名。修改代码必须同步处理该完整性数据及其签名；本轮没有产品匹配签名能力或已确认的运行时验证策略，不能承诺修改后固件会被加载。Bootloader 解锁不代表 WLAN 固件认证自动关闭。
+
+后续优先在匹配版本的 `wlan_nan_mac_ext.c` 中修正 `NANMAC_BuildSDFFrame` 的查询/检查/填充顺序，使用产品原有构建和签名流程产出固件。单独补二进制仅适合具备匹配签名与测试加载条件的实验，并需先证明异常帧走此路径；不存在本轮已经完成部署或修复的结果。
