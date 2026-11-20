@@ -567,3 +567,8 @@ Android 请求接受、60 字节 SSI 到达 iOS 且解析出 baldur-1/LENOVO/TB3
 从 a0807d7 只读导出 peach/amss20.bin（SHA-256 2a22e73834cc6af8e563e91fc5ede40de8887351203df3940891a1c9bbb4b761），识别偏移 0x80000 内层 Hexagon ELF，通过暂停状态的 QEMU 静态解码，未执行或修改固件。0x01a4f6d8 明确写属性头 1e 14 00、角色 1 并返回 23，支持空 buffer 查询长度。
 
 重点嫌疑：0x0184fb20 中先写末尾 00:00:f0/type33 Vendor 属性，随后 0x0184fd28 空 buffer 查询上述 23 字节并计入长度，在该函数后续路径未看到对应实际填充；与空口位置吻合。镜像同时存在另一套查询+填充路径，运行时异常帧实际选择及后续间接调用尚未证明，因此未判定最终根因或修复。具体镜像版本、地址、语义、可复核本地产物及下一步 map/日志位置见 [反汇编记录](amss20-nan-disassembly-2026-11-20.md)。无设备/Ubuntu 网络更改，完整二进制不入库。
+
+
+### P07：配套固件日志字典恢复三个调用者函数名（2026-11-20）
+
+只读导出 Data20.msc，并将三个属性调用点附近日志标识与字典相互核对。0x0184cb44 属于 NANBCN_PrepareBeaconFrameExtended（wlan_nan_beacon_tx.c，日志行128）；0x0184fd28 属于 NANMAC_BuildSDFFrame（wlan_nan_mac_ext.c，日志行2171）；0x01a5ded8 属于 NANMAC_BuildFollowupFrame（同文件，日志行2354）。后者是 Follow-up 的两阶段查询/填充，不是已确认的正常 Subscribe 路径。运行时 Publish/Subscribe 的入口仍需核对；静态可疑的只计长位置保留，未宣称根因已完全证实。详见 [同日追加的函数确认](amss20-nan-disassembly-2026-11-20.md)。

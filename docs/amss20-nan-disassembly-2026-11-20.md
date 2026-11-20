@@ -61,11 +61,11 @@ unsigned build_ext_wlan_infra(unsigned char *buffer) {
 
 不能因此直接宣布根因已完全证实：需要确认运行时异常 SDF 走的确是此函数、返回长度如何进入最终发送描述符，以及后续或间接调用是否另有填充/覆盖。尚未完成整个发送链的动态追踪。
 
-## 对照：同一镜像也存在正确的两阶段调用
+## 对照：同一镜像的 Follow-up 路径存在两阶段调用
 
-另一个函数路径在 `0x01a5ded8` 传空指针查询长度；在 `0x01a5df00` 可再传有效 buffer 执行填充。该路径还有“只计算长度”模式，跳过填充本身可能是正常预计算，不能只看到空指针就认定错误。
+后续通过配套 Data20.msc 日志字典，确认此处属于 `NANMAC_BuildFollowupFrame`；该函数路径在 `0x01a5ded8` 传空指针查询长度；在 `0x01a5df00` 可再传有效 buffer 执行填充。该路径还有“只计算长度”模式，跳过填充本身可能是正常预计算，不能只看到空指针就认定错误。
 
-两套上层函数的指针相邻出现在原文件 `0x000b070c`（`0x0184fb20`）与 `0x000b0710`（`0x01a5dcec`）；还找到了直接调用位置。究竟由哪个服务类型、配置或发送阶段选择它们，尚未完全还原，不能仅凭有两个函数就分别命名为 Publish 和 Subscribe，也不能说镜像中的所有 SDF 都经过缺少填充的那一路。
+两套上层函数的指针相邻出现在原文件 `0x000b070c`（`0x0184fb20`）与 `0x000b0710`（`0x01a5dcec`）；还找到了直接调用位置。后续已通过日志字典确认它们分别是 BuildSDFFrame 和 BuildFollowupFrame，详见本文追加部分；具体运行时选择仍待确认，不能将它们分别命名为 Publish 和 Subscribe，也不能说镜像中的所有 SDF 都经过缺少填充的那一路。
 
 因此这轮比“23 字节长度相同”更进一步：已经识别到对应属性 builder、真实长度查询以及可疑累计点，但仍缺运行时路径确认。
 
@@ -82,3 +82,36 @@ unsigned build_ext_wlan_infra(unsigned char *buffer) {
 本地目录包含：原始 amss20.bin、提取的内层 ELF、`elf-layout.json`、`disassemble_hexagon.py`、`index_calls.py`、完整分段反汇编，以及四份重点片段 `extended-wlan-writer.txt`、`vendor-type33-writer.txt`、`sdf-tail-candidate.txt`、`alternative-two-pass-caller.txt`。
 
 为准备工具曾启动完整 LLVM 下载，因本地已存在可用 Hexagon 解码器而取消，未依赖该未完成安装。所有固件分析在 Mac 完成；Ubuntu SSH 主机密钥校验未通过，未建立连接，也未改变其网络。先前抓包证据见 [23 字节属性候选与帧号](sta-zero-tail-extended-wlan-hypothesis.md)。
+
+
+## 三处调用点所在函数已由日志字典确认（同日追加）
+
+后续只读导出同目录 `Data20.msc`（2,024,278 字节，SHA-256 `1742dbe53887a239bb08d1a9824be1514a334ceebc29ab1e702eb8ec613e6e26`）。它是可读日志字典，首行 `VERSION:268928976`；原始字典仍只存本地，不入 Git。
+
+将调用点附近的固件日志标识与字典核对，得到下表。源码行号是**附近长度不足日志所在行**，不是函数定义行或空指针调用的精确源码行。
+
+| 调用点 | 所在函数入口 | 字典确认的函数名 | 源码/日志行 | 日志标识 / 字典 ID |
+| --- | --- | --- | --- | --- |
+| `0x0184cb44` | `0x0184ca84` | `NANBCN_PrepareBeaconFrameExtended` | `wlan_nan_beacon_tx.c:128` | `0xf2032c90` / 29385 |
+| `0x0184fd28` | `0x0184fb20` | `NANMAC_BuildSDFFrame` | `wlan_nan_mac_ext.c:2171` | `0xf2033450` / 29509 |
+| `0x01a5ded8` | `0x01a5dcec` | `NANMAC_BuildFollowupFrame` | `wlan_nan_mac_ext.c:2354` | `0xf2033460` / 29510 |
+
+这三组标识的数值关系均吻合 `((token - 0xf2000000) >> 4) == (dictionaryId & 0x3fff)`；本次只用于核对这批字典与固件，不将其泛化为所有高通日志版本的解码规则。三处日志的参数数量、WlanInfra 属性长度不足分支及函数类别也相互对应。
+
+### Beacon：NANBCN_PrepareBeaconFrameExtended
+
+可见代码更新帧内偏移 24～31 的 8 字节时间值、维护信息元素长度、填充 Vendor 扩展内容。`0x0184cb44` 查询 Extended WLAN Infrastructure 长度，容量足够时在 `0x0184cb60` 传 buffer 实际写入。这是 Beacon 扩展准备路径，不是此次 Publish SDA/SSI 的构造入口。具体 Beacon 子类和完整原型仍未恢复。
+
+### 通用 SDF：NANMAC_BuildSDFFrame
+
+入口四个参数的可见使用可概括为：`R0` 控制是否执行构建分支，`R1` 为帧 buffer，`R2` 为已用长度，`R3` 为容量。主分支以 `buffer + used` 作为追加位置，逐项追加 NAN 属性，保存帧指针/长度并返回新增长度；这是逆向整理的语义，不是已获取的原始 C 原型。
+
+这一函数包含可疑的 `0x0184fd28`：在最后 type33 Vendor 属性后只查 Extended WLAN Infrastructure 长度并累计，当前函数后续未看到实际写入。精确函数名现在可直接交给固件源码侧搜索。**不能仅根据函数名认定它专门处理 Publish，或已经证明用户异常的 Publish/Subscribe 一定调用此入口。**
+
+### Follow-up：NANMAC_BuildFollowupFrame
+
+入口 `R1` 为零时进入只计算长度模式；有 buffer 时，追加位置为 buffer + 已用长度。`0x01a5ded8` 先空指针查询；容量足够且为实际构建模式时，`0x01a5df00` 再传 buffer 填充。因此它的两次调用并不矛盾。
+
+此处处理的是 NAN Follow-up 组帧，不能把它命名为“正常 Subscribe builder”，也不能仅凭它正常就判定 Publish/Subscribe 使用了错误函数。上层 `0x0180f0c8`/`0x0180f39c` 涉及服务记录/帧 buffer 遍历，但配套字典部分日志明确属于 Follow-up；仍需完整调用链和运行时消息类型才能划分所有发送场景。
+
+下一步应按以上**实际函数名及匹配版本源码日志行**核对 `NANMAC_BuildSDFFrame` 中 WlanInfra 的长度查询后是否遗漏填充，并确认 Publish/Subscribe 的运行入口。本轮已把函数用途从推断推进到日志字典确认，但没有取得源码、调试符号或运行时调用轨迹，P07 仍未标记修复。

@@ -261,3 +261,8 @@ a0807d7 改名、iOS 删配对后新 PIN Setup 成功，但 Pair Verification �
 ### P07 amss20 固件反汇编（2026-11-20）
 
 完成 a0807d7 原文件导出、SHA-256、两层 ELF/加载地址识别及内层 Hexagon 静态解码。确认 Extended WLAN Infrastructure builder 的完整头部、23 字节返回与空指针查询路径，识别末尾 Vendor 后只计长的具体嫌疑点；未动态验证实际 Tx 路径、未修复、未运行/修改/部署固件。完整 [版本、地址与证据边界](amss20-nan-disassembly-2026-11-20.md)。
+
+
+### P07 三个属性调用者用途确认（2026-11-20）
+
+配套 Data20.msc 日志字典与镜像日志标识匹配：0x0184cb44 属于 NANBCN_PrepareBeaconFrameExtended，0x0184fd28 属于 NANMAC_BuildSDFFrame，0x01a5ded8 属于 NANMAC_BuildFollowupFrame；取得源码文件及附近日志行号。更正不能将 Follow-up 的查询/填充路径当作 Subscribe 对照。未动态证明异常 Publish/Subscribe 走哪个入口，未修改固件。见 [函数名、日志标识与参数语义](amss20-nan-disassembly-2026-11-20.md)。
