@@ -115,3 +115,10 @@ unsigned build_ext_wlan_infra(unsigned char *buffer) {
 此处处理的是 NAN Follow-up 组帧，不能把它命名为“正常 Subscribe builder”，也不能仅凭它正常就判定 Publish/Subscribe 使用了错误函数。上层 `0x0180f0c8`/`0x0180f39c` 涉及服务记录/帧 buffer 遍历，但配套字典部分日志明确属于 Follow-up；仍需完整调用链和运行时消息类型才能划分所有发送场景。
 
 下一步应按以上**实际函数名及匹配版本源码日志行**核对 `NANMAC_BuildSDFFrame` 中 WlanInfra 的长度查询后是否遗漏填充，并确认 Publish/Subscribe 的运行入口。本轮已把函数用途从推断推进到日志字典确认，但没有取得源码、调试符号或运行时调用轨迹，P07 仍未标记修复。
+
+
+### 0x01a4f6d8 的源码位置已定位，原始符号名尚未恢复
+
+函数内 `0x01a4f7dc..7e4` 引用日志标识 `0xf2032080`，对应 Data20.msc 消息 29192：`[ wlan_nan_attr_ext.c : 1157 ] STA_CHAN NULL!`。因此可以将这一 Extended WLAN Infrastructure builder 定位到 **wlan_nan_attr_ext.c 的 1157 行附近**；该行是函数内部日志行，并非定义起始行。另一个断言路径传入 `0x46d`（1133），与该范围相容，但不单独将这个数字当作已解析的源码行号。
+
+与前面三个调用者不同，此日志没有打印函数名，现有 ELF 没有可用的常规符号表，所以目前不能给出经过证实的原始 C 函数名。可以用语义名 `build_ext_wlan_infra` 标注分析，但它只是逆向命名，不是恢复出的符号。固件源码侧应先查 `wlan_nan_attr_ext.c` 中 `STA_CHAN NULL!`，或用同版本 map/未剥离 ELF 对照虚拟地址 `0x01a4f6d8`。
