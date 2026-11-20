@@ -246,6 +246,8 @@ a0807d7（联想 TB323FU，Android 17 / API 37）发布，iPhone 12（iOS 27.2.1
 a0807d7 改名、iOS 删配对后新 PIN Setup 成功，但 Pair Verification 被 iOS 以 Invalid Security Parameters 拒绝。Android 三条缓存 LocalNik/PeerNik 相同、NPK 不同；实际设备 service-wifi.jar 的 PairingConfigManager 按身份首条匹配而不优先最新凭据。经用户授权仅删除旧 awarebridge-139/awarebridge-ios-138，保留新 awarebridge-141，iOS 配对不动、不重输 PIN，重新发布后 Verification/NDP 成功，双向心跳持续超过两分钟至 42/42。最终只剩新缓存，安全字段未变；未捕获失败轮次实际选中别名，保留这一诊断边界。未改 App/ROM，不把单次清理说成自动重配永久修复。完整 [证据、ROM 方法与处理建议](baldur1-repair-cache-verification-2026-11-20.md)。
 
 
-### App 直连 Framework 配对身份查询（2026-11-20）
+### 配对身份查询实现已撤回（2026-11-20）
 
-去掉 Priv-App 中转，新增 App 入口及自定义 Framework 公开 API 补丁生成工具。Android assembleDebug/lintDebug 通过；合成身份输入、应用隔离、重置身份及非法输入测试通过；补丁应用/重复拒绝/异常不改源保护测试通过；公开 AOSP 参考提交上的实际源码补丁检查通过。未构建/部署隔离 ROM，尚未验收普通签名 App 的真实读取和权限/跨用户分支，不代表自动重配问题已修复；本轮未安装 APK或操作设备网络。详见 [方案与真实验收边界](paired-peer-identity-api.md)。
+按用户要求，回退提交 4040c2f 的 App 入口、客户端和 Framework 补丁/工具/测试，仅保留 [问题及后续 ROM 建议](paired-peer-identity-api.md)。App 源码恢复至 bbda302；未曾部署该查询接口的 ROM，也未安装该轮 APK，因此无设备侧回滚。身份查询和同身份凭据更新均未真机验收，后续在 ROM 中处理，不标记为已修复。
+
+回退检查补充：Android 源码与 bbda302 的差异为空，回退后 assembleDebug/lintDebug 再次通过，APK 已由回退后源码重新生成；未安装到设备。

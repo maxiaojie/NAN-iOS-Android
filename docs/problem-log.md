@@ -541,10 +541,10 @@ App 防护：发布端记录当前已接受的 Setup 请求，仅该请求的成
 a0807d7 改名、iOS 删配对后新 PIN Setup 成功，但 Pair Verification 被 iOS 以 Invalid Security Parameters 拒绝。Android 三条缓存 LocalNik/PeerNik 相同、NPK 不同；实际设备 service-wifi.jar 的 PairingConfigManager 按身份首条匹配而不优先最新凭据。经用户授权仅删除旧 awarebridge-139/awarebridge-ios-138，保留新 awarebridge-141，iOS 配对不动、不重输 PIN，重新发布后 Verification/NDP 成功，双向心跳持续超过两分钟至 42/42。最终只剩新缓存，安全字段未变；未捕获失败轮次实际选中别名，保留这一诊断边界。未改 App/ROM，不把单次清理说成自动重配永久修复。完整 [证据、ROM 方法与处理建议](baldur1-repair-cache-verification-2026-11-20.md)。
 
 
-### 配对缓存身份查询：去掉 Priv-App，App 直接访问 Framework（2026-11-20）
+### 配对缓存身份识别：暂缓实现，回退 App 与 Framework 补丁（2026-11-20）
 
-问题：同一对端出现多条 alias，现有公开 API 仅返回 alias；显示名称、PeerHandle、随机 MAC 无法可靠标识同一配对身份。用户要求不用解析配对文件，也不必返回原始 NIK；并指出既然修改 Framework，中转 Priv-App 没有必要。
+问题沿用 baldur-1 重配案例：同一 Peer NIK 存在不同 alias/NPK，Framework 首条匹配可能选用旧安全关联；App 的公开缓存列表只有 alias，无法可靠分辨同一身份。用户要求先记录，后续在 ROM 中处理。
 
-处理：移除准备中的 Priv-App/AIDL 中转模块。提供 WifiAwareManager 自定义公开 API 的 ROM 补丁片段与生成工具，按调用应用从 PairingConfigManager 内存生成 alias + 应用范围 peerId，原始 NIK/NPK 不出系统。普通 App 无需平台签名，按 Wi-Fi/附近设备权限及调用包归属授权；当前仅支持 Android 用户 0。App 配对缓存管理新增读取身份，未装修改版 Framework 时明确提示接口缺失。
+提交 4040c2f 曾实现 App 身份读取入口和 Framework 查询补丁草案，未部署 ROM、未安装该轮 APK。本轮按要求回退全部实现、补丁工具和测试，App 恢复至该提交前，仅保留问题及后续 ROM 修改建议；不保留 Priv-App，不解析配对文件，不自动删除缓存。原先仅编译/合成测试通过，不计真机功能验收。
 
-验证：APK 构建/lint、合成身份测试、补丁保护测试、公开 AOSP 参考文件应用检查通过。隔离 ROM 未完整编译或部署，真实身份返回及安全分支待验收；未改变 alias 生成或自动覆盖/删除缓存，不将只读身份查询称为重复旧密钥问题的永久修复。完整 [源码路径、编译部署与限制](paired-peer-identity-api.md)。本轮无设备/Ubuntu 状态变更。
+后续优先在 PairingConfigManager 按应用范围和已确认 Peer NIK 更新同身份安全关联，避免旧 NPK 累积；如确需 App 识别，再考虑 Framework 直接返回 alias + 派生 peerId，无需暴露密钥或 Priv-App 中转。方案尚未实施。详见 [问题、回退范围与后续验收要求](paired-peer-identity-api.md)。
