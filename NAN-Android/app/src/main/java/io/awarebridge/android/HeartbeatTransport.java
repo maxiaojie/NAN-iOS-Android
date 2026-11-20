@@ -22,7 +22,17 @@ final class HeartbeatTransport implements AutoCloseable {
     private IperfServer iperf;
     private final String directory;
     void benchmark(String protocol, int streams, boolean reverse, int rateMbps, int durationSeconds) {
+        // Button callbacks run on the main thread. Keep control datagrams on the
+        // same worker as heartbeats; DatagramSocket.send may throw on the UI thread.
+        try {
+            timer.execute(() -> requestBenchmark(protocol, streams, reverse, rateMbps, durationSeconds));
+        } catch (RejectedExecutionException e) {
+            observer.onBenchmark("连接已结束，请重新连接后测速");
+        }
+    }
+    private void requestBenchmark(String protocol, int streams, boolean reverse, int rateMbps, int durationSeconds) {
         synchronized (this) {
+            if (closed) return;
             if (peerSession == null || iperf == null || !iperf.available()) {
                 observer.onBenchmark("请先等待双向心跳及 iperf3 服务就绪"); return;
             }
@@ -30,8 +40,13 @@ final class HeartbeatTransport implements AutoCloseable {
                 String config = new JSONObject().put("protocol",protocol).put("streams",streams)
                         .put("reverse",reverse).put("duration",durationSeconds).put("rate",rateMbps).toString();
                 send("iperf_request", sequence++, config);
+                android.util.Log.i("AwareIperf", "Sent iperf request: " + config);
                 observer.onBenchmark("已请求 iperf3 测试 · " + streams + " 线程 · " + durationSeconds + " 秒 · " + protocol);
-            } catch (Exception e) { observer.onBenchmark("启动失败："+e.getMessage()); }
+            } catch (Exception e) {
+                android.util.Log.e("AwareIperf", "Failed to send iperf request", e);
+                observer.onBenchmark("启动失败：" + e.getClass().getSimpleName()
+                        + (e.getMessage() == null ? "" : "：" + e.getMessage()));
+            }
         }
     }
     private final String session = UUID.randomUUID().toString();
@@ -116,6 +131,7 @@ final class HeartbeatTransport implements AutoCloseable {
                     if (peerSession == null) peerSession = message.getString("session");
                     if (!peerSession.equals(message.getString("session"))) continue;
                     if (type.equals("iperf_result")) {
+                        android.util.Log.i("AwareIperf", "Peer result: " + message.optString("text"));
                         observer.onBenchmark(message.optString("text"));
                         continue;
                     }

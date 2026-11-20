@@ -276,3 +276,9 @@ a0807d7 原件备份并校验，六指令字补丁及段哈希更新通过限定
 ### P07 补丁后 Publish 空口通过（2026-11-20）
 
 a0807d7 保持 STA，04-ch6-restart.pcap 第544/5131帧、05-ch149-restart.pcap 第18898帧均为目标baldur-1 Publish，实际0x1e payload=20、额外零尾0，tshark与独立边界扫描一致；iOS12设备选择页发现通过。样本为三次发布会话，不扩大到反向Subscribe/NDP/长稳。用户手动锁屏已确认；Ubuntu恢复联网后用户另行启用monitor，明确要求保留。完整 [空口验收记录](amss20-ext-wlan-air-validation.md)。
+
+### iOS 发布角色 iperf3 修复验收（2026-11-20）
+
+a0807d7 / TB323FU / Android 17、iPhone 12 / iPhone13,2 / iOS 27.2.1，STA 保持连接，办公室干扰环境。新版双端覆盖安装；Android assembleDebug/lintDebug、iOS 真机签名构建与 JSON 协议检查通过。同一 NDP 连续五轮 4 线程/10 秒，Android 按钮 TCP 双向 98.12/69.36 Mbps、UDP 双向 94.30/70.61 Mbps（总目标 100 Mbps；丢包 0.01%/24.62%），iOS 按钮 TCP iOS→Android 65.05 Mbps。双端显示结果，Android PID 1390 保持不变、每轮恢复 server 监听，最后心跳接收 0 秒前。
+
+修复前捕获的原生崩溃来自 libiperf 重复关闭 fd；修复后五轮正常收尾。未单独注入 CLIENT_TERMINATE，也未做长稳/其他设备/所有参数组合，不扩展验收范围。见 [定位记录](iperf-ios-publisher-fix.md)、[完整性能表](throughput-test.md)。本轮未使用或修改 Ubuntu 抓包网络状态。

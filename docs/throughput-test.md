@@ -56,6 +56,22 @@ Android assembleDebug/lintDebug、iOS iphoneos 手动签名构建通过；新版
 
 UDP 不限速下发送超过接收能力，丢包包括本机适配层/套接字缓冲及链路，不能直接认定为射频丢包。上述各轮心跳持续。真实测试角色为 Android 发布 / iOS 订阅；反向发现角色下的新增测试连接尚未验收。旧测试类和对应协议测试已移除；其历史验证只属于旧提交 de0a1b4，不代表 libiperf 已验收。
 
+### iOS 发布 / Android 订阅补测（2026-11-20）
+
+此前反向角色未验收；本轮修复 Android 主线程发送测速控制消息、iOS 对订阅端重复浏览、libiperf 服务端结束时重复关闭 socket 三个问题，详见 [完整定位记录](iperf-ios-publisher-fix.md)。Android/iOS 新版均覆盖安装。设备为 a0807d7 / TB323FU / Android 17 与 iPhone 12 / iPhone13,2 / iOS 27.2.1；Android 保持 STA 连接，当前实验 Wi-Fi 固件和 HAL 未变。沿用配对，仅重新发现和建立 NDP。
+
+仍是办公室存在无线干扰的实际环境，非干净环境性能上限。以下各轮依次复用同一 NDP，不重启 App，4 线程、目标 10 秒；UDP 总发送目标 100 Mbps。
+
+| 发起界面 | 数据方向 | 协议 | 接收汇总 | 接收时间 | 丢包 / 抖动 |
+| --- | --- | --- | --- | --- | --- |
+| Android | Android → iOS | TCP | 98.12 Mbps / 122.68 MB | 10.0 s | — |
+| Android | iOS → Android | TCP | 69.36 Mbps / 87.82 MB | 10.1 s | — |
+| Android | Android → iOS | UDP | 94.30 Mbps / 117.93 MB | 10.0 s | 0.01% / 0.179 ms |
+| Android | iOS → Android | UDP | 70.61 Mbps / 88.78 MB | 10.1 s | 24.62% / 0.554 ms |
+| iOS | iOS → Android | TCP | 65.05 Mbps / 81.79 MB | 10.1 s | — |
+
+五轮均返回双端 UI 结果、Android server 完成后继续监听，Android 进程 PID 1390 保持不变，双向心跳持续。iOS 日志确认采用已有连接的 scoped Aware 端点、Network framework 的 `nan0` channel-flow。UDP 丢包不能单独归因于射频；该值包含本机转发和链路处理开销，不用发送目标速率代替实测接收吞吐。未进行长稳、全部线程数/时长组合和其他机型验收；原生 CLIENT_TERMINATE 失败分支本轮未单独注入验证。
+
 ## 心跳频率核对
 
 2026-11-19 16:47～16:48，a0807d7 aware_data0 抓包：Android heartbeat 在 16:47:50.091、55.096、16:48:00.104、05.107；iOS heartbeat 在 16:47:51.273、56.341、16:48:01.432、06.659。每端约 5 秒，两端相位错开约 1 秒，每条后均紧跟 ACK。UI 每秒更新最近接收时间，不代表每秒发送心跳。iOS 将心跳说明移至数据链路区域，底部仅提示保持前台。

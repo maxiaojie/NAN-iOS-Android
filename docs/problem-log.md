@@ -33,6 +33,7 @@ P13/P16 管理改进：用户执行一次安装后，助手已可免密执行固
 | P17 | 定位关闭时点击发布看似无响应 | 已增加弹窗并真机验证 |
 | P18 | 新设备配对开关及 1 分钟窗口 | 状态切换/超时已验证；关闭后的重连受 P19 阻塞 |
 | P19 | 配对后停留在发现所选设备，随后 -11988 | 已确认 iOS 因 CSIA 组密钥能力缺失丢弃；HAL 下发前已缺 0x27，待 ROM 修复 |
+| P20 | iOS 发布、Android 订阅时心跳正常但 iperf3 无法启动 | 已修复，a0807d7 / iPhone 12 连续五轮通过 |
 
 ## P01：编译接口、jar 和 ROM 是三个层面
 
@@ -582,3 +583,9 @@ Android 请求接受、60 字节 SSI 到达 iOS 且解析出 baldur-1/LENOVO/TB3
 ### P07：实验补丁空口验证通过（a0807d7 当前 STA 场景，2026-11-20）
 
 保持连接 STA，先抓包再触发发布/订阅匹配，信道6的544/5131和149的18898共3个目标 Publish 均有 1e 14 00 + 20字节内容，合法属性后额外零尾0；NMI已与a080驱动日志对应、TXT均baldur-1，iPhone12选择页能发现。另一baldur-2的8个异常Publish单独排除，未做其固件检查。只验收本机当前三次发布样本，反向Subscribe、配对/NDP和长稳待测。Ubuntu16:15已恢复managed/Wi-Fi/HTTPS200，随后用户启动新Wireshark并明确要求保留monitor，按最新指令执行；iPhone用户手动锁屏，已确认锁定。详见 [帧号、原包目录和限制](amss20-ext-wlan-air-validation.md)。
+
+### P20：iOS 发布角色的 iperf3 启动与结束修复（2026-11-20）
+
+a0807d7 / TB323FU / Android 17 与 iPhone 12 / iOS 27.2.1：NDP/心跳正常，Android 按钮提示启动失败 null；iOS 自身发起提示 No additional Aware endpoint discovered。修正控制 datagram 在主线程发送的问题；iOS 发布路径改用已有连接复制端口、保留 nan0 scope 的 Network framework 端点，避免搜索并未发布服务的 Android 订阅端。首次测速结束又实际触发 Android fdsan 原生崩溃，定位到 libiperf 服务端 TEST_END / CLIENT_TERMINATE 关闭 stream socket 未置 -1，cleanup 重复关闭；已修正。
+
+双端构建/安装、Android lint、JSON 协议检查通过；保持 STA、4 线程、10 秒连续五轮，TCP/UDP 双向与 iOS 按钮发起均取得结果，Android 进程未重启、服务重新监听、心跳持续。UDP iOS→Android 在 100 Mbps 总目标下接收 70.61 Mbps、丢包 24.62%，不标为无损。办公室干扰环境样本，不代表上限；CLIENT_TERMINATE 失败分支未单独注入。完整 [根因和修复](iperf-ios-publisher-fix.md)、[参数与结果](throughput-test.md)。

@@ -1,6 +1,7 @@
 import Foundation
 import Network
 import WiFiAware
+import OSLog
 
 /// Keeps libiperf's local sockets on loopback; all radio traffic uses public Wi-Fi Aware APIs.
 @MainActor final class IperfRelay {
@@ -9,7 +10,9 @@ import WiFiAware
     private var failure: String?
     private var browser: NWBrowser?
     private var discoveredEndpoint: WAEndpoint?
+    private var connectedEndpoint: NWEndpoint?
     private var closed = false
+    private static let logger = Logger(subsystem: "io.awarebridge.ios", category: "iperf")
     static func open(from connection: NetworkConnection<UDP>) async throws -> IperfRelay {
         guard #available(iOS 26.4, *) else {
             throw NSError(domain: "IperfRelay", code: 1, userInfo: [NSLocalizedDescriptionKey: "性能测试需要 iOS 26.4+"])
@@ -22,27 +25,37 @@ import WiFiAware
             guard let path = try await connection.currentPath?.wifiAware else {
                 throw NSError(domain: "IperfRelay", code: 4, userInfo: [NSLocalizedDescriptionKey: "No Aware path"])
             }
-            let provider: WASubscriberBrowser = .wifiAware(.connecting(to: .selected([path.endpoint.device]), from: .bridge))
-            let browser = NWBrowser(for: provider.makeDescriptor(), using: provider.configureParameters(.udp))
-            relay.browser = browser
-            browser.browseResultsChangedHandler = { results, _ in
-                Task { @MainActor in
-                    guard !relay.closed else { return }
-                    relay.discoveredEndpoint = results.compactMap { $0.endpoint.wifiAware(port: 5201) }.first
-                }
+            if path.endpoint.publishedService != nil,
+               let remote = connection.remoteEndpoint ?? connection.currentPath?.remoteEndpoint {
+                // Retain the accepted connection's scoped Aware address. The peer
+                // is a subscriber and has no published service for a new browser.
+                relay.connectedEndpoint = NWEndpoint(copying: remote, newPort: 5201)
+                Self.logger.notice("Copied incoming Aware endpoint for iperf: \(relay.connectedEndpoint != nil)")
             }
-            browser.start(queue: .global(qos: .userInitiated))
-            do {
-                for _ in 0..<200 {
-                    if relay.discoveredEndpoint != nil { break }
-                    try await Task.sleep(for: .milliseconds(50))
+            if relay.connectedEndpoint == nil {
+                let provider: WASubscriberBrowser = .wifiAware(.connecting(to: .selected([path.endpoint.device]), from: .bridge))
+                let browser = NWBrowser(for: provider.makeDescriptor(), using: provider.configureParameters(.udp))
+                relay.browser = browser
+                browser.browseResultsChangedHandler = { results, _ in
+                    Task { @MainActor in
+                        guard !relay.closed else { return }
+                        relay.discoveredEndpoint = results.compactMap { $0.endpoint.wifiAware(port: 5201) }.first
+                    }
                 }
-            } catch { relay.close(); throw error }
+                browser.start(queue: .global(qos: .userInitiated))
+                do {
+                    for _ in 0..<200 {
+                        if relay.discoveredEndpoint != nil { break }
+                        try await Task.sleep(for: .milliseconds(50))
+                    }
+                } catch { relay.close(); throw error }
+            }
         }
-        guard let endpoint = relay.discoveredEndpoint else {
+        guard relay.discoveredEndpoint != nil || relay.connectedEndpoint != nil else {
             relay.close()
             throw NSError(domain: "IperfRelay", code: 5, userInfo: [NSLocalizedDescriptionKey: "No additional Aware endpoint discovered"])
         }
+        Self.logger.notice("Starting iperf relay to Aware endpoint")
         let tcp = try NetworkListener(using: .parameters { TCP() }
             .localEndpoint(.hostPort(host: "::1", port: 5201)))
         let udp = try NetworkListener(using: .parameters { UDP() }
@@ -61,8 +74,14 @@ import WiFiAware
                     guard !relay.closed else { return }
                     relay.tasks.append(Task {
                         do {
-                            let remote = NetworkConnection(to: endpoint, using: .parameters { TCP() }
-                                .wifiAware { $0.performanceMode = .bulk })
+                            let remote: NetworkConnection<TCP>
+                            if let endpoint = relay.discoveredEndpoint {
+                                remote = NetworkConnection(to: endpoint, using: .parameters { TCP() }
+                                    .wifiAware { $0.performanceMode = .bulk })
+                            } else {
+                                remote = NetworkConnection(to: relay.connectedEndpoint!, using: .parameters { TCP() }
+                                    .wifiAware { $0.performanceMode = .bulk })
+                            }
                             try await Self.pipeTCP(local, remote)
                         } catch { relay.failure = String(describing: error) }
                     })
@@ -75,8 +94,14 @@ import WiFiAware
                     guard !relay.closed else { return }
                     relay.tasks.append(Task {
                         do {
-                            let remote = NetworkConnection(to: endpoint, using: .parameters { UDP() }
-                                .wifiAware { $0.performanceMode = .bulk })
+                            let remote: NetworkConnection<UDP>
+                            if let endpoint = relay.discoveredEndpoint {
+                                remote = NetworkConnection(to: endpoint, using: .parameters { UDP() }
+                                    .wifiAware { $0.performanceMode = .bulk })
+                            } else {
+                                remote = NetworkConnection(to: relay.connectedEndpoint!, using: .parameters { UDP() }
+                                    .wifiAware { $0.performanceMode = .bulk })
+                            }
                             try await Self.pipeUDP(local, remote)
                         } catch { relay.failure = String(describing: error) }
                     })

@@ -10,6 +10,8 @@
 
 本地补丁：net.c/iperf_tcp.c/iperf_sctp.c 的 socket 创建经过 ab_socket，Android 用 Aware Network 绑定；net.c 的 listen 经过 ab_listen，供 App 判断服务就绪；iperf_client_api.c/iperf_server_api.c 控制循环检查取消标志，并将 select 最长等待限制为 1 秒。上游每流线程及数据/结果协议保留。
 
+2026-11-20：iperf_server_api.c 的 TEST_END / CLIENT_TERMINATE 分支关闭 stream socket 后立即置 -1，避免 cleanup_server 重复关闭已被 Android 其他线程复用的 fd，触发 fdsan 原生崩溃。定位与验收见 [反向角色测速修复](../../docs/iperf-ios-publisher-fix.md)。
+
 包装在 ../../native/iperf：不安装进程信号处理器，不调用命令行参数解析；one-off server 禁用 idle_timeout，避免上游超时 exit(0) 结束整个 App。每轮释放 test，再建立下一轮服务。临时文件使用 App cache/tmp，不使用手机不可写的 /tmp。
 
 构建工具及说明见 ../../docs/throughput-test.md。仅提供 Android arm64 与 iOS iphoneos arm64。
