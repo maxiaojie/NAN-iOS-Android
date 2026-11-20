@@ -86,3 +86,7 @@ iOS 新版已签名并覆盖安装 iPhone 12，Android 同版另已安装 303fde
 a0807d7 与 iPhone 12，iOS 发布 / Android 订阅，Android 无 STA：TCP 4 线程、10 秒每向三轮，Android→iOS 311.04～361.36 Mbps（平均328.24），iOS→Android 334.40～380.29 Mbps（平均359.84）；UDP总目标100 Mbps分别接收100.02/99.95 Mbps，显示丢包均0.00%。UDP总目标300 Mbps的Android→iOS轮次未返回汇总，不能计为通过。
 
 两个 TB323FU / Android 17（a0807d7、303fdedc）无 STA、原生 libiperf + PSK 加密 NDP：303→a080 560.46 Mbps，a080→303 621.74 Mbps。第三轮前a080 USB消失，重复和UDP待设备恢复。该路径绕过iOS适配层，但设备/固件/安全方式也不同，不能直接把差值全部算作iOS开销。完整 [条件、原始样本、失败轮次与限制](home-throughput-2026-11-20.md)。
+
+### 重启后仅TCP的2/4/8/16线程复测
+
+双Android无STA，2线程595.18/671.43 Mbps、4线程515.77/666.85、8线程303→a080为604.01（均接收端）。8线程a080→303时实际捕获firmware hang和SYS ERROR/RAMDUMP，停止，16线程未执行；不能把前五轮速率作为稳定性通过。完整 [测试矩阵、异常日志及清理状态](android-tcp-streams-2026-11-20.md)。
