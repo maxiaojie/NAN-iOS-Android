@@ -572,3 +572,8 @@ Android 请求接受、60 字节 SSI 到达 iOS 且解析出 baldur-1/LENOVO/TB3
 ### P07：配套固件日志字典恢复三个调用者函数名（2026-11-20）
 
 只读导出 Data20.msc，并将三个属性调用点附近日志标识与字典相互核对。0x0184cb44 属于 NANBCN_PrepareBeaconFrameExtended（wlan_nan_beacon_tx.c，日志行128）；0x0184fd28 属于 NANMAC_BuildSDFFrame（wlan_nan_mac_ext.c，日志行2171）；0x01a5ded8 属于 NANMAC_BuildFollowupFrame（同文件，日志行2354）。后者是 Follow-up 的两阶段查询/填充，不是已确认的正常 Subscribe 路径。运行时 Publish/Subscribe 的入口仍需核对；静态可疑的只计长位置保留，未宣称根因已完全证实。详见 [同日追加的函数确认](amss20-nan-disassembly-2026-11-20.md)。
+
+
+### P07：实验固件补丁已备份并部署 a0807d7（2026-11-20）
+
+用户明确授权生成二进制补丁并刷入。仅对已锁定 SHA-256 的 amss20.bin 修改六个指令字，保留先查询/检查容量，再实际填充并按返回长度累计；更新代码段哈希，未重签名。Beacon 已有填充，未重复修改。Hexagon 解码与六个合成分支用例通过；原件在 Mac、平板 data 与固件目录均有备份。先临时加载，再持久替换，固件分区恢复只读。实际 WLAN 重新下载、Service Ready、STA 连接和 Publish 启动通过，仍未抓新空口包，不标记 23 字节问题已修复。恢复脚本和具体哈希见 [部署/回滚说明](amss20-ext-wlan-patch-deployment.md)。收尾停止测试 App、恢复常亮/扫描原设置，未操作 Ubuntu。

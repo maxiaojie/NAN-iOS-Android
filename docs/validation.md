@@ -266,3 +266,8 @@ a0807d7 改名、iOS 删配对后新 PIN Setup 成功，但 Pair Verification �
 ### P07 三个属性调用者用途确认（2026-11-20）
 
 配套 Data20.msc 日志字典与镜像日志标识匹配：0x0184cb44 属于 NANBCN_PrepareBeaconFrameExtended，0x0184fd28 属于 NANMAC_BuildSDFFrame，0x01a5ded8 属于 NANMAC_BuildFollowupFrame；取得源码文件及附近日志行号。更正不能将 Follow-up 的查询/填充路径当作 Subscribe 对照。未动态证明异常 Publish/Subscribe 走哪个入口，未修改固件。见 [函数名、日志标识与参数语义](amss20-nan-disassembly-2026-11-20.md)。
+
+
+### P07 实验固件补丁部署（2026-11-20）
+
+a0807d7 原件备份并校验，六指令字补丁及段哈希更新通过限定修改范围/错版本拒绝检查；QEMU 解码和容量足够、不足、恰好边界、无属性、填充前状态变化、used=0 六个合成短片段用例通过。临时加载、持久文件替换、恢复只读后重新下载固件，Service Ready、STA 连接通过；App 发布产生有效 Publish 会话通过。未验证新空口 23 零尾是否消失、跨整机重启、重新配对/NDP/吞吐或长稳，不宣称 P07 已修复。原件与一键恢复脚本已保留，详见 [部署验收与回滚](amss20-ext-wlan-patch-deployment.md)。
