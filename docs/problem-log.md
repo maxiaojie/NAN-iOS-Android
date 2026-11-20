@@ -555,3 +555,15 @@ a0807d7 改名、iOS 删配对后新 PIN Setup 成功，但 Pair Verification �
 用户补充 Android Subscribe 在 STA 连接时也有 23 字节零尾，并提出 Extended WLAN Infrastructure 属性。官方 Wireshark 解析定义该属性 ID=0x1e、payload=20，连头恰为 23；合法头应为 1e 14 00。既有异常 Publish 零尾连头也全零，因此重点候选是长度已计入、实际属性未写入/被覆盖或发送长度未回退，尚未证明 Firmware 具体缺陷。
 
 旧 303 抓包 141/33305 确有 Subscribe 类型 SDF 在合法属性外多 23 零（两源共 13/116 帧，物理设备映射未核对）；522 有真实 1e 14 00 属性可对照。Publish 33004、a080 的 99373 继续确认零尾。未新抓包/操作设备，未改变代码或固件。已记录后续 builder 长度/cursor 日志判据及静态分析限制，详见 [候选、帧号与排查步骤](sta-zero-tail-extended-wlan-hypothesis.md)。
+
+
+### 2026-11-20：清除缓存后反向 Bootstrap 超时
+
+Android 请求接受、60 字节 SSI 到达 iOS 且解析出 baldur-1/LENOVO/TB323FU，但 iOS 用户授权响应路径未完成；Android 20 秒 Framework 超时生成 INTERNAL_FAILURE。iOS 出现 No discovery for appID、ENOENT，配对页为空；其因果尚待对照验证，不能认定旧密钥或方式不兼容。详见 [证据与边界](bootstrap-timeout-2026-11-20.md)。
+
+
+### P07：导出 amss20.bin 并定位 Extended WLAN Infrastructure builder（2026-11-20）
+
+从 a0807d7 只读导出 peach/amss20.bin（SHA-256 2a22e73834cc6af8e563e91fc5ede40de8887351203df3940891a1c9bbb4b761），识别偏移 0x80000 内层 Hexagon ELF，通过暂停状态的 QEMU 静态解码，未执行或修改固件。0x01a4f6d8 明确写属性头 1e 14 00、角色 1 并返回 23，支持空 buffer 查询长度。
+
+重点嫌疑：0x0184fb20 中先写末尾 00:00:f0/type33 Vendor 属性，随后 0x0184fd28 空 buffer 查询上述 23 字节并计入长度，在该函数后续路径未看到对应实际填充；与空口位置吻合。镜像同时存在另一套查询+填充路径，运行时异常帧实际选择及后续间接调用尚未证明，因此未判定最终根因或修复。具体镜像版本、地址、语义、可复核本地产物及下一步 map/日志位置见 [反汇编记录](amss20-nan-disassembly-2026-11-20.md)。无设备/Ubuntu 网络更改，完整二进制不入库。

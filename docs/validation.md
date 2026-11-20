@@ -256,3 +256,8 @@ a0807d7 改名、iOS 删配对后新 PIN Setup 成功，但 Pair Verification �
 ### P07 23 字节 Extended WLAN Infrastructure 假设复核（2026-11-20）
 
 只读旧包确认：303 抓包 33004 Publish、141/33305 Subscribe 的合法属性后各有 23 个零；Subscribe 发送地址未核对物理设备，不算 Android 订阅 STA 切换实验。522 的合法 0x1e 属性头为 1e 14 00，总长确为 23；官方 Wireshark 源码格式一致。支持优先检查属性预估长度/实际填充不一致，未证明驱动或 Firmware 责任，未修复；本轮未操作 Ubuntu/设备。见 [专项记录](sta-zero-tail-extended-wlan-hypothesis.md)。
+
+
+### P07 amss20 固件反汇编（2026-11-20）
+
+完成 a0807d7 原文件导出、SHA-256、两层 ELF/加载地址识别及内层 Hexagon 静态解码。确认 Extended WLAN Infrastructure builder 的完整头部、23 字节返回与空指针查询路径，识别末尾 Vendor 后只计长的具体嫌疑点；未动态验证实际 Tx 路径、未修复、未运行/修改/部署固件。完整 [版本、地址与证据边界](amss20-nan-disassembly-2026-11-20.md)。
