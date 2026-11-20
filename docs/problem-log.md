@@ -589,3 +589,7 @@ Android 请求接受、60 字节 SSI 到达 iOS 且解析出 baldur-1/LENOVO/TB3
 a0807d7 / TB323FU / Android 17 与 iPhone 12 / iOS 27.2.1：NDP/心跳正常，Android 按钮提示启动失败 null；iOS 自身发起提示 No additional Aware endpoint discovered。修正控制 datagram 在主线程发送的问题；iOS 发布路径改用已有连接复制端口、保留 nan0 scope 的 Network framework 端点，避免搜索并未发布服务的 Android 订阅端。首次测速结束又实际触发 Android fdsan 原生崩溃，定位到 libiperf 服务端 TEST_END / CLIENT_TERMINATE 关闭 stream socket 未置 -1，cleanup 重复关闭；已修正。
 
 双端构建/安装、Android lint、JSON 协议检查通过；保持 STA、4 线程、10 秒连续五轮，TCP/UDP 双向与 iOS 按钮发起均取得结果，Android 进程未重启、服务重新监听、心跳持续。UDP iOS→Android 在 100 Mbps 总目标下接收 70.61 Mbps、丢包 24.62%，不标为无损。办公室干扰环境样本，不代表上限；CLIENT_TERMINATE 失败分支未单独注入。完整 [根因和修复](iperf-ios-publisher-fix.md)、[参数与结果](throughput-test.md)。
+
+### 家庭性能复测：UDP300结束未返回、Android双机USB中断（2026-11-20 晚）
+
+家中a0807d7+iPhone12无Android STA，TCP双向各三轮与UDP100双向正常；UDP300 Android→iOS返回测试中后持续无汇总、心跳仍通，具体结束分支待定位。原生Android双机PSK-NDP已取得560.46/621.74 Mbps两向TCP，但第三轮a080 USB消失，不能报告剩余重复/UDP通过。USB重连问题已向用户询问；303临时选网限制撤销并恢复普通Wi-Fi。详见 [完整条件与证据](home-throughput-2026-11-20.md)。

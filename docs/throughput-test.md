@@ -80,3 +80,9 @@ UDP 不限速下发送超过接收能力，丢包包括本机适配层/套接字
 ### 可调时长补测（2026-11-19）
 
 iOS 新版已签名并覆盖安装 iPhone 12，Android 同版另已安装 303fdedc（仅安装检查）。测速仍采用上表的 a0807d7 / TB323FU 与 iPhone 12，办公室干扰环境、Android STA 断开。Android UI 输入 15 秒，TCP 4 线程 Android→iOS，iOS 最终接收汇总 **63.45 Mbps / 119.01 MB / 15.0 秒**，证明配置的时长实际传入 libiperf3。此补测不覆盖 iOS 本地输入发起、UDP 非 10 秒和一小时长稳。
+
+### 家庭环境与 Android 双机对照（2026-11-20 晚）
+
+a0807d7 与 iPhone 12，iOS 发布 / Android 订阅，Android 无 STA：TCP 4 线程、10 秒每向三轮，Android→iOS 311.04～361.36 Mbps（平均328.24），iOS→Android 334.40～380.29 Mbps（平均359.84）；UDP总目标100 Mbps分别接收100.02/99.95 Mbps，显示丢包均0.00%。UDP总目标300 Mbps的Android→iOS轮次未返回汇总，不能计为通过。
+
+两个 TB323FU / Android 17（a0807d7、303fdedc）无 STA、原生 libiperf + PSK 加密 NDP：303→a080 560.46 Mbps，a080→303 621.74 Mbps。第三轮前a080 USB消失，重复和UDP待设备恢复。该路径绕过iOS适配层，但设备/固件/安全方式也不同，不能直接把差值全部算作iOS开销。完整 [条件、原始样本、失败轮次与限制](home-throughput-2026-11-20.md)。

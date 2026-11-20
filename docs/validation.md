@@ -282,3 +282,7 @@ a0807d7 保持 STA，04-ch6-restart.pcap 第544/5131帧、05-ch149-restart.pcap 
 a0807d7 / TB323FU / Android 17、iPhone 12 / iPhone13,2 / iOS 27.2.1，STA 保持连接，办公室干扰环境。新版双端覆盖安装；Android assembleDebug/lintDebug、iOS 真机签名构建与 JSON 协议检查通过。同一 NDP 连续五轮 4 线程/10 秒，Android 按钮 TCP 双向 98.12/69.36 Mbps、UDP 双向 94.30/70.61 Mbps（总目标 100 Mbps；丢包 0.01%/24.62%），iOS 按钮 TCP iOS→Android 65.05 Mbps。双端显示结果，Android PID 1390 保持不变、每轮恢复 server 监听，最后心跳接收 0 秒前。
 
 修复前捕获的原生崩溃来自 libiperf 重复关闭 fd；修复后五轮正常收尾。未单独注入 CLIENT_TERMINATE，也未做长稳/其他设备/所有参数组合，不扩展验收范围。见 [定位记录](iperf-ios-publisher-fix.md)、[完整性能表](throughput-test.md)。本轮未使用或修改 Ubuntu 抓包网络状态。
+
+### 家庭性能样本（2026-11-20 晚）
+
+iPhone12+iOS发布、a0807d7+Android17订阅，无Android STA，TCP双向各3轮平均328.24/359.84 Mbps，UDP100双向接收100.02/99.95 Mbps、显示丢包0.00%。UDP300 Android→iOS结束无汇总，不通过。303fdedc+a0807d7原生PSK-NDP首轮TCP双向560.46/621.74 Mbps，5745MHz/80MHz/2SS；两机固件不同，非单变量A/B。第三轮a080USB失联，重复/UDP未完成。保留 [原始条件及限制](home-throughput-2026-11-20.md)。本轮不修改App/ROM，不操作Ubuntu。
