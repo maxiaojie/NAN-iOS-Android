@@ -271,3 +271,8 @@ a0807d7 改名、iOS 删配对后新 PIN Setup 成功，但 Pair Verification �
 ### P07 实验固件补丁部署（2026-11-20）
 
 a0807d7 原件备份并校验，六指令字补丁及段哈希更新通过限定修改范围/错版本拒绝检查；QEMU 解码和容量足够、不足、恰好边界、无属性、填充前状态变化、used=0 六个合成短片段用例通过。临时加载、持久文件替换、恢复只读后重新下载固件，Service Ready、STA 连接通过；App 发布产生有效 Publish 会话通过。未验证新空口 23 零尾是否消失、跨整机重启、重新配对/NDP/吞吐或长稳，不宣称 P07 已修复。原件与一键恢复脚本已保留，详见 [部署验收与回滚](amss20-ext-wlan-patch-deployment.md)。
+
+
+### P07 补丁后 Publish 空口通过（2026-11-20）
+
+a0807d7 保持 STA，04-ch6-restart.pcap 第544/5131帧、05-ch149-restart.pcap 第18898帧均为目标baldur-1 Publish，实际0x1e payload=20、额外零尾0，tshark与独立边界扫描一致；iOS12设备选择页发现通过。样本为三次发布会话，不扩大到反向Subscribe/NDP/长稳。用户手动锁屏已确认；Ubuntu恢复联网后用户另行启用monitor，明确要求保留。完整 [空口验收记录](amss20-ext-wlan-air-validation.md)。

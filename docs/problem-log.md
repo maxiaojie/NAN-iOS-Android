@@ -20,7 +20,7 @@ P13/P16 管理改进：用户执行一次安装后，助手已可免密执行固
 | P04 | 设备名写死、中文名称和字节长度 | 已验证 |
 | P05 | iOS 要求 PIN，Android 没有显示 | 已验证 |
 | P06 | 旧配对缓存干扰、如何删除 | 已完成测试缓存清理 |
-| P07 | TB323FU 连接普通 Wi-Fi 后无法发现、Publish 尾部异常 | 待 ROM 定位；断开 STA 可恢复 |
+| P07 | TB323FU 连接普通 Wi-Fi 后无法发现、Publish 尾部异常 | a0807d7 实验固件当前 STA 场景空口通过；其他角色/设备待验证 |
 | P08 | 已配对但 iOS 一直 Connecting，Android 有 IP | 端口/协议及数据路径已验证 |
 | P09 | iOS Network.NWError -11987 | 重连已成功；底层原因待定位；自动重试分支待复现 |
 | P10 | NDP 建立后应用数据协议不一致 | raw UDP JSON 已验证 |
@@ -577,3 +577,8 @@ Android 请求接受、60 字节 SSI 到达 iOS 且解析出 baldur-1/LENOVO/TB3
 ### P07：实验固件补丁已备份并部署 a0807d7（2026-11-20）
 
 用户明确授权生成二进制补丁并刷入。仅对已锁定 SHA-256 的 amss20.bin 修改六个指令字，保留先查询/检查容量，再实际填充并按返回长度累计；更新代码段哈希，未重签名。Beacon 已有填充，未重复修改。Hexagon 解码与六个合成分支用例通过；原件在 Mac、平板 data 与固件目录均有备份。先临时加载，再持久替换，固件分区恢复只读。实际 WLAN 重新下载、Service Ready、STA 连接和 Publish 启动通过，仍未抓新空口包，不标记 23 字节问题已修复。恢复脚本和具体哈希见 [部署/回滚说明](amss20-ext-wlan-patch-deployment.md)。收尾停止测试 App、恢复常亮/扫描原设置，未操作 Ubuntu。
+
+
+### P07：实验补丁空口验证通过（a0807d7 当前 STA 场景，2026-11-20）
+
+保持连接 STA，先抓包再触发发布/订阅匹配，信道6的544/5131和149的18898共3个目标 Publish 均有 1e 14 00 + 20字节内容，合法属性后额外零尾0；NMI已与a080驱动日志对应、TXT均baldur-1，iPhone12选择页能发现。另一baldur-2的8个异常Publish单独排除，未做其固件检查。只验收本机当前三次发布样本，反向Subscribe、配对/NDP和长稳待测。Ubuntu16:15已恢复managed/Wi-Fi/HTTPS200，随后用户启动新Wireshark并明确要求保留monitor，按最新指令执行；iPhone用户手动锁屏，已确认锁定。详见 [帧号、原包目录和限制](amss20-ext-wlan-air-validation.md)。

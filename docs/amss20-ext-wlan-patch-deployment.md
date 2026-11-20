@@ -81,3 +81,8 @@ adb -s a0807d7 shell sh /data/local/tmp/nan-firmware-backup-20261120/restore-ori
 已完成补丁生成、静态解码、短片段合成分支测试、备份、临时加载、持久文件替换和 WLAN 重新加载/STA 连接检查。随后启动 App 发布，系统确认有效会话 `mIsPublishSession=true`、`mPubSubId=1`；这只证明发布启动成功，不证明已发出正确空口属性。收尾停止 App，恢复原 USB 常亮设置 0、扫描设置 1，保留补丁固件及正常 Wi-Fi。**尚未通过新空口包确认 Publish/Subscribe 的 23 字节零尾消失，不标记 P07 已修复**；首次配对、缓存验证、NDP/吞吐及长稳也未因本次部署而重新验收。
 
 此前得到的 builder 名称、地址和责任边界见 [反汇编记录](amss20-nan-disassembly-2026-11-20.md)。
+
+
+## 后续空口验证已完成（同日）
+
+保持 STA 的 a0807d7 已在信道6和149取得三次发布会话的 Publish，均有实际 1e 14 00 属性且额外零尾为0；iPhone12能发现baldur-1。上文“尚未抓包”为部署阶段的历史状态，最新验收范围、帧号及用户要求保留Ubuntu新monitor状态，见 [空口专项记录](amss20-ext-wlan-air-validation.md)。
