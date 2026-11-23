@@ -11,9 +11,15 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 final class DeviceInfo {
+    static final String DEMO_PASSPHRASE = "1234567890";
+    static final String NDP_SECURITY_KEY = "ndpSecurity";
+    static final String NDP_SECURITY_PSK = "demo-psk";
+
     static byte[] build(Context context) {
+        Map<String, String> metadata = read(context);
+        metadata.put(NDP_SECURITY_KEY, NDP_SECURITY_PSK);
         ByteArrayOutputStream txt = new ByteArrayOutputStream();
-        for (Map.Entry<String, String> entry : read(context).entrySet()) {
+        for (Map.Entry<String, String> entry : metadata.entrySet()) {
             byte[] record = (entry.getKey() + "=" + entry.getValue()).getBytes(StandardCharsets.UTF_8);
             txt.write(record.length);
             txt.write(record, 0, record.length);

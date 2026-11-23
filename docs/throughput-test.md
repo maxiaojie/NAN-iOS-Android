@@ -1,3 +1,5 @@
+> 2026-11-23：当前协议 v2 已按发布/订阅角色分配 iperf server/client，两种平台均支持两个角色。本文较早测试的固定 Android server / iOS client 描述是历史配置；最新结构与实测范围见 [三种组合验证](multi-platform-2026-11-23.md) 和 [UDP v2](protocol.md)。
+
 # libiperf3 双端性能测试
 
 2026-11-19，替代初版单线程自定义 UDP 测试。直接集成 ESnet iperf3 3.22 的 C 库；不执行 iperf3 命令行、不依赖手机外部二进制。

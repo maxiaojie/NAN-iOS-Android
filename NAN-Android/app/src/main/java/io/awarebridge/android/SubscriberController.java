@@ -33,10 +33,14 @@ final class SubscriberController implements BridgeController {
             Map<String, String> received = PeerDeviceInfo.parse(info);
             deviceInfo.putAll(received);
             name = deviceInfo.getOrDefault("pairingName",
-                    deviceInfo.getOrDefault("modelName", "iOS 设备（未提供名称）"));
+                    deviceInfo.getOrDefault("modelName", "附近设备（未提供名称）"));
             Log.d("AwareBridge", "Peer metadata: peer=" + handle.hashCode()
                     + ", SSI bytes=" + (info == null ? 0 : info.length)
                     + ", fields=" + received.keySet());
+        }
+
+        boolean usesDemoPsk() {
+            return DeviceInfo.NDP_SECURITY_PSK.equals(deviceInfo.get(DeviceInfo.NDP_SECURITY_KEY));
         }
 
         @Override public String toString() {
@@ -52,7 +56,7 @@ final class SubscriberController implements BridgeController {
     }
 
     // Shared application port; some ROMs omit the peer port from WifiAwareNetworkInfo.
-    private static final int IOS_UDP_PORT = 45454;
+    private static final int PEER_UDP_PORT = 45454;
     private static final int CIPHER = Characteristics.WIFI_AWARE_CIPHER_SUITE_NCS_PK_PASN_128;
     private static final int KEYPAD = AwarePairingConfig.PAIRING_BOOTSTRAPPING_PIN_CODE_KEYPAD;
     @Override public void benchmark(String protocol, int streams, boolean reverse, int rateMbps, int durationSeconds) {
@@ -74,7 +78,7 @@ final class SubscriberController implements BridgeController {
     private WifiAwareNetworkInfo networkInfo;
     private Peer pendingPair;
     private boolean closed, registered, networkReady;
-    private final Runnable pairingTimeout = () -> endPairing("配对超时，请重新打开 iOS 配对页面后重试");
+    private final Runnable pairingTimeout = () -> endPairing("配对超时，请重新打开发布端配对页面后重试");
 
     SubscriberController(Context context, Observer observer) {
         this.context = context;
@@ -148,7 +152,7 @@ final class SubscriberController implements BridgeController {
         @Override public void onSubscribeStarted(SubscribeDiscoverySession session) {
             if (closed) { session.close(); return; }
             subscriber = session;
-            observer.status("正在发现 iOS 服务；首次配对请在 iOS 打开允许配对");
+            observer.status("正在发现对端服务；首次配对请在发布端打开允许配对");
         }
         @Override public void onServiceDiscovered(PeerHandle handle, byte[] info, List<byte[]> filter) {
             found(handle, info, null);
@@ -168,7 +172,7 @@ final class SubscriberController implements BridgeController {
                 endPairing("对端未选择 PIN 配对方式");
                 return;
             }
-            observer.status("请输入 iOS 显示的配对代码");
+            observer.status("请输入发布端显示的配对代码");
             observer.pinRequested(pendingPair);
         }
         @Override public void onBootstrappingFailed(PeerHandle handle) {
@@ -229,7 +233,7 @@ final class SubscriberController implements BridgeController {
         try {
             pendingPair = peer;
             handler.postDelayed(pairingTimeout, 90_000);
-            observer.status("正在协商配对方式，请保持 iOS 系统配对页面打开");
+            observer.status("正在协商配对方式，请保持发布端配对页面打开");
             // iOS expects the initiator's Keypad role in the bootstrap request.
             // On the tested ROM this value reaches the wire unchanged; Display is rejected.
             byte[] message = DeviceInfo.buildBootstrappingMessage(context);
@@ -243,7 +247,7 @@ final class SubscriberController implements BridgeController {
     void submitPin(Peer peer, String pin) {
         if (closed || pendingPair != peer || subscriber == null) return;
         try {
-            subscriber.initiatePairingRequest(peer.handle, "awarebridge-ios-" + peer.handle.hashCode(), CIPHER, pin);
+            subscriber.initiatePairingRequest(peer.handle, "awarebridge-peer-" + peer.handle.hashCode(), CIPHER, pin);
             observer.status("正在配对…");
         } catch (RuntimeException e) { endPairing("无法提交配对代码：" + e.getMessage()); }
     }
@@ -261,7 +265,7 @@ final class SubscriberController implements BridgeController {
     void connect(Peer peer) {
         if (closed || subscriber == null || networkCallback != null || pendingPair != null
                 || peers.get(peer.handle) != peer) return;
-        if (!peer.paired) { observer.status("请先配对所选 iOS 设备"); return; }
+        if (!peer.paired) { observer.status("请先配对所选对端设备"); return; }
         try {
             transport = new HeartbeatTransport(new HeartbeatTransport.Observer() {
                 @Override public void onBenchmark(String text) {
@@ -273,13 +277,22 @@ final class SubscriberController implements BridgeController {
                 @Override public void onError(String error) {
                     handler.post(() -> { if (!closed) fail(error); });
                 }
-            }, context.getCacheDir().getAbsolutePath());
-            WifiAwareNetworkSpecifier specifier = new WifiAwareNetworkSpecifier.Builder(subscriber, peer.handle)
-                    .build();
+            }, context.getCacheDir().getAbsolutePath(), false);
+            WifiAwareNetworkSpecifier.Builder specifierBuilder =
+                    new WifiAwareNetworkSpecifier.Builder(subscriber, peer.handle);
+            if (peer.usesDemoPsk()) {
+                specifierBuilder.setPskPassphrase(DeviceInfo.DEMO_PASSPHRASE);
+            }
+            WifiAwareNetworkSpecifier specifier = specifierBuilder.build();
             networkCallback = new ConnectivityManager.NetworkCallback() {
                 @Override public void onAvailable(Network value) {
                     if (closed) return;
                     network = value;
+                    startTransport();
+                }
+                @Override public void onLinkPropertiesChanged(Network value, LinkProperties properties) {
+                    if (closed) return;
+                    transport.configureIperf(value, properties);
                     startTransport();
                 }
                 @Override public void onCapabilitiesChanged(Network value, NetworkCapabilities caps) {
@@ -290,16 +303,16 @@ final class SubscriberController implements BridgeController {
                     }
                 }
                 @Override public void onLost(Network value) { fail("数据链路已断开，请重新订阅并连接"); }
-                @Override public void onUnavailable() { fail("数据链路请求失败，请在 iOS 开始发布后重试"); }
+                @Override public void onUnavailable() { fail("数据链路请求失败，请在发布端开始发布后重试"); }
             };
             NetworkRequest request = new NetworkRequest.Builder()
                     .addTransportType(NetworkCapabilities.TRANSPORT_WIFI_AWARE)
                     .setNetworkSpecifier(specifier)
                     .build();
             connectivity.requestNetwork(request, networkCallback, handler, 30_000);
-            observer.status("正在建立数据链路并获取 iOS UDP 端口…");
+            observer.status("正在建立数据链路并获取对端 UDP 端口…");
             handler.postDelayed(() -> {
-                if (!closed && !networkReady) fail("未获取到 iOS 数据链路或 UDP 地址/端口，请重新订阅");
+                if (!closed && !networkReady) fail("未获取到对端数据链路或 UDP 地址/端口，请重新订阅");
             }, 35_000);
         } catch (IOException | RuntimeException e) { fail("连接请求失败：" + e.getMessage()); }
     }
@@ -308,15 +321,15 @@ final class SubscriberController implements BridgeController {
         if (closed || networkReady || network == null || networkInfo == null
                 || networkInfo.getPeerIpv6Addr() == null) return;
         if (networkInfo.getTransportProtocol() != -1 && networkInfo.getTransportProtocol() != 17) {
-            fail("iOS 通知的服务不是 UDP，无法启动心跳");
+            fail("对端通知的服务不是 UDP，无法启动心跳");
             return;
         }
         try {
             transport.configureIperf(network,connectivity.getLinkProperties(network));
             transport.start(network, new InetSocketAddress(networkInfo.getPeerIpv6Addr(),
-                    networkInfo.getPort() > 0 ? networkInfo.getPort() : IOS_UDP_PORT));
+                    networkInfo.getPort() > 0 ? networkInfo.getPort() : PEER_UDP_PORT));
             networkReady = true;
-            observer.status("数据链路已建立，正在向 iOS 发送心跳");
+            observer.status("数据链路已建立，正在向对端 发送心跳");
         } catch (IOException e) { fail("绑定 Aware 网络失败：" + e.getMessage()); }
     }
 

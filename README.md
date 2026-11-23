@@ -1,8 +1,8 @@
 # NAN-iOS-Android
 
-**Wi-Fi Aware / NAN，连接 iOS 与 Android。** 两端应用名为 **AwareBridge**。
+**Wi-Fi Aware / NAN，连接 Android 与 iOS，也支持同平台设备互联。** 两端应用名为 **AwareBridge**。
 
-一个可阅读、可修改的跨端演示：支持 Android 发布 / iOS 连接，以及 iOS 发布 / Android 连接两种角色。系统 PIN 配对后建立 Wi-Fi Aware 数据链路。两端通过原始 UDP JSON 每 5 秒发送心跳、回复确认，界面显示收发计数和最近接收时间。
+一个可阅读、可修改的跨端演示：支持 Android↔Android、iOS↔iOS、Android↔iOS；两端均可选择发布或订阅角色。系统 PIN 配对后建立 Wi-Fi Aware 数据链路。两端通过原始 UDP JSON 每 5 秒发送心跳、回复确认，界面显示收发计数和最近接收时间。
 
 ```
 NAN-iOS-Android/
@@ -66,21 +66,27 @@ Xcode 顶部运行目标请选择已连接的 iPhone 或 `Any iOS Device (arm64)
 
 ## 使用
 
+任意组合都选择一端“发布服务”、另一端“发现并连接”。配对后由订阅端点击连接；两侧都可发起任一方向的性能测试。发布端运行 iperf server，订阅端运行 client，不按系统区分。**协议已升级 v2，两端 App 必须同时更新**，已有系统配对可保留。实现与实测范围见 [三种组合验证](docs/multi-platform-2026-11-23.md)。
+
+### Android ↔ Android / iOS ↔ iOS
+
+Android 发布端开启一分钟配对窗口，Android 订阅端选择设备、输入发布端代码后连接。两台 iPhone 则在发布端打开“允许附近设备配对”，订阅端“添加附近设备”；完成后关闭系统配对页，开始发布，再由订阅端选择设备连接。
+
 ### Android 发布 → iOS 连接
 
 1. Android 点击「开始发布」。
-2. 每次开始发布（含自动重建 Publish），Android 默认开启「允许新设备配对（1 分钟）」；窗口超时后需要配对可手动重新打开。iOS 点击「添加 Android 设备」，选择 Android 设备；将 Android 显示的 6 位代码输入 iOS 系统配对界面。
+2. 每次开始发布（含自动重建 Publish），Android 默认开启「允许新设备配对（1 分钟）」；窗口超时后需要配对可手动重新打开。iOS 点击「添加附近设备」，选择 Android 设备；将 Android 显示的 6 位代码输入 iOS 系统配对界面。
 3. 配对成功或开启满 1 分钟后，Android 自动关闭新配对，继续发布服务；设计上已配对设备连接无需打开此开关，当前实机限制见下方说明。配对成功后，在 iOS 选择该设备并点击「连接」。Android 无需再点连接。
 4. 两端出现双向通信状态，发送/接收计数每 5 秒增长。持续观察至少 2 分钟，确认链路不会因无流量而断开。
 5. iOS 点「断开」，Android 点「停止」；再次开始可复用系统已保存的配对。
 
-> 当前 TB323FU a0807d7 与 iPhone 12 的已知限制：配对开关关闭时，重新发现服务可超时（-11988 / subscriberTimeout）；暂时打开 1 分钟配对窗口后可连接，窗口关闭后已有链路能继续。此操作会允许新配对，仅为临时绕过，根因仍需抓包定位，见 [问题 P19](docs/problem-log.md) 和 [空口属性对照](docs/pair-setup-discovery-analysis.md)。
+> 原厂/未修复 HAL 的历史限制：TB323FU a0807d7 与 iPhone 12 配对开关关闭时，重新发现服务可超时（-11988 / subscriberTimeout）；暂时打开 1 分钟配对窗口后可连接，窗口关闭后已有链路能继续。此操作会允许新配对，仅为临时绕过，已通过高通 Publish CSIA 修正产物进行后续验证，原厂版本仍须核对，见 [问题 P19](docs/problem-log.md) 和 [空口属性对照](docs/pair-setup-discovery-analysis.md)。
 
 首次 iOS 发包后，Android 学到该 UDP 会话的来源端口，再定时向它发送心跳。因此 Android 显示 NDP 已建立但 RX 为 0 时，应先检查 iOS 是否发送首包。
 
 ### iOS 发布 → Android 连接
 
-1. iOS 选择「发布 · Android 连接 iOS」。首次配对先打开「允许 Android 配对」，Android 选择订阅角色并开始订阅。
+1. iOS 选择「发布服务」。首次配对先打开「允许附近设备配对」，Android 选择订阅角色并开始订阅。
 2. Android 选择发现的 iOS 服务，点击配对，将 iOS 系统页显示的 PIN 输入 Android。配对完成后关闭 iOS 系统配对页。
 3. iOS 点击「开始发布」，Android 等待缓存配对验证后选择设备、点击连接。已配对设备直接从此步骤开始即可。
 4. iOS 固定监听 UDP `45454`；Android 使用 Aware 网络中的对端 IPv6，并主动发出首包。两端每 5 秒心跳并回复 ACK。

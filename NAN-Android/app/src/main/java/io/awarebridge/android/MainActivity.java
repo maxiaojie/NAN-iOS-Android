@@ -46,13 +46,13 @@ public final class MainActivity extends Activity {
         content.setPadding(pad, pad, pad, pad);
         content.setBackgroundColor(0xfff5f7fb);
         label(content, "AwareBridge", 30).setTypeface(null, android.graphics.Typeface.BOLD);
-        label(content, "Wi-Fi Aware · iOS ↔ Android", 16);
+        label(content, "Wi-Fi Aware · 附近设备互联", 16);
         LinearLayout pairingPanel = section(content, "配对和连接");
         roles = new RadioGroup(this);
         for (int id : new int[]{PUBLISHER, SUBSCRIBER}) {
             RadioButton choice = new RadioButton(this);
             choice.setId(id);
-            choice.setText(id == PUBLISHER ? "发布 · iOS 连接 Android" : "订阅 · Android 连接 iOS");
+            choice.setText(id == PUBLISHER ? "发布服务" : "发现并连接");
             roles.addView(choice);
         }
         roles.check(PUBLISHER);
@@ -74,10 +74,10 @@ public final class MainActivity extends Activity {
         peerPicker = new Spinner(this);
         subscriberControls.addView(peerPicker);
         pairButton = new Button(this);
-        pairButton.setText("配对所选 iOS 设备");
+        pairButton.setText("配对所选对端设备");
         subscriberControls.addView(pairButton);
         connectButton = new Button(this);
-        connectButton.setText("连接所选 iOS 设备");
+        connectButton.setText("连接所选对端设备");
         subscriberControls.addView(connectButton);
         pairingPanel.addView(subscriberControls);
         pairButton.setOnClickListener(v -> {
@@ -135,7 +135,7 @@ public final class MainActivity extends Activity {
         for (boolean reverse : new boolean[]{true,false}) {
             Button benchmark = new Button(this);
             benchmark.setAllCaps(false);
-            benchmark.setText(reverse ? "Android → iOS" : "iOS → Android");
+            benchmark.setText(reverse ? "本机 → 对端" : "对端 → 本机");
             performancePanel.addView(benchmark);
             benchmark.setOnClickListener(v -> {
                 int duration;
@@ -189,8 +189,8 @@ public final class MainActivity extends Activity {
         pairButton.setEnabled(controller != null && !discovered.isEmpty());
         connectButton.setEnabled(controller != null && !discovered.isEmpty());
         instructions.setText(subscribing()
-                ? "1. iOS 选择发布角色，打开允许配对\n2. Android 开始订阅，选择设备并配对\n3. 输入 iOS 显示的代码，iOS 开始发布后点击连接\n\n请保持两端 App 在前台。"
-                : "1. 点击开始发布，默认允许配对 1 分钟\n2. iOS 添加设备并输入 Android 显示的代码\n3. iOS 点击连接\n\n请保持两端 App 在前台。");
+                ? "1. 对端选择发布角色并允许配对\n2. 本机开始发现，选择设备并配对\n3. 输入对端显示的代码，发布端就绪后点击连接\n\n请保持两端 App 在前台。"
+                : "1. 点击开始发布，默认允许配对 1 分钟\n2. 对端发现本机并输入本机显示的代码\n3. 对端点击连接\n\n请保持两端 App 在前台。");
     }
 
     private LinearLayout section(LinearLayout parent, String title) {
@@ -260,7 +260,7 @@ public final class MainActivity extends Activity {
                 lastMessage.setText(text + (ageMs < 0 ? "" : "\n最近接收：" + ageMs / 1000 + " 秒前"));
                 if (rx > 0) performanceState.setText(ageMs > 20_000 ? "链路无响应，请检查连接" : "Aware 数据链路已连接");
                 else performanceState.setText("请先建立数据链路");
-                if (rx > 0) state.setText(ageMs > 20_000 ? "心跳超时，请检查 iOS 是否在前台" : "已连接 · 双向数据通信中");
+                if (rx > 0) state.setText(ageMs > 20_000 ? "心跳超时，请检查对端 是否在前台" : "已连接 · 双向数据通信中");
             }
             @Override public void pairing(boolean enabled, boolean available) {
                 syncingPairing = true;
@@ -302,7 +302,7 @@ public final class MainActivity extends Activity {
         discovered.addAll(peers);
         List<String> names = new ArrayList<>();
         for (SubscriberController.Peer peer : discovered) names.add(peer.toString());
-        if (names.isEmpty()) names.add("尚未发现 iOS 服务");
+        if (names.isEmpty()) names.add("尚未发现对端服务");
         peerPicker.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
                 names));
         if (selected != null && discovered.contains(selected)) peerPicker.setSelection(discovered.indexOf(selected));
@@ -314,7 +314,7 @@ public final class MainActivity extends Activity {
         SubscriberController target = (SubscriberController) controller;
         EditText input = new EditText(this);
         input.setInputType(InputType.TYPE_CLASS_NUMBER);
-        input.setHint("iOS 显示的配对代码");
+        input.setHint("发布端显示的配对代码");
         pinDialog = new AlertDialog.Builder(this)
                 .setTitle("与 " + peer.name + " 配对")
                 .setView(input)
@@ -325,7 +325,7 @@ public final class MainActivity extends Activity {
         pinDialog.setOnDismissListener(dialog -> pinDialog = null);
         pinDialog.setOnShowListener(dialog -> pinDialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             String code = input.getText().toString().trim();
-            if (!code.matches("[0-9]{4,12}")) { input.setError("请输入 iOS 显示的完整数字代码"); return; }
+            if (!code.matches("[0-9]{4,12}")) { input.setError("请输入 发布端显示的完整数字代码"); return; }
             pinDialog.dismiss();
             target.submitPin(peer, code);
         }));

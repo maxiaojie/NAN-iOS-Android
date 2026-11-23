@@ -1,10 +1,11 @@
 import Foundation
 
-/// One JSON object per UDP datagram; keys shared with NAN-Android.
+/// Protocol v2 separates discovery roles from the sender's operating system.
 struct BridgeMessage: Codable, Sendable {
     let v: Int
     let type: String
     let platform: String
+    let role: String
     let session: String
     let seq: Int64
     let timestampMs: Int64
@@ -13,13 +14,16 @@ struct BridgeMessage: Codable, Sendable {
     var iperfPort: Int?
     var iperfAddress: String?
 
-    static func make(_ type: String, session: String, seq: Int64, ackSession: String? = nil, text: String? = nil) -> BridgeMessage {
-        BridgeMessage(v: 1, type: type, platform: "ios", session: session, seq: seq,
+    static func make(_ type: String, role: String, session: String, seq: Int64,
+                     ackSession: String? = nil, text: String? = nil) -> BridgeMessage {
+        BridgeMessage(v: 2, type: type, platform: "ios", role: role, session: session, seq: seq,
                       timestampMs: Int64(Date().timeIntervalSince1970 * 1000),
-                      text: text ?? (type == "ack" ? "iOS received heartbeat" : "iOS heartbeat"), ackSession: ackSession)
+                      text: text ?? (type == "ack" ? "已确认收到心跳" : "iOS heartbeat"), ackSession: ackSession)
     }
-    var validAndroidMessage: Bool {
-        v == 1 && platform == "android" && !session.isEmpty && seq >= 0
-        && ["hello", "heartbeat", "ack", "iperf_request"].contains(type)
+    func validPeerMessage(localRole: String) -> Bool {
+        v == 2 && ["android", "ios"].contains(platform) && !session.isEmpty && seq >= 0
+        && ["publisher", "subscriber"].contains(localRole)
+        && role == (localRole == "publisher" ? "subscriber" : "publisher")
+        && ["hello", "heartbeat", "ack", "iperf_request", "iperf_result"].contains(type)
     }
 }

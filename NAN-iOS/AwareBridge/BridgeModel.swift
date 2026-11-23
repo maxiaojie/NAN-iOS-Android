@@ -19,8 +19,8 @@ extension WAPublishableService {
 }
 
 enum BridgeRole: String, CaseIterable, Identifiable {
-    case subscriber = "订阅 · iOS 连接 Android"
-    case publisher = "发布 · Android 连接 iOS"
+    case subscriber = "发现并连接"
+    case publisher = "发布服务"
     var id: Self { self }
 }
 
@@ -43,11 +43,21 @@ final class BridgeModel {
     var testDurationSeconds = 10
     var testRateMbps = 0
     @ObservationIgnored private var benchmark: IperfClient?
+    @ObservationIgnored private var benchmarkSend: ((String) -> Void)?
     func startBenchmark(reverse: Bool) {
         guard let benchmark, let lastReceived, Date().timeIntervalSince(lastReceived) < 20 else {
             benchmarkStatus = "请先等待双向心跳建立"; return
         }
-        benchmark.start(proto: testProtocol, streams: testStreams, reverse: reverse, rateMbps: testRateMbps, durationSeconds: testDurationSeconds)
+        if role == .publisher {
+            let config: [String: Any] = ["protocol": testProtocol, "streams": testStreams,
+                "reverse": !reverse, "duration": testDurationSeconds, "rate": testRateMbps]
+            guard let data = try? JSONSerialization.data(withJSONObject: config),
+                  let text = String(data: data, encoding: .utf8) else { return }
+            benchmarkSend?(text)
+            benchmarkStatus = "已请求对端启动 iperf3 测试"
+        } else {
+            benchmark.start(proto: testProtocol, streams: testStreams, reverse: reverse, rateMbps: testRateMbps, durationSeconds: testDurationSeconds)
+        }
     }
     @ObservationIgnored private var connectionTask: Task<Void, Never>?
     @ObservationIgnored private var incomingTask: Task<Void, Never>?
@@ -119,7 +129,7 @@ final class BridgeModel {
             } catch {
                 guard let self, self.generation == token else { return }
                 if let networkError = error as? NWError, case .wifiAware(-11987) = networkError {
-                    self.finish("链路协商失败（-11987），请在 Android 重新发布后再连接")
+                    self.finish("链路协商失败（-11987），请在对端重新发布后再连接")
                 } else {
                     self.finish(error is CancellationError ? "已断开" : "连接失败：\(Self.errorDescription(error))")
                 }
@@ -152,7 +162,7 @@ final class BridgeModel {
                     switch state {
                     case .ready:
                         if !self.incomingActive {
-                            self.status = "服务已发布，等待已配对的 Android 连接"
+                            self.status = "服务已发布，等待已配对的设备连接"
                         }
                     case .waiting(let error):
                         self.status = "发布等待：\(Self.errorDescription(error))"
@@ -165,8 +175,8 @@ final class BridgeModel {
                     self.tx = 0
                     self.rx = 0
                     self.lastReceived = nil
-                    self.peer = "Android"
-                    self.status = "已收到 Android 连接，等待双向心跳"
+                    self.peer = "附近设备"
+                    self.status = "已收到对端连接，等待双向心跳"
                     // The accepted UDP connection owns its lifetime independently of
                     // the discovery listener (which iOS may stop after 120 seconds).
                     self.incomingTask = Task { [weak self] in
@@ -236,16 +246,38 @@ final class BridgeModel {
             }
         }
         let session = UUID().uuidString
+        let localRole = role == .publisher ? "publisher" : "subscriber"
+        let service = IperfService()
+        @Sendable func makeMessage(_ type: String, seq: Int64, text: String? = nil,
+                                  ackSession: String? = nil) -> BridgeMessage {
+            BridgeMessage.make(type, role: localRole, session: session, seq: seq,
+                               ackSession: ackSession, text: text)
+        }
         let engine = IperfClient(connection: connection, report: { [weak self] text in
             self?.benchmarkUpdate(text, token: token, attempt: attemptToken)
         }, sendResult: { text in
-            let message = BridgeMessage.make("iperf_result", session: session, seq: 0, text: text)
+            let message = makeMessage("iperf_result", seq: 0, text: text)
             try? await connection.send(JSONEncoder().encode(message))
         })
         benchmark = engine
+        benchmarkSend = { text in
+            Task {
+                do {
+                    guard await service.available else {
+                        self.benchmarkUpdate("等待本机测速服务就绪", token: token, attempt: attemptToken)
+                        return
+                    }
+                    var request = makeMessage("iperf_request", seq: 0, text: text)
+                    request.iperfPort = 5201
+                    try await connection.send(JSONEncoder().encode(request))
+                }
+                catch { self.benchmarkUpdate("测速请求发送失败：\(error.localizedDescription)", token: token, attempt: attemptToken) }
+            }
+        }
         defer {
-            if connectionAttempt == attemptToken { benchmark = nil }
+            if connectionAttempt == attemptToken { benchmark = nil; benchmarkSend = nil }
             engine.close()
+            service.close()
         }
         // Both tasks retain the connection only for this scope. Cancelling the receive
         // operation cancels the underlying connection, releasing the Aware data path.
@@ -256,7 +288,8 @@ final class BridgeModel {
             group.addTask { [weak self] in
                 var seq: Int64 = 0
                 while !Task.isCancelled {
-                    let message = BridgeMessage.make(seq == 0 ? "hello" : "heartbeat", session: session, seq: seq)
+                    var message = makeMessage(seq == 0 ? "hello" : "heartbeat", seq: seq)
+                    if localRole == "publisher", await service.available { message.iperfPort = 5201 }
                     try await connection.send(JSONEncoder().encode(message))
                     await self?.didSend(token: token)
                     seq += 1
@@ -265,22 +298,39 @@ final class BridgeModel {
             }
             group.addTask { [weak self] in
                 var remoteSession: String?
+                var benchmarkUnavailable = false
                 while !Task.isCancelled {
                     let (data, _) = try await connection.receive()
                     guard data.count <= 4096,
                           let message = try? JSONDecoder().decode(BridgeMessage.self, from: data),
-                          message.validAndroidMessage else { continue }
+                          message.validPeerMessage(localRole: localRole) else { continue }
                     if let remoteSession, message.session != remoteSession { continue }
                     if message.type == "ack" && message.ackSession != session { continue }
                     remoteSession = message.session
+                    if localRole == "publisher", !benchmarkUnavailable, !(await service.ready) {
+                        do {
+                            try await service.start(from: connection)
+                        } catch is CancellationError {
+                            throw CancellationError()
+                        } catch {
+                            benchmarkUnavailable = true
+                            await service.close()
+                            await self?.benchmarkUpdate("测速服务不可用：\(error.localizedDescription)", token: token, attempt: attemptToken)
+                        }
+                    }
                     await engine.configure(message.iperfAddress, port: message.iperfPort)
                     if message.type == "iperf_request" {
-                        await engine.request(message.text)
+                        if localRole == "subscriber" { await engine.request(message.text) }
+                        continue
+                    }
+                    if message.type == "iperf_result" {
+                        await self?.benchmarkUpdate(message.text, token: token, attempt: attemptToken)
                         continue
                     }
                     await self?.didReceive(message, token: token)
                     if message.type != "ack" {
-                        let ack = BridgeMessage.make("ack", session: session, seq: message.seq, ackSession: message.session)
+                        var ack = makeMessage("ack", seq: message.seq, ackSession: message.session)
+                        if localRole == "publisher", await service.available { ack.iperfPort = 5201 }
                         try await connection.send(JSONEncoder().encode(ack))
                         await self?.didSend(token: token)
                     }
@@ -306,7 +356,7 @@ final class BridgeModel {
     func tick() {
         now = Date()
         if active, let lastReceived, now.timeIntervalSince(lastReceived) > 20 {
-            status = "心跳超时，请检查 Android 是否在前台"
+            status = "心跳超时，请检查对端是否在前台"
         }
     }
     func stop() {

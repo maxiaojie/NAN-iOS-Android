@@ -316,3 +316,8 @@ a0807d7/303fdedc原生加密NDP，4种线程数两方向共8项，仅5项完成�
 ### HA2E6NPB Android17部署（2026-11-23）
 
 原件双端备份后使能Aware、部署V4服务/NDK/CSIA修正库与高通197458.2、安装已有APK。重启、功能声明、Binder版本4、实际固件版本、进程库映射和App发布均通过；跨端配对/NDP/长稳待验收。[部署与恢复记录](ha2e6npb-android17-deployment-2026-11-23.md)。
+
+
+### 三种平台组合验证（2026-11-23）
+
+Android/Swift 协议和 TXT 测试、Android assemble/lint、iOS 真机签名构建通过。Android↔Android：a0807d7 发布、HA2E6NPB 订阅，本轮 PIN 配对及双向心跳通过，4 流 TCP 发布→订阅 197.63 Mbps；反方向遇 a0807d7 CrashDump，用户要求保留，未完成整组。iPhone 14 Pro 发布、iPhone 12 订阅：已有配对、双向心跳通过，TCP 153.49/126.81 Mbps。HA2E6NPB 发布、iPhone 12 订阅：新 PIN 配对、NDP/心跳通过，TCP 119.16/34.52 Mbps。换向复用同一跨平台配对，iPhone 12 发布：TCP 128.85/145.30 Mbps，另从发布端 UI 发起 131.06 Mbps。均 4 流/10 秒、干扰环境功能样本；一次 idle receive timeout 未定因，UDP 和 2/8/16 矩阵未测。本轮 iOS↔iOS 未删除系统配对重做 PIN。最终版安装 HA2E6NPB 和两台 iPhone；a0807d7 保留崩溃状态。[完整记录](multi-platform-2026-11-23.md)。

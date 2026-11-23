@@ -32,6 +32,8 @@ public final class PeerDeviceInfoTest {
         expect("iPhone 12".equals(info.get("modelName")));
         expect("Apple".equals(info.get("vendorName")));
         expect(PeerDeviceInfo.parse(raw).equals(info));
+        expect("demo-psk".equals(PeerDeviceInfo.parse(txt("ndpSecurity=demo-psk")).get("ndpSecurity")));
+        expect(!PeerDeviceInfo.parse(txt("unknown=value")).containsKey("unknown"));
         expect(PeerDeviceInfo.parse(null).isEmpty());
         expect(PeerDeviceInfo.parse(Arrays.copyOf(wrapped, wrapped.length - 1)).isEmpty());
         expect(PeerDeviceInfo.parse(new byte[]{(byte) 184, 1, 0, 0}).isEmpty());

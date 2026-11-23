@@ -1,6 +1,6 @@
 # Android ROM 与 AOSP 编译接口
 
-此仓库源自 `/wifi_aware` 的发布/配对实验。当前已经移除非公开的 setVendorData 调用，使用标准 Android SDK 36 编译；设备仍须支持 Wi-Fi Aware 及配对能力。
+此仓库源自 `/wifi_aware` 的发布/配对实验。当前已经移除非公开的 setVendorData 调用，使用标准 Android SDK 37 编译，最低系统为 Android 17；设备仍须支持 Wi-Fi Aware 及配对能力。
 
 原项目曾使用提取的 `framework-wifi.jar` 及 bootstrap classpath 覆盖，让编译器看到非公开接口。删除 setVendorData 后，当前剩余调用均能由标准 SDK 36 编译。2026-11-13 已删除 jar 文件、compileOnly 依赖及 bootstrap classpath 配置，并通过 clean + assembleDebug + lintDebug；不再需要用该 jar 解锁编译接口。
 
@@ -12,7 +12,7 @@
 - Aware Pairing PIN Display、配对缓存/验证、PASN-128；
 - 不再调用 `setVendorData`；原 OUI `0x506f9a`、`android=false` 配置已通过真机对照删除；
 - publisher network request 宣告 UDP 端口和 transport protocol 17；
-- 保留原实验的固定 passphrase `1234567890`。
+- 保留原实验的固定 passphrase `1234567890`；发现 TXT 的 `ndpSecurity=demo-psk` 通知 Android 订阅端使用同一测试配置，iOS 发布端没有该字段时保持原路径。
 
 不同 ROM 可能存在 API、权限或参数支持差异，表现为运行时异常、发布失败、配对不可用或 HAL 拒绝 NDP。应用会展示错误，而不会因为复制编译 jar 就获得 ROM 权限。真正的产品适配需要逐 ROM 检查 API、系统权限和配对后密钥的数据路径使用方式。
 

@@ -3,9 +3,9 @@ import Network
 
 @MainActor final class IperfClient {
     private static var running = false
+    private var job: Task<Void, Never>?
     private var closed = false
-    private var ownsRun = false
-    private var host: String?
+    private var serverReady = false
     private let connection: NetworkConnection<UDP>
     private var relay: IperfRelay?
     private let report: @MainActor (String) -> Void
@@ -16,8 +16,7 @@ import Network
         self.report = report; self.sendResult = sendResult
     }
     func configure(_ address: String?, port: Int?) {
-        guard port == 5201, let address, IPv6Address(address)?.isLinkLocal == true else { return }
-        host = address
+        serverReady = port == 5201 && (address == nil || IPv6Address(address!)?.isLinkLocal == true)
     }
     func request(_ json: String) {
         guard let data = json.data(using: .utf8), let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -33,36 +32,50 @@ import Network
         guard !Self.running else { publish("已有 iperf3 测试运行中"); return }
         guard (1...16).contains(streams), (0...100000).contains(rateMbps), ["TCP","UDP"].contains(proto) else { return }
         guard (1...3600).contains(durationSeconds) else { publish("测试时长请输入 1～3600 秒"); return }
-        guard host != nil else { publish("等待 Android iperf3 服务地址"); return }
+        guard serverReady else { publish("等待发布端 iperf3 服务就绪"); return }
         Self.running = true
-        ownsRun = true
-        let direction = reverse ? "Android → iOS" : "iOS → Android"
+        let direction = reverse ? "发布端 → 订阅端" : "订阅端 → 发布端"
         publish("iperf3 \(proto) · \(streams) 线程 · \(direction) · \(durationSeconds) 秒 · 测试中…")
-        ab_set_temp_dir(NSTemporaryDirectory())
-        ab_prepare(0)
-        Task {
+        job = Task {
             do { relay = try await IperfRelay.open(from: connection) }
             catch {
                 Self.running = false
-                ownsRun = false
                 guard !closed else { return }
                 let text = "iperf3 适配层失败：\(error.localizedDescription)"
                 publish(text); return
             }
-            guard !closed else { relay?.close(); relay = nil; Self.running = false; ownsRun = false; return }
-            let result = await Task.detached(priority: .userInitiated) {
-                let output = ab_iperf_run(0, "::1", "", 5201, proto == "UDP" ? 1 : 0,
-                                          reverse ? 1 : 0, Int32(streams), Int32(durationSeconds), Int32(rateMbps))
-                let json = output.map { String(cString: $0) } ?? "{}"
-                ab_free(output)
-                return Self.summary(json, proto: proto, streams: streams, direction: direction)
-            }.value
+            guard !closed else { relay?.close(); relay = nil; Self.running = false; return }
+            let json = await Self.runNative(server: false, address: "::1", port: 5201,
+                udp: proto == "UDP", reverse: reverse, streams: streams, duration: durationSeconds, rate: rateMbps)
+            let result = Self.summary(json, proto: proto, streams: streams, direction: direction)
             relay?.close(); relay = nil
             Self.running = false
-            ownsRun = false
             guard !closed else { return }
             publish(result)
         }
+    }
+    // Native state is process-wide. Serialize runs, including canceled old links.
+    private static let nativeQueue = DispatchQueue(label: "awarebridge.libiperf")
+    static func runNative(server: Bool, address: String, port: Int, udp: Bool, reverse: Bool,
+                          streams: Int, duration: Int, rate: Int) async -> String {
+        let temp = NSTemporaryDirectory()
+        let cancellation = NativeIperfCancellation()
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                nativeQueue.async {
+                    guard cancellation.begin() else {
+                        continuation.resume(returning: "{\"error\":\"cancelled\"}"); return
+                    }
+                    ab_set_temp_dir(temp)
+                    let output = ab_iperf_run(server ? 1 : 0, address, "", Int32(port), udp ? 1 : 0,
+                        reverse ? 1 : 0, Int32(streams), Int32(duration), Int32(rate))
+                    let result = output.map { String(cString: $0) } ?? "{}"
+                    ab_free(output)
+                    cancellation.finish()
+                    continuation.resume(returning: result)
+                }
+            }
+        } onCancel: { cancellation.cancel() }
     }
     private func publish(_ text: String) {
         guard !closed else { return }
@@ -85,5 +98,26 @@ import Network
         }
         return text
     }
-    func close() { closed = true; if ownsRun { ab_cancel() }; relay?.close(); relay = nil }
+    func close() { closed = true; job?.cancel(); job = nil; relay?.close(); relay = nil }
+}
+
+/// Cancellation must not affect a later link which reuses process-wide libiperf.
+private final class NativeIperfCancellation: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cancelled = false
+    private var started = false
+    func begin() -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        guard !cancelled else { return false }
+        ab_prepare(0); started = true; return true
+    }
+    func cancel() {
+        lock.lock(); defer { lock.unlock() }
+        cancelled = true
+        if started { ab_cancel() }
+    }
+    func finish() {
+        lock.lock(); defer { lock.unlock() }
+        started = false
+    }
 }

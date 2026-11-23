@@ -19,7 +19,9 @@ final class HeartbeatTransport implements AutoCloseable {
     private final DatagramSocket socket = new DatagramSocket(null);
     private final ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor();
     private final Observer observer;
-    private IperfServer iperf;
+    private IperfEngine iperf;
+    private final boolean publishing;
+    private int peerIperfPort;
     private final String directory;
     void benchmark(String protocol, int streams, boolean reverse, int rateMbps, int durationSeconds) {
         // Button callbacks run on the main thread. Keep control datagrams on the
@@ -38,8 +40,14 @@ final class HeartbeatTransport implements AutoCloseable {
             }
             try {
                 String config = new JSONObject().put("protocol",protocol).put("streams",streams)
-                        .put("reverse",reverse).put("duration",durationSeconds).put("rate",rateMbps).toString();
-                send("iperf_request", sequence++, config);
+                        .put("reverse",publishing ? reverse : !reverse).put("duration",durationSeconds).put("rate",rateMbps).toString();
+                if (publishing) send("iperf_request", sequence++, config);
+                else {
+                    if (peerIperfPort != 5201) {
+                        observer.onBenchmark("等待对端测速服务就绪"); return;
+                    }
+                    startClient(config);
+                }
                 android.util.Log.i("AwareIperf", "Sent iperf request: " + config);
                 observer.onBenchmark("已请求 iperf3 测试 · " + streams + " 线程 · " + durationSeconds + " 秒 · " + protocol);
             } catch (Exception e) {
@@ -55,16 +63,17 @@ final class HeartbeatTransport implements AutoCloseable {
     private String peerSession;
     private long sequence, tx, rx, lastReceived;
     private long startedAt;
-    private String lastText = "等待 iOS 发送首个心跳";
+    private String lastText = "等待对端发送首个心跳";
 
-    HeartbeatTransport(Observer observer, String directory) throws SocketException {
+    HeartbeatTransport(Observer observer, String directory, boolean publishing) throws SocketException {
         this.observer = observer;
         this.directory = directory;
+        this.publishing = publishing;
         socket.bind(new InetSocketAddress(0));
     }
     synchronized void configureIperf(Network network, android.net.LinkProperties properties) {
         if (iperf == null && properties != null && properties.getLinkAddresses().stream()
-                .anyMatch(a -> a.getAddress().isLinkLocalAddress())) iperf = new IperfServer(network,properties,directory);
+                .anyMatch(a -> a.getAddress().isLinkLocalAddress())) iperf = new IperfEngine(network,properties,directory,publishing);
     }
     int port() { return socket.getLocalPort(); }
 
@@ -113,16 +122,19 @@ final class HeartbeatTransport implements AutoCloseable {
                 try {
                     message = new JSONObject(new String(packet.getData(), packet.getOffset(),
                             packet.getLength(), StandardCharsets.UTF_8));
-                    if (message.getInt("v") != 1 || !"ios".equals(message.getString("platform"))
+                    if (message.getInt("v") != 2 || !("ios".equals(message.getString("platform"))
+                            || "android".equals(message.getString("platform")))
+                            || !(publishing ? "subscriber" : "publisher").equals(message.optString("role"))
                             || message.getString("session").isEmpty() || message.getLong("seq") < 0) continue;
                 } catch (Exception malformed) { continue; }
                 String type = message.optString("type");
-                if (!type.equals("hello") && !type.equals("heartbeat") && !type.equals("ack") && !type.equals("iperf_result")) continue;
+                if (!type.equals("hello") && !type.equals("heartbeat") && !type.equals("ack")
+                        && !type.equals("iperf_request") && !type.equals("iperf_result")) continue;
                 synchronized (this) {
                     if (closed) return;
                     InetSocketAddress source = new InetSocketAddress(packet.getAddress(), packet.getPort());
                     if (peer == null) {
-                        if (type.equals("ack")) continue;
+                        if (!type.equals("hello") && !type.equals("heartbeat")) continue;
                         peer = source;
                         socket.connect(peer);
                     }
@@ -130,6 +142,15 @@ final class HeartbeatTransport implements AutoCloseable {
                     if (type.equals("ack") && !session.equals(message.optString("ackSession"))) continue;
                     if (peerSession == null) peerSession = message.getString("session");
                     if (!peerSession.equals(message.getString("session"))) continue;
+                    lastReceived = SystemClock.elapsedRealtime();
+                    peerIperfPort = message.optInt("iperfPort", 0);
+                    if (type.equals("iperf_request")) {
+                        if (!publishing && iperf != null) {
+                            try { startClient(message.optString("text")); }
+                            catch (Exception malformed) { observer.onBenchmark("无效的测速请求参数"); }
+                        }
+                        continue;
+                    }
                     if (type.equals("iperf_result")) {
                         android.util.Log.i("AwareIperf", "Peer result: " + message.optString("text"));
                         observer.onBenchmark(message.optString("text"));
@@ -149,16 +170,36 @@ final class HeartbeatTransport implements AutoCloseable {
     }
 
     private void send(String type, long seq, String text) throws Exception {
-        JSONObject message = new JSONObject().put("v", 1).put("type", type)
+        JSONObject message = new JSONObject().put("v", 2).put("type", type)
+                .put("role", publishing ? "publisher" : "subscriber")
                 .put("platform", "android").put("session", session).put("seq", seq)
                 .put("timestampMs", System.currentTimeMillis()).put("text", text);
-        if (iperf != null && iperf.available()) {
+        if (publishing && iperf != null && iperf.available()) {
             message.put("iperfPort",5201).put("iperfAddress",iperf.host());
         }
         if (type.equals("ack")) message.put("ackSession", peerSession);
         byte[] data = message.toString().getBytes(StandardCharsets.UTF_8);
         socket.send(new DatagramPacket(data, data.length, peer));
         tx++;
+    }
+    private void startClient(String config) throws Exception {
+        if (peerIperfPort != 5201 || iperf == null || peer == null) {
+            observer.onBenchmark("等待对端测速服务就绪"); return;
+        }
+        JSONObject c = new JSONObject(config);
+        // A local subscriber sends when reverse=false; a publisher asks its
+        // remote subscriber to receive when reverse=true.
+        boolean reverse = c.getBoolean("reverse");
+        if (publishing) return;
+        iperf.start(peer.getAddress(), c.getString("protocol"), c.getInt("streams"), reverse,
+                c.getInt("rate"), c.getInt("duration"), text -> {
+                    synchronized (HeartbeatTransport.this) {
+                        if (closed) return;
+                        observer.onBenchmark(text);
+                        try { send("iperf_result", sequence++, text); }
+                        catch (Exception e) { android.util.Log.e("AwareIperf", "Result send failed", e); }
+                    }
+                });
     }
     private void report() {
         observer.onStats(tx, rx, lastReceived == 0 ? -1 : SystemClock.elapsedRealtime() - lastReceived,

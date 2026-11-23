@@ -9,12 +9,11 @@ import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.*;
 
-/** Android publishes; iOS pairs and initiates the data path. Main-thread owned. */
+/** Publishes a service; the subscriber pairs and initiates the data path. Main-thread owned. */
 @SuppressLint("MissingPermission")
 final class AwareController implements BridgeController {
     static final String SERVICE = "_aware-bridge._udp";
     // Retained from the working ROM experiment. This is a demo, not a production secret.
-    private static final String DEMO_PASSPHRASE = "1234567890";
     private static final int CIPHER = Characteristics.WIFI_AWARE_CIPHER_SUITE_NCS_PK_PASN_128;
     interface Observer {
         void status(String status);
@@ -241,7 +240,7 @@ final class AwareController implements BridgeController {
                     // Do not rotate the PIN after accepting a setup that is already in progress.
                     if (!acceptedPairingRequests.containsKey(peer)) clearPin(peer);
                     showPin(peer);
-                    observer.status("请在 iOS 输入 Android 显示的代码，正在等待新配对请求");
+                    observer.status("请在对端输入本机显示的代码，正在等待新配对请求");
                 }
             }
 
@@ -249,7 +248,7 @@ final class AwareController implements BridgeController {
             public void onBootstrappingFailed(PeerHandle peer) {
                 if (closed || generation != publishGeneration) return;
                 clearPin(peer);
-                observer.status("配对方式协商失败，请在 iOS 上重试");
+                observer.status("配对方式协商失败，请在对端重试");
             }
 
             @Override
@@ -297,7 +296,7 @@ final class AwareController implements BridgeController {
                     android.util.Log.w("AwareBridge", "Ignoring setup success without an accepted current request");
                     return;
                 }
-                observer.status("新配对成功，正在关闭新配对；请在 iOS 上点击连接");
+                observer.status("新配对成功，正在关闭新配对；请在对端点击连接");
                 setPairingEnabled(false);
             }
 
@@ -362,9 +361,9 @@ final class AwareController implements BridgeController {
                         if (!closed && generation == networkGeneration) recoverNetwork(message);
                     });
                 }
-            }, context.getCacheDir().getAbsolutePath());
+            }, context.getCacheDir().getAbsolutePath(), true);
             WifiAwareNetworkSpecifier specifier = new WifiAwareNetworkSpecifier.Builder(publisher)
-                    .setPskPassphrase(DEMO_PASSPHRASE)
+                    .setPskPassphrase(DeviceInfo.DEMO_PASSPHRASE)
                     .setPort(transport.port())
                     .setTransportProtocol(17)
                     .build();
@@ -413,8 +412,8 @@ final class AwareController implements BridgeController {
         if (closed) return;
         android.util.Log.w("AwareBridge", reason + "; restarting Aware and Publish, retaining pairing state");
         releaseNetwork();
-        observer.stats(0, 0, -1, "—", "等待 iOS 重新连接");
-        observer.status("数据链路已释放，正在自动恢复发布；请在 iOS 重新连接");
+        observer.stats(0, 0, -1, "—", "等待对端重新连接");
+        observer.status("数据链路已释放，正在自动恢复发布；请在对端重新连接");
         // This ROM can leave the old NDP in STATE_TERMINATING indefinitely.
         // Closing attach clears stale NDP state that survives discovery-session close.
         publishGeneration++;

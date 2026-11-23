@@ -16,7 +16,7 @@ struct BridgeView: View {
         NavigationStack {
             Form {
                 Section {
-                    Label("Wi-Fi Aware · iOS ↔ Android", systemImage: "wifi")
+                    Label("Wi-Fi Aware · 附近设备互联", systemImage: "wifi")
                     Text(model.status).font(.headline)
                 }
                 Section("配对与连接") {
@@ -30,24 +30,24 @@ struct BridgeView: View {
                             if model.active { model.stop() } else { model.publish() }
                         }
                         DevicePairingView(.wifiAware(.connecting(to: .bridge, from: .userSpecifiedDevices))) {
-                            Label("允许 Android 配对", systemImage: "plus.circle")
+                            Label("允许附近设备配对", systemImage: "plus.circle")
                         } fallback: {
                             Text("当前设备无法使用 Wi-Fi Aware 配对")
                         }
                         .disabled(model.active)
-                        Text("先打开允许配对；Android 开始订阅并选择本机，在 Android 输入 iOS 显示的代码。配对后关闭系统页面，再开始发布，Android 点击连接。")
+                        Text("先允许配对，让对端发现本机并输入本机显示的代码。完成后关闭配对页面，开始发布，再由对端连接。")
                             .foregroundStyle(.secondary)
                     } else {
                         DevicePicker(.wifiAware(.connecting(to: .userSpecifiedDevices, from: .bridge))) { endpoint in
                             model.didPair(endpoint)
                         } label: {
-                            Label("添加 Android 设备", systemImage: "plus.circle")
+                            Label("添加附近设备", systemImage: "plus.circle")
                         } fallback: {
                             Text("当前设备无法使用 Wi-Fi Aware 配对")
                         }
                         .disabled(model.active)
                         if model.devices.isEmpty {
-                            Text("先在 Android 开始发布，再添加设备并输入 Android 显示的配对代码。")
+                            Text("先在对端允许配对，再添加附近设备并输入对端显示的代码。")
                                 .foregroundStyle(.secondary)
                         } else {
                             Picker("设备", selection: $model.selectedDeviceID) {
@@ -96,9 +96,9 @@ struct BridgeView: View {
                     Text("支持 1～3600 秒，默认 10 秒。")
                         .font(.caption).foregroundStyle(.secondary)
                     Text(model.benchmarkStatus).font(.footnote)
-                    Button("iOS → Android") { model.startBenchmark(reverse: false) }
+                    Button("本机 → 对端") { model.startBenchmark(reverse: false) }
                         .disabled(!model.active || model.lastReceived == nil)
-                    Button("Android → iOS") { model.startBenchmark(reverse: true) }
+                    Button("对端 → 本机") { model.startBenchmark(reverse: true) }
                         .disabled(!model.active || model.lastReceived == nil)
                     Text("iperf3 · 按设置的时长测试 · TCP 不限速。")
                         .font(.footnote).foregroundStyle(.secondary)

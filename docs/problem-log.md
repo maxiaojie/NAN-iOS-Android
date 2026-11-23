@@ -628,3 +628,8 @@ a0807d7 / TB323FU / Android 17 与 iPhone 12 / iOS 27.2.1：NDP/心跳正常，A
 ### HA2E6NPB Android17部署（2026-11-23）
 
 原件双端备份后使能Aware、部署V4服务/NDK/CSIA修正库与高通197458.2、安装已有APK。重启、功能声明、Binder版本4、实际固件版本、进程库映射和App发布均通过；跨端配对/NDP/长稳待验收。[部署与恢复记录](ha2e6npb-android17-deployment-2026-11-23.md)。
+
+
+### 三种平台组合与角色解耦（2026-11-23）
+
+移除固定 Android server / iOS client 和只接收异平台报文的限制，协议 v2 分离 platform/role，两端按发布/订阅分配 iperf server/client；新增 Android client 与 iOS Aware server 转接、多流并发及 native 生命周期保护。双 Android 首次 PIN、连接/心跳及一方向 TCP 通过；iOS 双机使用已有配对，双向 TCP 通过；跨平台两个角色均通过 NDP、心跳和双向 TCP，复用配对换向成功。修复 iOS 发布端测速请求遗漏端口，发布端 UI 复测 131.06 Mbps。一次跨平台接收超时仍记录为未明偶发问题；双 Android 第二方向发生 a0807d7 CrashDump，按用户要求保留现场，未声称全部长稳通过。完整设备、参数、结果、失败与实现见[专项记录](multi-platform-2026-11-23.md)。

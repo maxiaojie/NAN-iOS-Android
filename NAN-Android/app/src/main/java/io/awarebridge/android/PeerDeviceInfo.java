@@ -49,7 +49,7 @@ final class PeerDeviceInfo {
             int equals = record.indexOf('=');
             if (equals <= 0) continue;
             String key = record.substring(0, equals);
-            if (!key.equals("pairingName") && !key.equals("modelName") && !key.equals("vendorName")) continue;
+            if (!key.equals("pairingName") && !key.equals("modelName") && !key.equals("vendorName") && !key.equals("ndpSecurity")) continue;
             String value = record.substring(equals + 1).trim();
             if (value.isEmpty()) continue;
             for (int i = 0; i < value.length(); i++) {
