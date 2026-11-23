@@ -580,6 +580,11 @@ Android 请求接受、60 字节 SSI 到达 iOS 且解析出 baldur-1/LENOVO/TB3
 用户明确授权生成二进制补丁并刷入。仅对已锁定 SHA-256 的 amss20.bin 修改六个指令字，保留先查询/检查容量，再实际填充并按返回长度累计；更新代码段哈希，未重签名。Beacon 已有填充，未重复修改。Hexagon 解码与六个合成分支用例通过；原件在 Mac、平板 data 与固件目录均有备份。先临时加载，再持久替换，固件分区恢复只读。实际 WLAN 重新下载、Service Ready、STA 连接和 Publish 启动通过，仍未抓新空口包，不标记 23 字节问题已修复。恢复脚本和具体哈希见 [部署/回滚说明](amss20-ext-wlan-patch-deployment.md)。收尾停止测试 App、恢复常亮/扫描原设置，未操作 Ubuntu。
 
 
+### P07：高通 ST197458 调试固件部署（2026-11-20）
+
+已按用户授权部署到303fdedc，原固件Mac/data/固件分区三处备份并校验。整机重启后系统实际报告WLAN.GNG.2.0-01536-QCAGNGSWPL_V2_TO_SILICONZ-1.197458.1，Wi-Fi连接通过，固件分区恢复只读。尚未抓包验收23字节异常，详见[部署及回滚](qcom-197458-firmware-deployment-303fdedc.md)。
+
+
 ### P07：实验补丁空口验证通过（a0807d7 当前 STA 场景，2026-11-20）
 
 保持连接 STA，先抓包再触发发布/订阅匹配，信道6的544/5131和149的18898共3个目标 Publish 均有 1e 14 00 + 20字节内容，合法属性后额外零尾0；NMI已与a080驱动日志对应、TXT均baldur-1，iPhone12选择页能发现。另一baldur-2的8个异常Publish单独排除，未做其固件检查。只验收本机当前三次发布样本，反向Subscribe、配对/NDP和长稳待测。Ubuntu16:15已恢复managed/Wi-Fi/HTTPS200，随后用户启动新Wireshark并明确要求保留monitor，按最新指令执行；iPhone用户手动锁屏，已确认锁定。详见 [帧号、原包目录和限制](amss20-ext-wlan-air-validation.md)。
@@ -602,6 +607,24 @@ a0807d7 / TB323FU / Android 17 与 iPhone 12 / iOS 27.2.1：NDP/心跳正常，A
 
 按用户要求重启后仅测TCP，目标每轮10秒，两向2/4/8/16线程。a080/303均无STA、5745MHz/80MHz/2SS；2线程接收595.18/671.43 Mbps，4线程515.77/666.85，8线程303→a080为604.01。第六项8线程a080→303时客户端接收超时，a080内核实际捕获Received firmware hang event及SYS ERROR / RAMDUMP DOWNLOAD MODE，随后USB消失。停止剩余16线程测试、保留现场，不自动重启。只能确认固件异常状态，具体函数/触发责任及实验补丁关系待dump；303已恢复普通Wi-Fi，a080离线无法完成临时选网限制清理。完整 [条件、五个有效样本及异常证据](android-tcp-streams-2026-11-20.md)。
 
+
+2026-11-20 第二版高通固件：303fdedc已更新至`.197458.2`，重启后WifiHealthMonitor确认实际运行版本；第一版与原厂备份均保留且哈希核对，固件分区ro，STA连接FTTR-5G。23字节空口异常仍待验收。[部署及回滚](qcom-197458-firmware-deployment-303fdedc.md)。
+
+2026-11-20家庭抓包尝试：新固件303fdedc在触发iPhone订阅前后掉线，用户确认无法开机、正在充电排除电量问题。无Android Publish有效样本，23字节修复未验收；Ubuntu已退出monitor并HTTPS验证联网。详见[部署记录追加](qcom-197458-firmware-deployment-303fdedc.md)。
+
+
+2026-11-21 P07高通第二版实测：a0807d7部署197458.2，整机重启/STA/Publish正常；STA5180MHz两轮Publish尾部均为完整0x1e/20字节属性，无23零尾；STA断开样本无0x1e且边界完整。每组仅1目标帧，未新PIN/NDP/长稳，不排除303fdedc故障关联。Ubuntu已恢复managed和外网，iPhone已锁屏。[完整证据](qcom197458-2-a0807d7-validation-2026-11-21.md)。
+
 ### Xcode直接构建：模拟器平台与本机签名配置（2026-11-23）
 
 用户先选模拟器，libiperf真机静态库链接报平台不匹配；改选真机后报缺Development Team。此前助手用iphoneos及命令行签名覆盖，未将个人参数保存到项目。另确认target固定App ID/签名方式掩盖Local.xcconfig同名覆盖；现将默认值移到基础xcconfig并先于本机配置引入，Debug/Release均去掉target固定值。本机写入已忽略的签名文件，用原有效Wi-Fi Aware profile；不带任何签名覆盖参数的真机构建与codesign检查通过，未安装/运行设备，模拟器仍不支持。详见 [操作方法和原因](ios-xcode-build.md)。
+
+
+### 配对缓存及单侧删除补充
+
+2026-11-20 用户验证补充：已确认“两端配对后，仅 Android 删除缓存，iPhone 保留旧记录，再发起反向配对”会触发上述 Bootstrap 超时。该触发条件已确认（用户验证）；iOS 内部阻止新配对响应的具体逻辑仍待定位，详见专项文档补充。 详见[单侧删除分析](bootstrap-timeout-2026-11-20.md)及[Android17缓存匹配源码](aosp17-multiple-paired-device-selection.md)。
+
+
+### HA2E6NPB Android17部署（2026-11-23）
+
+原件双端备份后使能Aware、部署V4服务/NDK/CSIA修正库与高通197458.2、安装已有APK。重启、功能声明、Binder版本4、实际固件版本、进程库映射和App发布均通过；跨端配对/NDP/长稳待验收。[部署与恢复记录](ha2e6npb-android17-deployment-2026-11-23.md)。

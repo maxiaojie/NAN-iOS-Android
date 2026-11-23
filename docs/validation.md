@@ -273,6 +273,11 @@ a0807d7 改名、iOS 删配对后新 PIN Setup 成功，但 Pair Verification �
 a0807d7 原件备份并校验，六指令字补丁及段哈希更新通过限定修改范围/错版本拒绝检查；QEMU 解码和容量足够、不足、恰好边界、无属性、填充前状态变化、used=0 六个合成短片段用例通过。临时加载、持久文件替换、恢复只读后重新下载固件，Service Ready、STA 连接通过；App 发布产生有效 Publish 会话通过。未验证新空口 23 零尾是否消失、跨整机重启、重新配对/NDP/吞吐或长稳，不宣称 P07 已修复。原件与一键恢复脚本已保留，详见 [部署验收与回滚](amss20-ext-wlan-patch-deployment.md)。
 
 
+### 303fdedc 高通 ST197458（2026-11-20）
+
+原件备份校验、新固件持久替换、跨整机重启、运行版本与Wi-Fi连接通过；HAL/驱动未替换，固件分区ro。23零尾及iOS发现/配对/NDP待验证。[部署说明](qcom-197458-firmware-deployment-303fdedc.md)。
+
+
 ### P07 补丁后 Publish 空口通过（2026-11-20）
 
 a0807d7 保持 STA，04-ch6-restart.pcap 第544/5131帧、05-ch149-restart.pcap 第18898帧均为目标baldur-1 Publish，实际0x1e payload=20、额外零尾0，tshark与独立边界扫描一致；iOS12设备选择页发现通过。样本为三次发布会话，不扩大到反向Subscribe/NDP/长稳。用户手动锁屏已确认；Ubuntu恢复联网后用户另行启用monitor，明确要求保留。完整 [空口验收记录](amss20-ext-wlan-air-validation.md)。
@@ -295,6 +300,19 @@ iPhone12+iOS发布、a0807d7+Android17订阅，无Android STA，TCP双向各3轮
 
 a0807d7/303fdedc原生加密NDP，4种线程数两方向共8项，仅5项完成：2线程595.18/671.43 Mbps、4线程515.77/666.85、8线程303→a080为604.01。8线程反向触发WLAN firmware hang、SYS ERROR/RAMDUMP，客户端接收超时，无有效汇总；16线程未执行，不通过整组验收。保留双端采集日志，未自动重启/改固件；根因和补丁关联待分析。[专项记录](android-tcp-streams-2026-11-20.md)。
 
+
+2026-11-20 第二版高通固件：303fdedc已更新至`.197458.2`，重启后WifiHealthMonitor确认实际运行版本；第一版与原厂备份均保留且哈希核对，固件分区ro，STA连接FTTR-5G。23字节空口异常仍待验收。[部署及回滚](qcom-197458-firmware-deployment-303fdedc.md)。
+
+2026-11-20家庭抓包尝试：新固件303fdedc在触发iPhone订阅前后掉线，用户确认无法开机、正在充电排除电量问题。无Android Publish有效样本，23字节修复未验收；Ubuntu已退出monitor并HTTPS验证联网。详见[部署记录追加](qcom-197458-firmware-deployment-303fdedc.md)。
+
+
+2026-11-21 P07高通第二版实测：a0807d7部署197458.2，整机重启/STA/Publish正常；STA5180MHz两轮Publish尾部均为完整0x1e/20字节属性，无23零尾；STA断开样本无0x1e且边界完整。每组仅1目标帧，未新PIN/NDP/长稳，不排除303fdedc故障关联。Ubuntu已恢复managed和外网，iPhone已锁屏。[完整证据](qcom197458-2-a0807d7-validation-2026-11-21.md)。
+
 ### Xcode签名配置验收（2026-11-23）
 
 真机不签名构建通过；修正xcconfig优先级并配置本机Local.xcconfig后，不带DEVELOPMENT_TEAM/Bundle ID/profile等命令行覆盖的iphoneos签名构建BUILD SUCCEEDED，codesign确认签名与App ID有效。Local.xcconfig确认为Git忽略。没有操作真机、重新安装或无线验证；模拟器静态库平台不匹配仍属明确限制。[构建说明](ios-xcode-build.md)。
+
+
+### HA2E6NPB Android17部署（2026-11-23）
+
+原件双端备份后使能Aware、部署V4服务/NDK/CSIA修正库与高通197458.2、安装已有APK。重启、功能声明、Binder版本4、实际固件版本、进程库映射和App发布均通过；跨端配对/NDP/长稳待验收。[部署与恢复记录](ha2e6npb-android17-deployment-2026-11-23.md)。
