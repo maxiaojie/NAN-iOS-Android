@@ -601,3 +601,7 @@ a0807d7 / TB323FU / Android 17 与 iPhone 12 / iOS 27.2.1：NDP/心跳正常，A
 ### 双 Android TCP 2/4/8/16 线程：8线程反向再次firmware hang（2026-11-20）
 
 按用户要求重启后仅测TCP，目标每轮10秒，两向2/4/8/16线程。a080/303均无STA、5745MHz/80MHz/2SS；2线程接收595.18/671.43 Mbps，4线程515.77/666.85，8线程303→a080为604.01。第六项8线程a080→303时客户端接收超时，a080内核实际捕获Received firmware hang event及SYS ERROR / RAMDUMP DOWNLOAD MODE，随后USB消失。停止剩余16线程测试、保留现场，不自动重启。只能确认固件异常状态，具体函数/触发责任及实验补丁关系待dump；303已恢复普通Wi-Fi，a080离线无法完成临时选网限制清理。完整 [条件、五个有效样本及异常证据](android-tcp-streams-2026-11-20.md)。
+
+### Xcode直接构建：模拟器平台与本机签名配置（2026-11-23）
+
+用户先选模拟器，libiperf真机静态库链接报平台不匹配；改选真机后报缺Development Team。此前助手用iphoneos及命令行签名覆盖，未将个人参数保存到项目。另确认target固定App ID/签名方式掩盖Local.xcconfig同名覆盖；现将默认值移到基础xcconfig并先于本机配置引入，Debug/Release均去掉target固定值。本机写入已忽略的签名文件，用原有效Wi-Fi Aware profile；不带任何签名覆盖参数的真机构建与codesign检查通过，未安装/运行设备，模拟器仍不支持。详见 [操作方法和原因](ios-xcode-build.md)。

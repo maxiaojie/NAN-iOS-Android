@@ -294,3 +294,7 @@ iPhone12+iOS发布、a0807d7+Android17订阅，无Android STA，TCP双向各3轮
 ### TCP并行流矩阵中断（2026-11-20）
 
 a0807d7/303fdedc原生加密NDP，4种线程数两方向共8项，仅5项完成：2线程595.18/671.43 Mbps、4线程515.77/666.85、8线程303→a080为604.01。8线程反向触发WLAN firmware hang、SYS ERROR/RAMDUMP，客户端接收超时，无有效汇总；16线程未执行，不通过整组验收。保留双端采集日志，未自动重启/改固件；根因和补丁关联待分析。[专项记录](android-tcp-streams-2026-11-20.md)。
+
+### Xcode签名配置验收（2026-11-23）
+
+真机不签名构建通过；修正xcconfig优先级并配置本机Local.xcconfig后，不带DEVELOPMENT_TEAM/Bundle ID/profile等命令行覆盖的iphoneos签名构建BUILD SUCCEEDED，codesign确认签名与App ID有效。Local.xcconfig确认为Git忽略。没有操作真机、重新安装或无线验证；模拟器静态库平台不匹配仍属明确限制。[构建说明](ios-xcode-build.md)。

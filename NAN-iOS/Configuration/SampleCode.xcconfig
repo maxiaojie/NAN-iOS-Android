@@ -1,3 +1,7 @@
+// Defaults precede local overrides; target build settings must not mask them.
+PRODUCT_BUNDLE_IDENTIFIER = io.awarebridge.ios
+CODE_SIGN_STYLE = Automatic
+
 // Optional local signing overrides; never commit your local signing settings.
 #include? "../Local.xcconfig"
 

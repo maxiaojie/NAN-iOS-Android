@@ -2,3 +2,8 @@
 DEVELOPMENT_TEAM = YOUR_TEAM_ID
 PRODUCT_BUNDLE_IDENTIFIER = your.organization.awarebridge
 CODE_SIGN_STYLE = Automatic
+
+// If using an existing Wi-Fi Aware development profile, replace Automatic
+// above with Manual and provide its profile name and matching certificate:
+// PROVISIONING_PROFILE_SPECIFIER = YOUR_PROFILE_NAME
+// CODE_SIGN_IDENTITY = Apple Development

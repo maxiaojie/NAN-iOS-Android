@@ -62,6 +62,8 @@ xcodebuild -project NAN-iOS/AwareBridge.xcodeproj -scheme AwareBridge \
 
 以上命令仅验证编译，安装真机需要有效签名。可在未跟踪的 `NAN-iOS/Local.xcconfig` 中配置本机签名，模板见 `NAN-iOS/Local.xcconfig.example`。
 
+Xcode 顶部运行目标请选择已连接的 iPhone 或 `Any iOS Device (arm64)`；选择模拟器会因 libiperf 的平台不匹配而链接失败。若提示需要 Development Team，在 Target → Signing & Capabilities 选择有 Wi-Fi Aware 权限的团队，或复制本机签名模板并填好配置。项目默认签名和 App ID 可由 Local.xcconfig 覆盖，个人配置不入库。详细步骤见 [Xcode 构建与签名](docs/ios-xcode-build.md)。
+
 ## 使用
 
 ### Android 发布 → iOS 连接
