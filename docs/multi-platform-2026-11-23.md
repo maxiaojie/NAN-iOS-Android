@@ -55,3 +55,9 @@ Android assembleDebug、lintDebug，设备 TXT 解析测试、Swift 协议测试
 截图与完整调试日志保留在 Mac 的 `/Users/mxj/nan-test-results/2026-11-23-multi-platform/`，没有把可能含配对材料的系统日志提交到 Git。文档只收录状态、汇总和必要的无密钥错误。当前 UDP 与 2/8/16 流矩阵、本轮 iOS↔iOS 全新删配对验证未执行。
 
 收尾：HA2E6NPB 已停止 App 并撤销充电常亮，STA 保持 Pixel_2564；a0807d7 按用户要求保留 CrashDump。两台 iPhone 已安装最终版。
+
+### 收尾锁屏诊断补充
+
+iPhone 14 Pro 的 USB 模拟锁屏后，devicectl passcodeRequired=true，SpringBoard lockstate=1。iPhone 12 同样命令返回成功，但 passcodeRequired=false；用户确认手动锁屏后，再次只读查询仍为 false、SpringBoard lockstate=0，截图显示桌面。不能仅凭这些状态确定是模拟锁屏事件未生效，还是随后被再次解锁；未确定系统版本、按键时序或其他会话操作的因果关系。没有依据认定 iPhone 12 硬件不支持 USB 锁屏。
+
+当前工具 `pymobiledevice3 developer core-device hid button lock` 实现为 Consumer HID usage page 0x0c、usage 0x30 的 down → 等待 0.5 秒 → up。成功退出不是系统已完成锁屏的确认。`developer core-device get-lockstate` 在该机返回 Action is not implemented，不用该子命令作验收。后续仍需在受控条件下记录锁屏状态转换；本次不再次唤醒或切换已由用户收尾的手机。此记录只证明观测结果，不宣称根因已解决。
