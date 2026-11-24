@@ -321,3 +321,8 @@ a0807d7/303fdedc原生加密NDP，4种线程数两方向共8项，仅5项完成�
 ### 三种平台组合验证（2026-11-23）
 
 Android/Swift 协议和 TXT 测试、Android assemble/lint、iOS 真机签名构建通过。Android↔Android：a0807d7 发布、HA2E6NPB 订阅，本轮 PIN 配对及双向心跳通过，4 流 TCP 发布→订阅 197.63 Mbps；反方向遇 a0807d7 CrashDump，用户要求保留，未完成整组。iPhone 14 Pro 发布、iPhone 12 订阅：已有配对、双向心跳通过，TCP 153.49/126.81 Mbps。HA2E6NPB 发布、iPhone 12 订阅：新 PIN 配对、NDP/心跳通过，TCP 119.16/34.52 Mbps。换向复用同一跨平台配对，iPhone 12 发布：TCP 128.85/145.30 Mbps，另从发布端 UI 发起 131.06 Mbps。均 4 流/10 秒、干扰环境功能样本；一次 idle receive timeout 未定因，UDP 和 2/8/16 矩阵未测。本轮 iOS↔iOS 未删除系统配对重做 PIN。最终版安装 HA2E6NPB 和两台 iPhone；a0807d7 保留崩溃状态。[完整记录](multi-platform-2026-11-23.md)。
+
+
+### iPhone 12 USB 锁屏（2026-11-24）
+
+0.05 秒 Consumer/Power 短按真机通过，SpringBoard lockstate 0→1、截图黑屏；没有使用旧 0.5 秒长按。新增脚本在已锁屏时不再按键的分支通过，手机保持锁屏。passcodeRequired=false 与 lockstate=1 同时存在，后续不能用前者替代锁屏验收。详情见[锁屏修复](iphone-usb-lock.md)。

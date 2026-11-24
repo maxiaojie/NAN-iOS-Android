@@ -10,3 +10,5 @@
 - 不提交配对密钥、私钥、签名资料或包含敏感字段的完整日志。
 - Ubuntu 抓包测试结束后，必须退出 monitor 模式、恢复普通 Wi-Fi 和上网能力，并检查接口、路由及外网；不要将抓包模式作为默认收尾状态。若恢复操作被 sudo 密码阻止，明确告知用户并在其执行后继续验证。
 - Ubuntu 已于 2026-11-18 一次授权固定命令 `/usr/local/sbin/nan-monitor-control`。使用 `sudo -n` 加 prepare、capture（信道 6/149，10～120 秒）、stop、restore、status；以后不要重复要求用户 sudo 恢复。restore 若因 NetworkManager 接口暂未就绪失败，继续自行重试并验证 HTTPS。安装源文件为 tools/setup-nan-monitor-control.sh，安装后的命令和 sudoers 由 root 持有。
+
+- iPhone USB 收尾锁屏使用 `tools/lock-iphone.py <明确UDID>`（本机 Python：`/Users/mxj/nan-ios-tools/bin/python`）。先查 SpringBoard lockstate，已锁定不要再按侧键；只用 0.05 秒短按，不能使用旧版 0.5 秒长按（会触发 Siri）。以实际 lockstate 转换确认，不能仅凭 devicectl passcodeRequired 或命令返回成功。详见 `docs/iphone-usb-lock.md`。
