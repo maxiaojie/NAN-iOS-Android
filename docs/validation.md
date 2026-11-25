@@ -343,3 +343,6 @@ iPhone12/HA2E6NPB只验证发布与订阅，未NDP/测速/删配对。ch6帧4645
 这是独立产品接入验证，不替代本仓库 AwareBridge 原有测试。a0807d7 / TB323FU_PRC 与 iPhone12：系统 PIN 配对成功；Android 发布 / iOS 连接通过 WSS并保持约七分钟；最新 iOS 发布 / Android 订阅通过 NDP、TLS、反向验证及 connType10 WSS，持续至少3分41秒。二维码临时配对服务 result1 已观察。双端完整构建通过并安装，iOS 为包含 Wi-Fi Aware entitlement 的独立主 App 测试签名，未验收产品扩展、APNs、共享容器。
 
 仍未通过或未验收：已有配对时自动重连与手动邀请并发的 UI 抢占，后台/故障恢复矩阵，文件传输/NFS 等其他 socket 业务。不得将主 WSS 成功推广为完整 SmartConnect 产品功能通过。详见 [iOS补丁](SmartConnectIoS-nan-patch.md)、[Android补丁](SmartConnectAndroid-nan-patch.md)。
+
+
+本轮收尾：iPhone12 的 SpringBoard lockstate 已实际由0变1；Android 蓝牙恢复开启，临时日志标签清除，adbd 恢复非 root。只停止本轮日志采集进程；未使用或改动 Ubuntu 抓包机网络。
