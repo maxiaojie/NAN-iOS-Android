@@ -145,3 +145,51 @@ Framework 不把 pairing alias 转换成设备名，也不会自动为普通 Pub
 ## 收尾
 
 Ubuntu 初次 restore 遇到 NetworkManager 接口尚未就绪，第二次自行重试成功；wlp3s0 为 managed，lenovo-internet 已连接，有默认路由，HTTPS 清华镜像返回 HTTP 200。HA2E6NPB 停止 App、撤销充电常亮，iPhone 12 通过短按脚本确认 lockstate 从 0→1。没有操作 a0807d7 或重新配对。
+
+
+## 补充：6 字节是否为 MAC，iPhone 系统日志核对
+
+用户提出 `dd 03 00 00 17 f2` 可能是 MAC，也可能是 `dd | 03 00 | 00 17 f2` 的 TLV。通过 USB os_trace 的归档收集接口取得本轮 09:50 起的 iPhone 12 系统日志，使用 macOS `log show` 提取 09:50～09:55 的 wifip2pd/wifid/AwareBridge。手机保持锁屏，本次未运行 UI、修改配置或抓包。
+
+原始归档与系统日志仅保存在 Mac `/Users/mxj/nan-test-results/2026-11-25-sdea/`，不提交 Git。
+
+### 日志已确认的事实
+
+09:52:11.209，wifip2pd / com.apple.nan:interface：
+
+```text
+WiFiAwareStateHandler handling MAC address change to 56:f8:44:71:55:d2 for interface nan0
+```
+
+09:52:11.210：
+
+```text
+Successfully updated nan0 MAC address to 56:f8:44:71:55:d2
+```
+
+09:52:11.338 的驱动 Publish 配置同样是 `responderAddress: 56:f8:44:71:55:d2`，与空口帧发送地址一致。因此 `dd:03:00:00:17:f2` 不是本轮 iPhone 的 nan0 / Publish responder 地址。作为普通单播设备地址也不合理：首字节 0xdd 的 I/G 位为 1。
+
+同一次发布的配置明确记录：
+
+```text
+WiFiAwarePublishServiceSpecificInfo:
+  blob=(null), txtRecordData=(null), instanceName=(null)
+WiFiAwarePublishDatapathServiceSpecificInfo:
+  protocolType=UDP, servicePort=45454, hostname=(null)
+```
+
+这为普通发布没有设备名 TXT 提供了 iOS 侧证据。需要区分上述 discovery service info 与 datapath service info，不能因为后者有 UDP 端口就认定前者应携带名称。
+
+### TLV 解释的证据与边界
+
+| 字节 | 候选解释 |
+| --- | --- |
+| `dd` | Type 0xDD |
+| `03 00` | little-endian Length=3 |
+| `00 17 f2` | 3 字节 Value；Wireshark 本机 OUI 数据库将 00:17:F2 登记为 Apple, Inc. |
+
+这满足 1 字节 Type + 2 字节 LE Length + 3 字节 Value 的完整边界。AOSP WifiAwareManager.createTxtRecordTlvBuffer（1528 行）也使用 Type=1字节、Length=2字节LE，但只定义本次TXT的 type=4，不定义该0xDD的语义。Wireshark NAN attribute 枚举中 0xDD 为 Vendor Specific，进一步支持“厂商TLV/OUI”解释；然而该枚举用于 NAN attribute 层，不能单凭它就无条件把 SDEA 内层 SSI 的 0xDD 命名空间视为同一个定义。
+
+参考实现：[Wireshark NAN dissector](https://github.com/wireshark/wireshark/blob/master/epan/dissectors/packet-wifi-nan.c)。
+
+没有在本轮 iPhone 系统日志中找到 `dd03000017f2` 被识别为地址的记录，也没有找到直接解析这段 SSI、明确给出 0xDD 类型名称的日志。因而当前结论是：**日志已确认实际地址；6字节强烈符合携带Apple OUI的TLV，而非本轮设备单播地址；具体内层类型语义仍是有依据的解释，不能冒充日志直接确认。** 它也不是完整六字节设备MAC的后半段，更不能用Apple OUI作为唯一设备身份。此前空口与Android上报字节不一致的问题仍独立存在。

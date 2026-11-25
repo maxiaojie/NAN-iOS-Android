@@ -648,3 +648,8 @@ iPhone 14 Pro 同一模拟电源键命令后锁定状态为真；iPhone 12 命�
 ### iOS 普通 Publish 名称缺失：SDEA 空口与发现路径核对（2026-11-25）
 
 iPhone 12 发布、HA2E6NPB 订阅，6/149 信道各抓到40/38个目标 Publish。SDA无Service Info，SDEA存在，Service Info 10字节（4字节WFA头+6字节Specific Info），没有设备名称TXT。Framework isExtendedServiceSpecificInfo=true，App收到6字节、fields=[]；但空口 dd03000017f2 与Java日志 b8a7b3010000 不同，保留为下层待查，不声称传递逐字节一致。AOSP NanMatchInd 的 sdea_service_specific_info[_len] → AIDL extendedServiceSpecificInfo → eventMatch；此字段V1/V3/V4均已有，与Bootstrap新增字段无关。SDA非空优先、空才回退SDEA，但本轮未命中优先级覆盖。Ubuntu已恢复managed和HTTP200，iPhone12已锁屏。[抓包、结构体与源码调用链](ios-publish-sdea-match-2026-11-25.md)。
+
+
+### SDEA 6字节的 MAC/TLV 解释核对（2026-11-25）
+
+USB归档读取本轮iPhone12历史日志，确认nan0与Publish responder均为56:f8:44:71:55:d2；普通发布配置blob/txtRecordData/instanceName均null。因此dd03000017f2不是本轮NAN接口地址。dd|0300|0017f2完整符合Type1字节+Length2字节LE+Apple OUI三字节的TLV，0xdd作为NAN Vendor Specific也有参考实现支持，但日志未直接解释此SSI的0xdd语义，明确保留该边界，不认定为六字节设备MAC。手机未唤醒、仍锁屏。[日志摘录与解释边界](ios-publish-sdea-match-2026-11-25.md)。
