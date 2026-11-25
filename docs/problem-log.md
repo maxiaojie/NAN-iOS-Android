@@ -678,3 +678,12 @@ SmartConnect 产品源码保留本地，按用户授权将 iOS 与 Android Patch
 边界：首次配对许可/PIN仍需要用户；iOS客户端DevicePicker自动选取、ROM旧同身份多凭据、完整并发/取消/故障矩阵和文件/NFS等业务socket未据此全部解决。代码、调用路径和失败证据见[Android补丁](SmartConnectAndroid-nan-patch.md)、[iOS补丁](SmartConnectIoS-nan-patch.md)。本轮未操作Ubuntu网络。
 
 第二轮持续观察至15:58:54，NAN TCP仍ESTAB（WSS认证后至少3分6秒）；iOS反向验证result=true、connType10/result1。收尾iPhone12实际lockstate0→1；Android日志标签清除、蓝牙开启、adbd恢复shell。只停止本轮采集进程，未操作Ubuntu网络。
+
+
+### SC-20261125-03：已配对双端重连复测不能认定稳定
+
+a0807d7与iPhone12，在已有设备页交替点击连接，最初五轮（iPhone三轮、Android两轮）NAN/WSS及双端UI通过；退出额外扫码并恢复原8e92ce4功能代码后，冷启动18:10复测仍失败。Android已自动匹配alias且两次配对验证成功，随后NDP分别出现PEER_DATA_END/INSTALL_RX_FAIL；后台重试18:11又成功。18:12 Android端认证成功，但iOS对应临时service19，仍有“无法连接”弹窗，不能算持续业务和双端UI一致通过。当前未修复，不将alias匹配成功等同端到端稳定。
+
+额外扫码只为强制反向NAN角色，超出了本次要求；其角色争抢与上述普通页面失败分开记录，未证实为用户原故障原因。实验性角色互斥改动已撤回，双端重新安装原功能代码；没有删除系统配对。环境、每轮结果、失败阶段、残留重试暂停标记恢复及解释边界见[完整复测记录](SmartConnect-nan-reconnect-validation-2026-11-25.md)。
+
+收尾核对：iPhone12实际SpringBoard lockstate从0变1；Android adbd恢复非root、临时日志标签已清除，停止的只有本轮两个采集进程。Ubuntu未改动。

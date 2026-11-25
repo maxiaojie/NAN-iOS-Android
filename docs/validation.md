@@ -353,3 +353,8 @@ iPhone12/HA2E6NPB只验证发布与订阅，未NDP/测速/删配对。ch6帧4645
 a0807d7 / iPhone12：15:53:19自动匹配已认证alias、等待系统配对验证、建立NDP并完成WSS认证，无设备选择框；Android进程强制停止后，15:55:48持久关联再次自动WSS成功。首次未知设备仍保留一次明确关联。Android六项单测/完整APK构建、iOS Go race tests/SCAPI与签名App构建通过，双端新版已安装。iOS后台邀请不再替换二维码publisher。仅上述正常路径通过；iOS客户端系统DevicePicker、完整并发/取消/故障恢复及文件/NFS socket业务未全部验收。见[自动连接问题记录](problem-log.md#sc-20261125-02readyfor-已关联-nan-设备自动连接)。
 
 第二轮持续观察至15:58:54，NAN TCP仍ESTAB（WSS认证后至少3分6秒）；iOS反向验证result=true、connType10/result1。收尾iPhone12实际lockstate0→1；Android日志标签清除、蓝牙开启、adbd恢复shell。只停止本轮采集进程，未操作Ubuntu网络。
+
+
+### SmartConnect常规重连复测（2026-11-25晚）
+
+前五轮交替从iPhone/Android已有设备页发起均通过，随后冷启动又出现已验证配对后的NDP失败（PEER_DATA_END/INSTALL_RX_FAIL）；另一轮临时配对WSS成功但iOS仍提示失败。不能认定已配对设备自动连接稳定，不能将临时service19推广为持续service8通过。额外扫码和角色互斥实验不计入普通页面验收，实验改动已撤回。见[逐轮证据与边界](SmartConnect-nan-reconnect-validation-2026-11-25.md)。
