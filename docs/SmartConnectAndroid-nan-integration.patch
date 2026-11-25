@@ -1,0 +1,1335 @@
+diff --git a/docs/NAN-integration.md b/docs/NAN-integration.md
+new file mode 100644
+index 0000000000..08b066a27e
+--- /dev/null
++++ b/docs/NAN-integration.md
+@@ -0,0 +1,124 @@
++# Android SmartConnect NAN 接入进展
++
++2026-11-25，仓库 `/Users/mxj/workspace/master_android/readyfor`，基线 `1f030fcc64`。本轮 Android 改动保留本地；iOS Patch 已发布在 NAN-iOS-Android GitHub 的 dce3f58。
++
++## 已修改的路径
++
++- `main/app/src/main/java/com/motorola/smartconnect/connectivity/nan/`：Android 17 Wi-Fi Aware 发布/订阅、主线程会话生命周期、设备选择、系统 PIN 配对、Bootstrap 设备 TXT、NDP Network 回调；独立 Activity 获取附近设备/定位权限并显示配对界面。未知对端不会自动按第一个服务配对；显示解析到的名称和临时 peer 编号。
++- `NanPolicy`：与 iOS 相同的 `["1", "_smartconnect._tcp", "invitation", "port"]`，严格检查版本、服务、实例和端口。
++- `R4WsClient`：收到 nan 后走该路径，NDP 提供 Network、peer IPv6 与本机链路地址后，才发起 WSS。该次连接不并行请求 WFD、STA/cloud；取消或断开时释放 Aware。
++- `NetworkTlsSocketFactory` / `R4WebSocket`：保留现有指纹校验 SSL factory，将其 socket 绑定到 Aware Network 后连接，不绑定整个进程；处理 IPv6 URI 和作用域接口。反向 VerifyServer 的 IpData 携带 nan/port，供 iOS 在已有 Aware peer 上反向连接。
++- `MotoConnectivityManager`、`PolicyData`、`R4ConnectivityManager`：服务端实际 Publish 成功后才在邀请中添加 nan，并抑制该次 WFD policy 创建。普通设备不支持时继续原路径。
++- `MotoWebSocketManager`：Aware 邀请等待期延长，WSS 服务关闭时回收对应 publisher。
++- compileSdk 提升到 37；保留原 target/min SDK；仅 Android 17+ 启用新 NAN 路径。Manifest 添加非必需 Aware feature、非导出的配对 Activity、CHANGE_NETWORK_STATE，移除精确定位权限原先的 maxSdkVersion=32，避免新 Activity 在 Android 17 无法申请该权限。
++
++## 验证证据与阻挡
++
++1. 新增 NAN 传输、Activity、socket factory、metadata parser 等 Java 类，已使用实际 Android 37 SDK jar 执行 javac，通过。
++2. NanPolicy JUnit：iOS Policy 正常样例和非法版本/服务/实例/端口，共两项测试通过。
++3. Manifest XML 检查与 git diff --check 通过。
++4. 初次 Gradle 使用系统 JDK25 出现 Unsupported class file major version 69。改为本机 Temurin21 后进入正常依赖解析。
++5. 完整 Gradle `:app:compileProductDebugJavaWithJavac` 被公司 Artifactory HTTP401 阻挡。离线也缺少四项锁定依赖：tokens 2.03.01.0、smartconnectfileex 03.00.04、libsuperlink 01.1.100.0002、motoprcappwidget 4.1.03。没有更改锁文件或用其他版本代替。
++6. 尝试借助已有 productDebug classes 和缓存 jars 对全部修改类检查，但缓存对应旧构建，缺少 api.*、OEM hidden API，并与当前 P2PChannel/MdnsManager 签名不一致，因此不能据此判断完整集成编译通过。
++
++**已生成新 APK；a0807d7 的安装被预装 App 签名不一致阻止，尚未完成双端真机验证，不能声称配对、NDP、WSS、心跳已成功。**
++
++日志：`/tmp/sc-android-nan-gradle.log`、`/tmp/sc-android-nan-gradle-online.log`、`/tmp/sc-android-incremental.log`。未将账号密码、Token 或完整日志纳入仓库。
++
++## 下一步与限制
++
++需要先恢复本机公司 Artifactory 认证，再运行：
++
++```sh
++cd /Users/mxj/workspace/master_android/readyfor/main
++JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home ./gradlew :app:compileProductDebugJavaWithJavac
++```
++
++之后检查完整 APK 构建，分别验证 iOS 发布→Android 订阅、Android 发布→iOS 订阅、PIN 输入/取消、重配、WSS 反向验证和心跳。
++
++当前 NDP spec 使用配对 discovery session，已知端口由 nan Policy 传递，尚未验证是否足以满足 iOS 发现/安全协商。历史 AwareBridge 发布端使用显式 PSK 与端口 TLV 的配置，因此必须真机对照，不将新配置视为已经验证的等价替代。Bootstrap TXT 依然要求 ROM Vendor AIDL 能将 Android 17 的消息传至 HAL/Firmware，否则仍会遇到 iOS 收不到配对元数据的问题。
++
++同一服务当前只允许一个 publisher。不同邀请同时占用时不会宣称第二个 NAN endpoint 可用。别名暂按每次配对生成，不能解决 ROM 按 NIK 取旧缓存的既有问题；同设备重新配对和旧 alias 处理仍需单独验收。后台无法弹系统配对 UI 时，上报失败，不无提示继续建链。
++
++已有普通 Wi-Fi/P2P 连接与 Aware 的硬件并发、业务独立 TCP/UDP socket、全套网络类型显示/测速等尚未逐项适配验收。本轮只接入配对、NDP 与控制 WSS，保持现有 WSS 心跳机制。
++
++
++## 后续：浏览器补依赖、完整构建通过及安装阻挡
++
++用户授权从浏览器获取依赖。Chrome 已有公司 Artifactory 登录态，已下载四项原版本的 AAR/POM，以及 tokens 的 Gradle module；libsuperlink、motoprcappwidget 的 AAR SHA512 与服务器校验文件一致，tokens 的 AAR 与 module 中 SHA512 一致，全部 AAR 解包校验通过。没有导出 Cookie、密码或 Token。
++
++本地 Maven 路径：`/Users/mxj/nan-ios-tools/smartconnect-maven`。Gradle init 脚本 `/Users/mxj/nan-ios-tools/smartconnect-local-maven.gradle` 通过 exclusiveContent 仅为这四个 module 指定该本地来源；项目仓库地址、锁定版本均未修改。下载原件保留在 Downloads。无需重新要求用户修复公司认证。
++
++旧 AGP 8.6 无法识别已安装 SDK 的 `AndroidVersion.ApiLevel=37.0`。新增兼容目录 `/Users/mxj/Library/Android/sdk/platforms/android-37`，除 source.properties 规范为整数 API 37，其余内容链接到原 android-37.0；未更换或修改 android.jar。
++
++进入完整 Java 编译后发现工程将旧 OEM `app/dynamic_libs/fwk.jar` 置于优先位置，覆盖 SDK 37 对两项 API 的声明：DiscoverySession 的三个参数 initiateBootstrappingRequest，以及 WifiAwareManager.createTxtRecordTlvBuffer。NanTransport 仅对这两项公开 API 作运行时反射调用，SDK<37 不进入新路径；缺失接口明确报错，绝不回退至会丢弃 TXT 的两个参数版本。
++
++已通过真实 Gradle `compileProductDebugJavaWithJavac`、`assembleProductDebug`；`testProductDebugUnitTest --tests com.motorola.smartconnect.connectivity.nan.NanPolicyTest` 也通过。NAN socket 的主目标使用 Policy 中原生 TCP 端口，而非默认使用外层 wsPort（iOS 本地 Go WSS 端口与原生 Aware relay 端口不同）。发布端 NDP ready 不强制要求仅发起端才保证提供的 peer TransportInfo。
++
++实际构建命令：
++
++```sh
++cd /Users/mxj/workspace/master_android/readyfor/main
++JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home ./gradlew \
++  -I /Users/mxj/nan-ios-tools/smartconnect-local-maven.gradle \
++  :app:assembleProductDebug --offline
++```
++
++APK：`main/app/build/outputs/apk/product/debug/app-debug.apk`。a0807d7 已预装 `/system/preinstall/MotoReadyFor/MotoReadyFor.apk`。执行 `adb -s a0807d7 install -r` 返回 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`：现有 com.motorola.mobiledesktop 与新 Debug APK 签名不一致。没有卸载原 App、清除应用数据、修改系统分区或绕过签名检查。后续需要签名服务提供设备认可签名的新版 APK，或用户明确指定可使用的独立测试包方案。
++
++当时尚未安装 iOS 产品 App。后续纠正：本机确有 K9K8AUSWF6 开发身份，先前把证书 Common Name 括号标识误当 Team ID。实际是产品 profile 缺少 Wi-Fi Aware entitlement；独立验证签名及安装已完成，见文末。
++
++最终 APK 日志 `/tmp/sc-android-nan-apk.log`；Gradle 测试日志 `/tmp/sc-android-nan-tests.log`。Android 产品改动仍保留本地，没有推送公司 Gerrit。
++
++
++## 安装阻挡已解除（2026-11-25）
++
++用户明确授权卸载原 App 后，执行 `adb -s a0807d7 uninstall com.motorola.mobiledesktop` 返回 Success，随后安装本轮 `app-debug.apk` 返回 Success。安装路径已变为 /data/app 下的新 APK；版本 10.0.0.003.0，versionCode 10000030，targetSdk 36。
++
++`am start -W -n com.motorola.mobiledesktop/.desktop.MainActivity` 返回 Status: ok，并进入首次启动 WelcomeFeatureActivity。启动检查的 crash buffer 无异常。此次卸载/重装完成，不再以 Android 签名不匹配为阻挡；尚未据此宣称 NAN 配对或链路验证通过。iOS 后续已通过独立主 App 验证签名安装，原产品 profile 仍须补齐 Wi-Fi Aware entitlement 才能正式发布。
++
++
++## 2026-11-25：双端真机联调进展
++
++使用 a0807d7 与 iPhone 12。iOS 已安装真实 SmartConnect 产品源码构建的独立验证包（com.slab.wifiawaredemo）；只在生成工程中隔离未签名扩展的共享容器 / File Provider 初始化，保留产品项目签名与原始相关源码。详细签名经过、生成脚本及限制在 SmartConnectIoS/docs/NAN-integration.md 中记录。
++
++1. 修复二维码漏 nan：CommonValues.getWsDataJson 单独构造 policies，不经过原先修改的 PolicyData。现已在该路径发布 NAN、写入四字符串 nan policy、延长邀请；nan 成功时不发布 wfd。屏幕二维码解码已确认 nan + wifi、无 wfd。
++2. 修复发布页面挡二维码：发布成功退回邀请页；收到 Bootstrap 后再打开 PIN 页面，不会停止 Publish。
++3. iOS DevicePicker 真机发现 baldur-1，输入 Android 现场生成的六位代码，Android 系统配对成功；已有配对可重新选择。测试通过 iOS Debug automation-pair 把真实二维码交给原有解析路径，未跳过系统 PIN。
++4. responder NDP 增加 .setPskPassphrase(invitationPassphrase())、.setPort(port)、.setTransportProtocol(6)。passphrase 是当前邀请实例 SHA-256 的 Base64 结果（44 字符），不采用固定示例密码。补齐端口前没有可用业务 TCP 声明；当前 Android 系统日志确认 onDataPathConfirm accept=true、reason=0，ss 显示 Aware IPv6 间 ESTAB TCP。
++5. responder ready 的回调不再无条件解引用可能为空的 WifiAwareNetworkInfo；publisher 本身不依赖 initiator 专用 peer transport 信息。
++6. iOS 侧已修正类型化服务浏览、opaque IPv6 端点读取及 TCP 就绪等待。WSS / 反向验证仍在联调；不能把系统配对、NDP、TCP 成功当作产品业务配对通过。
++
++修改后多次 assembleProductDebug 成功，已安装到 a0807d7。当前产品源码留在本地，未提交公司 Gerrit。
++
++
++### 2026-11-25 后续：WSS 成功与异步生命周期修复
++
++Android 发布、iOS 订阅方向：13:08:13 原生代理两方向均转发 TLS 数据，13:08:14 WSS result=1；iOS 首页显示 baldur-1 已连接。Android 记录 networkType10，并在 Aware 链路本地 IPv6 间保持 ESTAB TCP 至至少 13:15（约七分钟）。原有 WSS monitor 继续执行，不另加明文心跳。
++
++最终 TCP 启动方式是挂起首个 receive 再等 .ready。该首批数据由 Task 保存，代理开始转发时消费同一个读取结果；每方向始终只有一个读取，不丢字节、不重复读取，也没有在 TLS 前插入额外数据。关闭路由同时取消 listener、转发和预读取 Task。
++
++iOS 发布曾持续二十秒超时：websocketServer.setup 在全局 websocketMutex 内同步等待 native Publish，主线程的回调又需要访问受此锁保护的状态。改为 setup 注册服务后立即返回，由锁外 goroutine 执行 NAN Publish，回到锁内检查未关闭并写入 policy，然后再发送邀请。改后原生 publisher 进入 ready 并获得实际端口，iOS 屏幕二维码解码确认 wifi + nan。
++
++新的二维码邀请会替换未被接受的旧发布，避免旧 BLE 邀请占用唯一服务发布槽而让二维码缺 nan；有已接收连接时不会替换该 publisher。旧邀请不能据此继续视为有效。多设备、多邀请并发仍需单独验收。
++
++Android 订阅曾一打开界面就结束，失败 UI 显示“跨网络需同一账号”。这只是 ConnErrorCodeHelper 的通用文案，实际不是已证实的账号限制；没有因此放宽账号校验。原因是 createWebSocket 在 requestR4Network 异步返回后立即检查 mWsMap，发现为空就报错并 release，导致 NanPairingActivity 创建时会话已经不在表中。现为 NAN 放入 pending 表项，就绪后由真实 socket 替换，超时才移除并报告失败。
++
++13:59:47 已出现 iOS Accepted NAN transport，13:59:48 verifyRemoteServers result=true / connType10，WSS server result=1（serviceId8、BLE 触发）。随后另一个二维码邀请和原有蓝牙自动重连交叠，因此这轮不能冒充“二维码单路径”稳定性验证。下一轮临时关闭 Android 蓝牙，保持普通 Wi-Fi 和 NAN，单独核对二维码路径；测试后恢复蓝牙。已观察到原有文件传输仍直接拼接 IPv6 的太多冒号错误，以及 NFS 使用原始 socket / 扩展容器等未适配问题，这些业务功能不属于 WSS 通路成功的验收结果。
++
++
++### 最终验收补充（2026-11-25）
++
++- iOS 二维码单路径：14:11:45 系统已有配对被复用，Android 日志 Selected peer; paired=true、WSS onOpen、onVerifyServerReady；iOS WSS server 返回 serviceId19、channel4、connType10、result1。随后配对业务关闭这条临时连接，并尝试后续服务，不能把临时配对 WSS 的关闭直接称为 NDP 失败。此前暂停的 Android 蓝牙已恢复。
++- 持续业务连接：14:25:29 最新 iOS 验证包再次 Accepted NAN transport，14:25:30 verifyRemoteServers=true，serviceId8、channel1、connType10、result1；Android ss 显示 aware_data0 的 link-local IPv6 TCP ESTAB。由自动化读取实际 UI 的唯一候选按钮并选择，不依赖用户人工及时点击。
++- iOS NAN listener 显式 active 3600 秒；已接收连接放在独立子 Session / Task 中，不把数据连接生命周期绑定到发现 listener 的 run 回调。之前等待 listener 接收回调内转发的尝试不作为最终实现。广播停止仍不能代替 Go WSS 关闭时的 route 回收。
++- Android 设备列表只在名称或候选集合改变时更新，避免每个重复 SDF 都销毁重建按钮、造成界面无法空闲。保留会话创建、订阅、选择、失败、关闭日志，不输出 PIN、NPK 或 TXT 内容；诊断用 Throwable 栈已移除。
++- 独立 iOS 验证工程生成脚本已实际重新执行并完整签名构建成功；Android 最新 productDebug 亦已安装。主 App 路径可验收，扩展、APNs、NFS/文件传输原始 socket、后台自动连接的多邀请交叠、错误设备/取消/故障恢复矩阵仍不在本次已通过范围内。
++
++nan 四字符串：格式版本1、服务名 _smartconnect._tcp、临时邀请/发布会话标识、Aware TCP listener 的端口。iOS 原生端口可以与外层 Go wsPort 不同；Android 必须使用 nan 内端口。
++
++
++最终持续观察：最新包 14:25:30 建立 serviceId8 的 NAN WSS；截至 14:29:11（至少 3 分 41 秒）iPhone 首页仍显示 baldur-1 已连接，Android 同一 Aware TCP 仍为 ESTAB，超过原先两分钟 listener 期限。反向服务验证实际记录 result=true。此轮蓝牙已恢复为开启，未操作 Ubuntu 网络。
++
++
++最终相反方向复测中另观察到：已有业务配对后，原自动重连可与手动二维码同时创建不同角色的 NAN 会话，选择 UI 互相抢占。该分支尚未验收，不将界面自动化未完成的那轮算作连接通过。此前 Android 发布 / iOS 客户端 13:08 的 WSS 成功与七分钟存活，以及最新反方向 14:25 的持续连接成功均独立保留；不能把这些结果推广成全部后台重连场景已通过。
+diff --git a/main/app/src/main/AndroidManifest.xml b/main/app/src/main/AndroidManifest.xml
+index 79a99696b3..c53418b1fd 100644
+--- a/main/app/src/main/AndroidManifest.xml
++++ b/main/app/src/main/AndroidManifest.xml
+@@ -79,8 +79,7 @@
+     <uses-permission android:name="android.permission.READ_CONTACTS" />
+     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+     <!-- Required when using file share on the device without core and nearby sharing -->
+-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
+-        android:maxSdkVersion="32"/>
++    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+     <!-- Required by BleService -->
+     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+     <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+@@ -218,6 +217,8 @@
+     <uses-sdk tools:overrideLibrary="com.motorola.clip.sdk, com.motorola.motocloudaccount, com.motorola.iotdevicestatus, com.motorola.actioncore.sdk, com.motorola.motoaccount, com.motorola.resources.tokens, com.lenovo.taptap" />
+     <!-- END - MotoCloudAccount -->
+ 
++    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
++    <uses-feature android:name="android.hardware.wifi.aware" android:required="false" />
+     <application
+         android:name="com.motorola.mobiledesktop.MobileDesktopApplication"
+         android:label="@string/app_name"
+@@ -234,6 +235,7 @@
+         android:largeHeap="true"
+         android:enableOnBackInvokedCallback="false"
+         tools:replace="android:theme">
++        <activity android:name="com.motorola.smartconnect.connectivity.nan.NanPairingActivity" android:exported="false" android:theme="@android:style/Theme.Material.Light.Dialog.NoActionBar" />
+         <uses-library android:name="moto-settings" android:required="false"/>
+         <uses-library android:name="moto-core_services" android:required="false"/>
+         <uses-library android:name="org.apache.http.legacy" android:required="false" />
+diff --git a/main/app/src/main/java/com/motorola/mobiledesktop/connectivity/R4ConnectivityManager.java b/main/app/src/main/java/com/motorola/mobiledesktop/connectivity/R4ConnectivityManager.java
+index 1bec3b393f..1802bede01 100644
+--- a/main/app/src/main/java/com/motorola/mobiledesktop/connectivity/R4ConnectivityManager.java
++++ b/main/app/src/main/java/com/motorola/mobiledesktop/connectivity/R4ConnectivityManager.java
+@@ -2708,7 +2708,11 @@ public class R4ConnectivityManager {
+                     }
+                 }
+             }
+-            wsSetupData.setPolicies(new PolicyData(mContext, allowWfd, wifiIp).getPolicyData());
++            List<String> nanPolicy = com.motorola.smartconnect.connectivity.nan.NanTransport.publish(mContext, serverInfo.getPort(), serverInfo.getToken());
++            PolicyData policy = new PolicyData(mContext, allowWfd && nanPolicy == null, wifiIp);
++            policy.setNan(nanPolicy);
++            if (nanPolicy != null) com.motorola.readyforassist.connectivity.MotoWebSocketManager.getInstance(mContext).extendNanInvitation(serverInfo.getToken());
++            wsSetupData.setPolicies(policy.getPolicyData());
+             Device device = new Device(
+                     Utils.getNonceDeviceId(mContext),
+                     Utils.getRealDeviceId(mContext),
+diff --git a/main/app/src/main/java/com/motorola/mobiledesktop/connectivity/bean/IpData.java b/main/app/src/main/java/com/motorola/mobiledesktop/connectivity/bean/IpData.java
+index 780191c80f..450fe8ec21 100644
+--- a/main/app/src/main/java/com/motorola/mobiledesktop/connectivity/bean/IpData.java
++++ b/main/app/src/main/java/com/motorola/mobiledesktop/connectivity/bean/IpData.java
+@@ -5,6 +5,7 @@
+ package com.motorola.mobiledesktop.connectivity.bean;
+ 
+ public class IpData {
++    public java.util.List<String> nan;
+     public int connType;
+     public String ip;
+     public int port;
+diff --git a/main/app/src/main/java/com/motorola/mobiledesktop/connectivity/ws/R4WebSocket.java b/main/app/src/main/java/com/motorola/mobiledesktop/connectivity/ws/R4WebSocket.java
+index 326c21e385..4f76d55a02 100644
+--- a/main/app/src/main/java/com/motorola/mobiledesktop/connectivity/ws/R4WebSocket.java
++++ b/main/app/src/main/java/com/motorola/mobiledesktop/connectivity/ws/R4WebSocket.java
+@@ -63,6 +63,8 @@ public class R4WebSocket {
+ 
+     public static final int CODE_CLOSE_WS = 3123;
+ 
++    private android.net.Network awareNetwork;
++    public void setAwareNetwork(android.net.Network network) { awareNetwork = network; }
+     private int networkType;
+     public Map<String, String> phoneIpMap;
+     private String wsPcIp;
+@@ -340,6 +342,7 @@ public class R4WebSocket {
+             if (ipData.ip.equals(ip)) {
+                 ipData.fp = fp;
+                 ipData.port = port;
++                if (networkType == 10) ipData.nan = java.util.Arrays.asList("1", "_smartconnect._tcp", java.util.UUID.randomUUID().toString(), String.valueOf(port));
+                 break;
+             }
+         }
+@@ -490,7 +493,9 @@ public class R4WebSocket {
+             }
+         };
+         final X509TrustManager trustManager = getR4TrustManager(mFingerprint);
+-        webSocketClient.setSocketFactory(NetUtils.getSSLSocketFactory(trustManager));
++        javax.net.SocketFactory tlsFactory = NetUtils.getSSLSocketFactory(trustManager);
++        if (awareNetwork != null) tlsFactory = new com.motorola.smartconnect.connectivity.nan.NetworkTlsSocketFactory(tlsFactory, awareNetwork);
++        webSocketClient.setSocketFactory(tlsFactory);
+         boolean useProxy = (this.networkType == RdpNetworkManager.NETWORK_TYPE_USB_PROXY)
+                 && rdpNetworkManager.getUsbProxyPort() > 0;
+         if (useProxy) {
+diff --git a/main/app/src/main/java/com/motorola/mobiledesktop/connectivity/ws/R4WsClient.java b/main/app/src/main/java/com/motorola/mobiledesktop/connectivity/ws/R4WsClient.java
+index 4c4a458040..e08a340048 100644
+--- a/main/app/src/main/java/com/motorola/mobiledesktop/connectivity/ws/R4WsClient.java
++++ b/main/app/src/main/java/com/motorola/mobiledesktop/connectivity/ws/R4WsClient.java
+@@ -69,6 +69,7 @@ public class R4WsClient {
+     private final int STATUS_AVAILABLE = 1;
+     private final int STATUS_FAILURE = 2;
+ 
++    private com.motorola.smartconnect.connectivity.nan.NanTransport mNanSession;
+     private final Context mContext;
+     private volatile ExecutorService mSingleExecutor = Executors.newSingleThreadExecutor();
+ 
+@@ -244,6 +245,7 @@ public class R4WsClient {
+     }
+ 
+     public void release() {
++        if (mNanSession != null) { mNanSession.close(); mNanSession = null; }
+         LogUtils.d(TAG, "release");
+         if (mSingleExecutor != null) {
+             mSingleExecutor.shutdown();
+@@ -281,6 +283,7 @@ public class R4WsClient {
+     }
+ 
+     private void releaseNetwork(int networkType) {
++        if (networkType == 10 && mNanSession != null) { mNanSession.close(); mNanSession = null; }
+         if (networkType == RdpNetworkManager.NETWORK_TYPE_ACC) {
+             mRdpNetworkManager.releaseAccNetwork();
+         } else if (networkType == RdpNetworkManager.NETWORK_TYPE_USB) {
+@@ -466,6 +469,43 @@ public class R4WsClient {
+             mToken = client.getToken();
+             mType = client.getType();
+             mFingerprint = Utils.printHexBinary(BleBroadcastHelper.decodeStringToBytes(client.getFp())).toLowerCase();
++            List<String> nanPolicy = com.motorola.smartconnect.connectivity.nan.NanTransport.parse(mIpPolicy);
++            if (nanPolicy != null) {
++                // Network acquisition is asynchronous. Keep a pending entry so
++                // createWebSocket does not treat the empty socket map as failure.
++                mWsMap.put(RdpNetworkManager.NETWORK_TYPE_NAN, null);
++                startTimer(145000);
++                try {
++                    // The iOS Aware TCP relay port can differ from its Go WSS port.
++                    mWsPort = com.motorola.smartconnect.connectivity.nan.NanPolicy.port(nanPolicy);
++                    mNanSession = com.motorola.smartconnect.connectivity.nan.NanTransport.connect(mContext, nanPolicy,
++                        new com.motorola.smartconnect.connectivity.nan.NanTransport.Listener() {
++                            @Override public void ready(android.net.Network network, java.net.Inet6Address peer, android.net.LinkProperties local) {
++                                execute(() -> {
++                                    if (mStatus != STATUS_SETTING_WS) return;
++                                    RdpNetworkManager.R4Network route = new RdpNetworkManager.R4Network();
++                                    route.networkType = 10; route.awareNetwork = network; route.available = true;
++                                    route.pcIpList = Collections.singletonList(peer.getHostAddress());
++                                    route.phoneIpMap = new HashMap<>();
++                                    for (android.net.LinkAddress address : local.getLinkAddresses()) {
++                                        if (address.getAddress() instanceof java.net.Inet6Address && address.getAddress().isLinkLocalAddress()) {
++                                            String scoped = address.getAddress().getHostAddress();
++                                            if (!scoped.contains("%")) scoped += "%" + local.getInterfaceName();
++                                            route.phoneIpMap.put(local.getInterfaceName(), scoped);
++                                            break;
++                                        }
++                                    }
++                                    newWebSocket(route, peer.getHostAddress(), 1);
++                                });
++                            }
++                            @Override public void failed(String reason) {
++                                LogUtils.w(TAG, "NAN failed: " + reason);
++                                execute(() -> handleWsTimeout());
++                            }
++                        });
++                } catch (RuntimeException e) { LogUtils.w(TAG, "Invalid NAN invitation", e); handleWsTimeout(); }
++                return; // Never prepare WFD or race STA/cloud against an explicit NAN invitation.
++            }
+             // add listener
+             mRdpNetworkManager.addR4NetworkListener(mR4NetworkListener);
+             // start timer, should cancel once verifying token or failure
+@@ -792,9 +832,11 @@ public class R4WsClient {
+     }
+ 
+     private void newWebSocket(final RdpNetworkManager.R4Network r4Network, final String pcIp, final int tryCnt) {
+-        final String wsUrl = String.format(Locale.ENGLISH, "wss://%s:%d/readyfor/", pcIp, mWsPort);
++        final String uriHost = pcIp.contains(":") ? "[" + pcIp + "]" : pcIp;
++        final String wsUrl = String.format(Locale.ENGLISH, "wss://%s:%d/readyfor/", uriHost, mWsPort);
+         LogUtils.i(TAG, "createWebSocket - wsUrl:" + wsUrl);
+         R4WebSocket r4WebSocket = new R4WebSocket(r4Network.networkType, mWsPort);
++        r4WebSocket.setAwareNetwork(r4Network.awareNetwork);
+         r4WebSocket.buildWebSocket(URI.create(wsUrl), mFingerprint, new R4WebSocket.R4WebSocketListener() {
+             @Override
+             public void onOpen(ServerHandshake handshakedata, WebSocket webSocket) {
+@@ -1047,6 +1089,8 @@ public class R4WsClient {
+                             mRdpNetworkManager.releaseWifiDirectNetwork(mPeerName, mDeviceWfpIp, mWsPort);
+                         } else if (key == RdpNetworkManager.NETWORK_TYPE_WIFI) {
+                             mErrorCode |= CommonConstValue.ERROR_CONN_WIFI_WS_FAILURE;
++                        } else if (key == RdpNetworkManager.NETWORK_TYPE_NAN) {
++                            mErrorCode |= CommonConstValue.ERROR_CONN_WIFI_WS_FAILURE;
+                         } else if (key == RdpNetworkManager.NETWORK_TYPE_ACC) {
+                             mErrorCode |= CommonConstValue.ERROR_CONN_USB_WS_FAILURE;
+                         } else if (key == RdpNetworkManager.NETWORK_TYPE_CB_WIFI
+@@ -1230,6 +1274,7 @@ public class R4WsClient {
+     static Map<String, String> getVerificationIpMap(Map<String, String> phoneIpMap,
+                                                     String localIp, int networkType) {
+         Map<String, String> verificationIpMap = new LinkedHashMap<>(phoneIpMap);
++        if (networkType == 10) return verificationIpMap; // Preserve the scoped Aware interface; the IPv4 resolver cannot resolve it.
+         // A SOCKS socket exposes the proxy address rather than the verification endpoint.
+         if (localIp != null && !localIp.isEmpty()
+                 && networkType != RdpNetworkManager.NETWORK_TYPE_USB_PROXY
+diff --git a/main/app/src/main/java/com/motorola/mobiledesktop/manager/RdpNetworkManager.java b/main/app/src/main/java/com/motorola/mobiledesktop/manager/RdpNetworkManager.java
+index d2a361a297..1bb26e585c 100644
+--- a/main/app/src/main/java/com/motorola/mobiledesktop/manager/RdpNetworkManager.java
++++ b/main/app/src/main/java/com/motorola/mobiledesktop/manager/RdpNetworkManager.java
+@@ -118,6 +118,7 @@ public class RdpNetworkManager {
+     public static final int NETWORK_TYPE_ACC         = 7;
+     public static final int NETWORK_TYPE_CB_WIFI     = 8;
+     public static final int NETWORK_TYPE_CB_MOBILE   = 9;
++    public static final int NETWORK_TYPE_NAN = 10;
+ 
+ 
+     public static final String NETWORK_TYPE_NAME_NONE        = "none";
+@@ -3324,6 +3325,7 @@ public class RdpNetworkManager {
+     }
+ 
+     public static class R4Network {
++        public android.net.Network awareNetwork;
+         public int status;
+         public int networkType;
+         public String pcName; // for wifi direct
+diff --git a/main/app/src/main/java/com/motorola/readyforassist/connectivity/MotoConnectivityManager.java b/main/app/src/main/java/com/motorola/readyforassist/connectivity/MotoConnectivityManager.java
+index f05e068e02..daa0cbb6b3 100644
+--- a/main/app/src/main/java/com/motorola/readyforassist/connectivity/MotoConnectivityManager.java
++++ b/main/app/src/main/java/com/motorola/readyforassist/connectivity/MotoConnectivityManager.java
+@@ -576,7 +576,10 @@ public class MotoConnectivityManager implements MotoWebSocketManager.WebSocketLi
+                 }
+                 String gattDataStr = null;
+                 if (serverInfo != null) {
+-                    PolicyData policy = new PolicyData(mContext, isAllowWfd);
++                    List<String> nanPolicy = com.motorola.smartconnect.connectivity.nan.NanTransport.publish(mContext, serverInfo.getPort(), serverInfo.getToken());
++                    PolicyData policy = new PolicyData(mContext, isAllowWfd && nanPolicy == null);
++                    policy.setNan(nanPolicy);
++                    if (nanPolicy != null) mWebSocketMgr.extendNanInvitation(serverInfo.getToken());
+                     List<Map<String, List<String>>> policyData = encryptPolicyData(policy, key);
+                     boolean encryptSuccess = policy.isEncryptSuccess();
+                     device.setTopNetworkType(policy.getTopNetworkType());
+diff --git a/main/app/src/main/java/com/motorola/readyforassist/connectivity/MotoWebSocketManager.java b/main/app/src/main/java/com/motorola/readyforassist/connectivity/MotoWebSocketManager.java
+index 077924b2b5..e3cf84fb47 100644
+--- a/main/app/src/main/java/com/motorola/readyforassist/connectivity/MotoWebSocketManager.java
++++ b/main/app/src/main/java/com/motorola/readyforassist/connectivity/MotoWebSocketManager.java
+@@ -334,7 +334,13 @@ public class MotoWebSocketManager {
+         };
+     }
+ 
++    public void extendNanInvitation(String token) {
++        mHandler.removeMessages(MSG_SERVER_TIMEOUT, token);
++        mHandler.sendMessageDelayed(mHandler.obtainMessage(MSG_SERVER_TIMEOUT, token), 145000);
++    }
++
+     private void stopServer(MotoWebSocketServer server) {
++        com.motorola.smartconnect.connectivity.nan.NanTransport.closePublisher(server.mToken);
+         if (server == null) {
+             return;
+         }
+diff --git a/main/app/src/main/java/com/motorola/readyforassist/connectivity/bean/PolicyData.java b/main/app/src/main/java/com/motorola/readyforassist/connectivity/bean/PolicyData.java
+index 04a2d95f11..19734b98f3 100644
+--- a/main/app/src/main/java/com/motorola/readyforassist/connectivity/bean/PolicyData.java
++++ b/main/app/src/main/java/com/motorola/readyforassist/connectivity/bean/PolicyData.java
+@@ -31,6 +31,8 @@ import static com.motorola.readyforassist.rdpclient.utils.MotoRdpConnection.KEY_
+ import javax.crypto.SecretKey;
+ 
+ public class PolicyData {
++    private java.util.List<String> nan;
++    public void setNan(java.util.List<String> policy) { nan = policy; }
+     String[] wifi;
+     String[] wfd;
+     String[] usbProxy;
+@@ -133,6 +135,7 @@ public class PolicyData {
+             map.put(RdpNetworkManager.NETWORK_TYPE_NAME_CB, Arrays.asList(cb));
+             policy.add(map);
+         }
++        if (nan != null) { Map<String,List<String>> entry = new HashMap<>(); entry.put("nan",nan); policy.add(entry); }
+         return policy;
+     }
+ 
+@@ -179,6 +182,7 @@ public class PolicyData {
+             map.put(RdpNetworkManager.NETWORK_TYPE_NAME_CB, Arrays.asList(cb));
+             policy.add(map);
+         }
++        if (nan != null) { Map<String,List<String>> entry = new HashMap<>(); entry.put("nan",nan); policy.add(entry); }
+         return policy;
+     }
+ 
+diff --git a/main/app/src/main/java/com/motorola/readyforassist/utils/CommonValues.java b/main/app/src/main/java/com/motorola/readyforassist/utils/CommonValues.java
+index 1d22708315..6fd97a7047 100644
+--- a/main/app/src/main/java/com/motorola/readyforassist/utils/CommonValues.java
++++ b/main/app/src/main/java/com/motorola/readyforassist/utils/CommonValues.java
+@@ -253,6 +253,13 @@ public class CommonValues {
+                 token = serverInfo.getToken();
+             }
+ 
++            java.util.List<String> nanPolicy = serverInfo == null ? null :
++                    com.motorola.smartconnect.connectivity.nan.NanTransport.publish(
++                            ctx, port, token);
++            if (nanPolicy != null) {
++                MotoWebSocketManager.getInstance(ctx).extendNanInvitation(token);
++            }
++
+             JSONObject jsonWSObject = new JSONObject();
+             JSONArray jsonPolicies = new JSONArray();
+ 
+@@ -287,6 +294,11 @@ public class CommonValues {
+                 jsonWSObject.put(MotoRdpConnection.KEY_WS_DATA_TOKEN, token);
+ 
+                 // Policies begin
++                if (nanPolicy != null) {
++                    JSONObject jsonNan = new JSONObject();
++                    jsonNan.put("nan", new JSONArray(nanPolicy));
++                    jsonPolicies.put(jsonNan);
++                }
+                 // Wifi IPs begin
+                 if (!TextUtils.isEmpty(wifiIp)) {
+                     jsonArrayWifiIPs.put(wifiIp);
+@@ -296,7 +308,7 @@ public class CommonValues {
+                 // Wifi IPs end
+ 
+                 // WFDs begin
+-                if (MotoWifiDirectMgr.getInstance(ctx).allowWfd()) {
++                if (nanPolicy == null && MotoWifiDirectMgr.getInstance(ctx).allowWfd()) {
+                     MotoWifiDirectMgr mgr = MotoWifiDirectMgr.getInstance(ctx);
+                     String connectedPcWfdName = mgr.getConnectedPcWfdName();
+                     if (TextUtils.isEmpty(connectedPcWfdName)) {
+diff --git a/main/app/src/main/java/com/motorola/smartconnect/connectivity/nan/NanPairingActivity.java b/main/app/src/main/java/com/motorola/smartconnect/connectivity/nan/NanPairingActivity.java
+new file mode 100644
+index 0000000000..a3e32b5006
+--- /dev/null
++++ b/main/app/src/main/java/com/motorola/smartconnect/connectivity/nan/NanPairingActivity.java
+@@ -0,0 +1,103 @@
++/* Copyright (c) 2026 Motorola Mobility LLC. Confidential and Restricted. */
++package com.motorola.smartconnect.connectivity.nan;
++
++import android.Manifest;
++import android.app.*;
++import android.content.pm.PackageManager;
++import android.net.wifi.aware.PeerHandle;
++import android.os.*;
++import android.widget.*;
++
++import java.util.*;
++
++/** Explicit foreground user selection; names never replace WSS fingerprint authentication. */
++public final class NanPairingActivity extends Activity {
++    private NanTransport session;
++    private TextView status;
++    private LinearLayout content;
++
++    @Override
++    public void onCreate(Bundle b) {
++        super.onCreate(b);
++        session = NanTransport.find(getIntent().getStringExtra("session"));
++        android.util.Log.i("SmartConnectNAN", "UI session found=" + (session != null));
++        if (session == null) {
++            finish();
++            return;
++        }
++        session.ui = this;
++        setTitle("Wi-Fi Aware");
++        content = new LinearLayout(this);
++        content.setOrientation(LinearLayout.VERTICAL);
++        content.setPadding(32, 32, 32, 32);
++        status = new TextView(this);
++        content.addView(status);
++        setContentView(content);
++        refresh();
++        if (checkSelfPermission(Manifest.permission.NEARBY_WIFI_DEVICES)
++                        != PackageManager.PERMISSION_GRANTED
++                || checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
++                        != PackageManager.PERMISSION_GRANTED)
++            requestPermissions(
++                    new String[] {
++                        Manifest.permission.NEARBY_WIFI_DEVICES,
++                        Manifest.permission.ACCESS_FINE_LOCATION
++                    },
++                    1);
++        else session.start();
++    }
++
++    @Override
++    public void onRequestPermissionsResult(int r, String[] p, int[] grants) {
++        super.onRequestPermissionsResult(r, p, grants);
++        if (r == 1) {
++            boolean ok = grants.length == 2;
++            for (int g : grants) ok &= g == PackageManager.PERMISSION_GRANTED;
++            if (ok) session.start();
++            else session.fail("Wi-Fi Aware 需要附近设备与定位权限");
++        }
++    }
++
++    void refresh() {
++        if (session == null || status == null) return;
++        status.setText(session.status);
++        while (content.getChildCount() > 1) content.removeViewAt(1);
++        if (!session.publisher && session.selected == null)
++            for (Map.Entry<PeerHandle, String> e : session.peers.entrySet()) {
++                Button button = new Button(this);
++                button.setText(e.getValue());
++                button.setOnClickListener(v -> session.select(e.getKey()));
++                content.addView(button);
++            }
++    }
++
++    void enterPin() {
++        EditText field = new EditText(this);
++        field.setInputType(2);
++        new AlertDialog.Builder(this)
++                .setTitle("输入对端显示的代码")
++                .setView(field)
++                .setPositiveButton(
++                        "配对",
++                        (d, w) -> {
++                            String pin = field.getText().toString();
++                            if (pin.matches("[0-9]{6}")) session.submitPin(pin);
++                            else session.fail("PIN 必须为六位数字");
++                        })
++                .setNegativeButton("取消", (d, w) -> session.fail("已取消配对"))
++                .setOnCancelListener(d -> session.fail("已取消配对"))
++                .show();
++    }
++
++    @Override
++    public void onBackPressed() {
++        if (session != null) session.fail("已取消 Wi-Fi Aware 操作");
++        super.onBackPressed();
++    }
++
++    @Override
++    public void onDestroy() {
++        if (session != null && session.ui == this) session.ui = null;
++        super.onDestroy();
++    }
++}
+diff --git a/main/app/src/main/java/com/motorola/smartconnect/connectivity/nan/NanPolicy.java b/main/app/src/main/java/com/motorola/smartconnect/connectivity/nan/NanPolicy.java
+new file mode 100644
+index 0000000000..089d0d1367
+--- /dev/null
++++ b/main/app/src/main/java/com/motorola/smartconnect/connectivity/nan/NanPolicy.java
+@@ -0,0 +1,30 @@
++/* Copyright (c) 2026 Motorola Mobility LLC. Confidential and Restricted. */
++package com.motorola.smartconnect.connectivity.nan;
++
++import java.util.List;
++
++/** Versioned wire contract shared with SmartConnect iOS. */
++public final class NanPolicy {
++    public static final String SERVICE = "_smartconnect._tcp";
++
++    private NanPolicy() {}
++
++    public static int port(List<String> values) {
++        if (values == null
++                || values.size() != 4
++                || !"1".equals(values.get(0))
++                || !SERVICE.equals(values.get(1))
++                || values.get(2) == null
++                || values.get(2).length() < 8
++                || values.get(2).length() > 128)
++            throw new IllegalArgumentException("Unsupported NAN policy");
++        int port;
++        try {
++            port = Integer.parseInt(values.get(3));
++        } catch (RuntimeException e) {
++            throw new IllegalArgumentException("Invalid NAN port", e);
++        }
++        if (port < 1 || port > 65535) throw new IllegalArgumentException("Invalid NAN port");
++        return port;
++    }
++}
+diff --git a/main/app/src/main/java/com/motorola/smartconnect/connectivity/nan/NanTransport.java b/main/app/src/main/java/com/motorola/smartconnect/connectivity/nan/NanTransport.java
+new file mode 100644
+index 0000000000..1a04d0e6b5
+--- /dev/null
++++ b/main/app/src/main/java/com/motorola/smartconnect/connectivity/nan/NanTransport.java
+@@ -0,0 +1,536 @@
++/* Copyright (c) 2026 Motorola Mobility LLC. Confidential and Restricted. */
++package com.motorola.smartconnect.connectivity.nan;
++
++import android.annotation.SuppressLint;
++import android.content.*;
++import android.net.*;
++import android.net.wifi.aware.*;
++import android.os.*;
++import android.provider.Settings;
++
++import java.io.*;
++import java.net.*;
++import java.nio.charset.StandardCharsets;
++import java.security.SecureRandom;
++import java.util.*;
++import java.util.concurrent.*;
++
++/** Main-thread-owned Aware sessions. Existing WSS keeps responsibility for TLS and Token trust. */
++@SuppressLint("MissingPermission")
++public final class NanTransport implements AutoCloseable {
++    public static final String SERVICE = NanPolicy.SERVICE;
++    public static final int TYPE = 10;
++    private static final Handler MAIN = new Handler(Looper.getMainLooper());
++    private static final Map<String, NanTransport> SESSIONS = new ConcurrentHashMap<>();
++
++    public interface Listener {
++        void ready(Network network, Inet6Address peer, LinkProperties local);
++
++        void failed(String reason);
++    }
++
++    final String id = UUID.randomUUID().toString();
++    final Context context;
++    final boolean publisher;
++    final Listener listener;
++    final int port;
++    final String instance;
++    final Map<PeerHandle, String> peers = new LinkedHashMap<>();
++    final Map<PeerHandle, String> aliases = new HashMap<>();
++    final Map<PeerHandle, String> pins = new HashMap<>();
++    final Map<PeerHandle, Integer> acceptedRequests = new HashMap<>();
++    final CompletableFuture<List<String>> publication = new CompletableFuture<>();
++    WifiAwareSession aware;
++    DiscoverySession discovery;
++    ConnectivityManager.NetworkCallback callback;
++    PeerHandle selected;
++    Network network;
++    WifiAwareNetworkInfo info;
++    LinkProperties properties;
++    boolean closed, delivered;
++    NanPairingActivity ui;
++    String status = "正在准备 Wi-Fi Aware";
++    private final Runnable timeout = () -> fail("Wi-Fi Aware 配对或连接超时");
++
++    private NanTransport(Context c, boolean pub, int p, String instance, Listener l) {
++        context = c.getApplicationContext();
++        publisher = pub;
++        port = p;
++        this.instance = instance;
++        listener = l;
++        SESSIONS.put(id, this);
++        android.util.Log.i("SmartConnectNAN", "Created session " + id + " publisher=" + publisher);
++    }
++
++    public static List<String> parse(List<Map<String, List<String>>> policies) {
++        if (policies != null)
++            for (Map<String, List<String>> p : policies)
++                if (p != null && p.containsKey("nan")) return p.get("nan");
++        return null;
++    }
++
++    public static boolean supported(Context c) {
++        return Build.VERSION.SDK_INT >= 37 && c.getSystemService(WifiAwareManager.class) != null;
++    }
++
++    public static NanTransport connect(Context c, List<String> policy, Listener l) {
++        int port = NanPolicy.port(policy);
++        NanTransport s = new NanTransport(c, false, port, policy.get(2), l);
++        MAIN.post(s::startUI);
++        return s;
++    }
++
++    public static List<String> publish(Context c, int port, String token) {
++        if (!supported(c) || Looper.myLooper() == Looper.getMainLooper()) return null;
++        for (NanTransport old : SESSIONS.values())
++            if (old.publisher && !old.closed) {
++                if (old.instance.equals(token) && old.port == port)
++                    return old.publication.getNow(null);
++                return null; // Never advertise a different WSS endpoint through an occupied
++                // service.
++            }
++        NanTransport s = new NanTransport(c, true, port, token, null);
++        MAIN.post(s::startUI);
++        try {
++            return s.publication.get(20, TimeUnit.SECONDS);
++        } catch (Exception e) {
++            s.close();
++            return null;
++        }
++    }
++
++    public static void closePublisher(String token) {
++        for (NanTransport s : SESSIONS.values())
++            if (s.publisher && s.instance.equals(token)) s.close();
++    }
++
++    static NanTransport find(String id) {
++        return SESSIONS.get(id);
++    }
++
++    private void startUI() {
++        if (closed) return;
++        android.util.Log.i("SmartConnectNAN", "Opening session UI " + id);
++        if (!supported(context)) {
++            fail("此功能需要 Android 17 和 Wi-Fi Aware 支持");
++            return;
++        }
++        try {
++            context.startActivity(
++                    new Intent(context, NanPairingActivity.class)
++                            .putExtra("session", id)
++                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
++        } catch (RuntimeException e) {
++            fail("无法显示 Wi-Fi Aware 配对界面");
++        }
++    }
++
++    void start() {
++        if (closed || aware != null) return;
++        android.util.Log.i("SmartConnectNAN", "Starting Aware " + id);
++        try {
++            WifiAwareManager manager = context.getSystemService(WifiAwareManager.class);
++            if (!manager.isAvailable() || !manager.getCharacteristics().isAwarePairingSupported())
++                throw new IllegalStateException("请开启 Wi-Fi、定位并检查配对支持");
++            MAIN.postDelayed(timeout, 130000);
++            manager.attach(
++                    new AttachCallback() {
++                        @Override
++                        public void onAttached(WifiAwareSession s) {
++                            if (closed) {
++                                s.close();
++                                return;
++                            }
++                            aware = s;
++                            discover();
++                        }
++
++                        @Override
++                        public void onAttachFailed() {
++                            fail("Aware attach 失败");
++                        }
++
++                        @Override
++                        public void onAwareSessionTerminated() {
++                            fail("Aware 会话已终止");
++                        }
++                    },
++                    MAIN);
++        } catch (RuntimeException e) {
++            fail(e.getMessage());
++        }
++    }
++
++    private AwarePairingConfig pairing() {
++        return new AwarePairingConfig.Builder()
++                .setPairingSetupEnabled(true)
++                .setPairingVerificationEnabled(true)
++                .setPairingCacheEnabled(true)
++                .setSupportedCipherSuites(Characteristics.WIFI_AWARE_CIPHER_SUITE_NCS_PK_PASN_128)
++                .setBootstrappingMethods(
++                        publisher
++                                ? AwarePairingConfig.PAIRING_BOOTSTRAPPING_PIN_CODE_DISPLAY
++                                : AwarePairingConfig.PAIRING_BOOTSTRAPPING_PIN_CODE_KEYPAD)
++                .build();
++    }
++
++    private void discover() {
++        try {
++            if (publisher)
++                aware.publish(
++                        new PublishConfig.Builder()
++                                .setServiceName(SERVICE)
++                                .setPublishType(PublishConfig.PUBLISH_TYPE_SOLICITED)
++                                .setPairingConfig(pairing())
++                                .setServiceSpecificInfo(metadata(true))
++                                .build(),
++                        events,
++                        MAIN);
++            else
++                aware.subscribe(
++                        new SubscribeConfig.Builder()
++                                .setServiceName(SERVICE)
++                                .setSubscribeType(SubscribeConfig.SUBSCRIBE_TYPE_ACTIVE)
++                                .setPairingConfig(pairing())
++                                .build(),
++                        events,
++                        MAIN);
++        } catch (RuntimeException e) {
++            fail(e.getMessage());
++        }
++    }
++
++    private final DiscoverySessionCallback events =
++            new DiscoverySessionCallback() {
++                @Override
++                public void onPublishStarted(PublishDiscoverySession s) {
++                    if (closed) {
++                        s.close();
++                        return;
++                    }
++                    discovery = s;
++                    publication.complete(
++                            Arrays.asList("1", SERVICE, instance, String.valueOf(port)));
++                    status = "服务已发布；等待对端配对或连接";
++                    refresh();
++                    // Return to the invitation QR. Show this activity again when a PIN is needed.
++                    if (ui != null) ui.finish();
++                    requestNetwork(null);
++                }
++
++                @Override
++                public void onSubscribeStarted(SubscribeDiscoverySession s) {
++                    android.util.Log.i("SmartConnectNAN", "Subscribe started " + id);
++                    if (closed) {
++                        s.close();
++                        return;
++                    }
++                    discovery = s;
++                    status = "选择邀请方设备";
++                    refresh();
++                }
++
++                @Override
++                public void onServiceDiscovered(ServiceDiscoveryInfo d) {
++                    if (closed) return;
++                    PeerHandle p = d.getPeerHandle();
++                    Map<String, String> names = PeerDeviceInfo.parse(d.getServiceSpecificInfo());
++                    String label = names.getOrDefault(
++                                            "pairingName", names.getOrDefault("modelName", "附近设备"))
++                                    + " #"
++                                    + p.hashCode();
++                    String previous = peers.put(p, label);
++                    if (d.getPairedAlias() != null) aliases.put(p, d.getPairedAlias());
++                    if (!label.equals(previous)) refresh();
++                }
++
++                @Override
++                public void onBootstrappingSucceeded(PeerHandle p, int method) {
++                    if (closed) return;
++                    if (publisher) {
++                        pin(p);
++                        status = "请在对端输入代码：" + pins.get(p);
++                        if (ui == null || ui.isFinishing()) startUI();
++                        refresh();
++                    } else if (p.equals(selected) && ui != null) ui.enterPin();
++                }
++
++                @Override
++                public void onPairingSetupRequestReceived(PeerHandle p, int request) {
++                    try {
++                        if (publisher) {
++                            Integer accepted = acceptedRequests.get(p);
++                            if (accepted != null) {
++                                if (accepted != request) discovery.rejectPairingRequest(request, p);
++                                return;
++                            }
++                            acceptedRequests.put(p, request);
++                            discovery.acceptPairingRequest(
++                                    request,
++                                    p,
++                                    "smartconnect-" + UUID.randomUUID(),
++                                    Characteristics.WIFI_AWARE_CIPHER_SUITE_NCS_PK_PASN_128,
++                                    pin(p));
++                        } else discovery.rejectPairingRequest(request, p);
++                    } catch (RuntimeException e) {
++                        fail(e.getMessage());
++                    }
++                }
++
++                @Override
++                public void onPairingSetupSucceeded(PeerHandle p, String alias) {
++                    aliases.put(p, alias);
++                    acceptedRequests.remove(p);
++                    pins.remove(p);
++                    status = "系统配对成功，正在连接";
++                    refresh();
++                    if (!publisher && p.equals(selected)) requestNetwork(p);
++                }
++
++                @Override
++                public void onPairingSetupFailed(PeerHandle p) {
++                    fail("系统配对失败，请核对 PIN");
++                }
++
++                @Override
++                public void onBootstrappingFailed(PeerHandle p) {
++                    fail("配对方式协商失败");
++                }
++
++                @Override
++                public void onPairingVerificationFailed(PeerHandle p) {
++                    fail("已有配对验证失败，请在两端清理旧配对后重试");
++                }
++
++                @Override
++                public void onSessionConfigFailed() {
++                    fail("Aware 服务配置失败");
++                }
++
++                @Override
++                public void onSessionTerminated() {
++                    fail("Aware 发现会话结束");
++                }
++            };
++
++    void select(PeerHandle p) {
++        if (closed || selected != null || discovery == null) return;
++        android.util.Log.i("SmartConnectNAN", "Selected peer; paired=" + aliases.containsKey(p));
++        selected = p;
++        try {
++            if (aliases.containsKey(p)) requestNetwork(p);
++            else bootstrapWithMetadata(p, metadata(false));
++        } catch (RuntimeException e) {
++            fail(e.getMessage());
++        }
++    }
++
++    void submitPin(String pin) {
++        if (closed || selected == null) return;
++        try {
++            discovery.initiatePairingRequest(
++                    selected,
++                    "smartconnect-" + UUID.randomUUID(),
++                    Characteristics.WIFI_AWARE_CIPHER_SUITE_NCS_PK_PASN_128,
++                    pin);
++        } catch (RuntimeException e) {
++            fail(e.getMessage());
++        }
++    }
++
++    private String pin(PeerHandle p) {
++        String value = pins.get(p);
++        if (value == null) {
++            value = String.format(Locale.ROOT, "%06d", new SecureRandom().nextInt(1000000));
++            pins.put(p, value);
++        }
++        return value;
++    }
++
++    private void requestNetwork(PeerHandle p) {
++        if (closed || callback != null) return;
++        try {
++            WifiAwareNetworkSpecifier spec =
++                    publisher
++                            ? new WifiAwareNetworkSpecifier.Builder(
++                                            (PublishDiscoverySession) discovery)
++                                    .setPskPassphrase(invitationPassphrase())
++                                    .setPort(port)
++                                    .setTransportProtocol(6)
++                                    .build()
++                            : new WifiAwareNetworkSpecifier.Builder(discovery, p).build();
++            callback =
++                    new ConnectivityManager.NetworkCallback() {
++                        @Override
++                        public void onAvailable(Network n) {
++                            network = n;
++                            ready();
++                        }
++
++                        @Override
++                        public void onCapabilitiesChanged(Network n, NetworkCapabilities caps) {
++                            if (caps.getTransportInfo() instanceof WifiAwareNetworkInfo) {
++                                info = (WifiAwareNetworkInfo) caps.getTransportInfo();
++                                ready();
++                            }
++                        }
++
++                        @Override
++                        public void onLinkPropertiesChanged(Network n, LinkProperties props) {
++                            properties = props;
++                            ready();
++                        }
++
++                        @Override
++                        public void onLost(Network n) {
++                            fail("Aware 数据链路已断开");
++                        }
++
++                        @Override
++                        public void onUnavailable() {
++                            fail("Aware 数据链路请求失败");
++                        }
++                    };
++            context.getSystemService(ConnectivityManager.class)
++                    .requestNetwork(
++                            new NetworkRequest.Builder()
++                                    .addTransportType(NetworkCapabilities.TRANSPORT_WIFI_AWARE)
++                                    .setNetworkSpecifier(spec)
++                                    .build(),
++                            callback,
++                            MAIN,
++                            publisher ? 130000 : 30000);
++        } catch (RuntimeException e) {
++            fail(e.getMessage());
++        }
++    }
++
++    private void ready() {
++        if (closed || delivered || network == null || properties == null) return;
++        // A responder may not receive initiator-only peer transport information.
++        // Its existing WSS listener only needs the acquired Network to stay alive.
++        if (!publisher && (info == null || info.getPeerIpv6Addr() == null)) return;
++        delivered = true;
++        MAIN.removeCallbacks(timeout);
++        status = "Aware 数据链路已建立";
++        refresh();
++        if (ui != null) ui.finish();
++        if (listener != null) listener.ready(network, info == null ? null : info.getPeerIpv6Addr(), properties);
++    }
++
++    private String invitationPassphrase() {
++        try {
++            byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
++                    .digest(instance.getBytes(StandardCharsets.UTF_8));
++            return android.util.Base64.encodeToString(digest, android.util.Base64.NO_WRAP);
++        } catch (java.security.NoSuchAlgorithmException e) {
++            throw new IllegalStateException("SHA-256 unavailable", e);
++        }
++    }
++
++    void refresh() {
++        if (ui != null) ui.refresh();
++    }
++
++    void fail(String why) {
++        if (closed) return;
++        android.util.Log.w("SmartConnectNAN", "Session failed: " + why);
++        android.widget.Toast.makeText(
++                        context,
++                        why == null ? "Wi-Fi Aware 操作失败" : why,
++                        android.widget.Toast.LENGTH_LONG)
++                .show();
++        publication.complete(null);
++        if (listener != null) listener.failed(why == null ? "Aware 操作失败" : why);
++        close();
++    }
++
++    @Override
++    public void close() {
++        if (Looper.myLooper() == Looper.getMainLooper()) closeOnMain();
++        else MAIN.post(this::closeOnMain);
++    }
++
++    private void closeOnMain() {
++        if (closed) return;
++        android.util.Log.i("SmartConnectNAN", "Closing session " + id);
++        closed = true;
++        MAIN.removeCallbacks(timeout);
++        SESSIONS.remove(id);
++        publication.complete(null);
++        if (callback != null) {
++            try {
++                context.getSystemService(ConnectivityManager.class)
++                        .unregisterNetworkCallback(callback);
++            } catch (RuntimeException ignored) {
++            }
++            callback = null;
++        }
++        if (discovery != null) discovery.close();
++        if (aware != null) aware.close();
++        pins.clear();
++        acceptedRequests.clear();
++        if (ui != null) ui.finish();
++    }
++
++    // OEM fwk.jar precedes android.jar and still declares API 36. Resolve these
++    // public API 37 additions without falling back to the overload that drops TXT.
++    private void bootstrapWithMetadata(PeerHandle peer, byte[] txt) {
++        try {
++            DiscoverySession.class
++                    .getMethod(
++                            "initiateBootstrappingRequest",
++                            PeerHandle.class,
++                            int.class,
++                            byte[].class)
++                    .invoke(
++                            discovery,
++                            peer,
++                            AwarePairingConfig.PAIRING_BOOTSTRAPPING_PIN_CODE_KEYPAD,
++                            txt);
++        } catch (ReflectiveOperationException e) {
++            throw new IllegalStateException("ROM 不支持 Android 17 Bootstrap 设备信息接口", e);
++        }
++    }
++
++    private byte[] bootstrapTxt(Map<String, String> values) {
++        try {
++            return (byte[])
++                    WifiAwareManager.class
++                            .getMethod("createTxtRecordTlvBuffer", Map.class)
++                            .invoke(null, values);
++        } catch (ReflectiveOperationException e) {
++            throw new IllegalStateException("ROM 不支持 Android 17 配对 TXT 接口", e);
++        }
++    }
++
++    private byte[] metadata(boolean envelope) {
++        Map<String, String> m = new LinkedHashMap<>();
++        m.put("modelName", bounded(Build.MODEL));
++        m.put(
++                "pairingName",
++                bounded(Settings.Global.getString(context.getContentResolver(), "device_name")));
++        m.put("vendorName", bounded(Build.MANUFACTURER));
++        if (!envelope) return bootstrapTxt(m);
++        ByteArrayOutputStream txt = new ByteArrayOutputStream();
++        for (Map.Entry<String, String> e : m.entrySet()) {
++            byte[] b = (e.getKey() + "=" + e.getValue()).getBytes(StandardCharsets.UTF_8);
++            txt.write(b.length);
++            txt.write(b, 0, b.length);
++        }
++        byte[] data = txt.toByteArray();
++        ByteArrayOutputStream out = new ByteArrayOutputStream();
++        out.write(4);
++        out.write(data.length & 255);
++        out.write(data.length >> 8);
++        out.write(data, 0, data.length);
++        return out.toByteArray();
++    }
++
++    private static String bounded(String s) {
++        if (s == null || s.isEmpty()) s = "Android";
++        while (s.getBytes(StandardCharsets.UTF_8).length > 63)
++            s = s.substring(0, s.offsetByCodePoints(s.length(), -1));
++        return s;
++    }
++}
+diff --git a/main/app/src/main/java/com/motorola/smartconnect/connectivity/nan/NetworkTlsSocketFactory.java b/main/app/src/main/java/com/motorola/smartconnect/connectivity/nan/NetworkTlsSocketFactory.java
+new file mode 100644
+index 0000000000..0561d89590
+--- /dev/null
++++ b/main/app/src/main/java/com/motorola/smartconnect/connectivity/nan/NetworkTlsSocketFactory.java
+@@ -0,0 +1,65 @@
++/* Copyright (c) 2026 Motorola Mobility LLC. Confidential and Restricted. */
++package com.motorola.smartconnect.connectivity.nan;
++
++import android.net.Network;
++
++import java.io.IOException;
++import java.net.*;
++
++import javax.net.SocketFactory;
++
++/** Bind the existing fingerprint-pinned TLS socket before connecting; never bind the process. */
++public final class NetworkTlsSocketFactory extends SocketFactory {
++    private final SocketFactory delegate;
++    private final Network network;
++
++    public NetworkTlsSocketFactory(SocketFactory delegate, Network network) {
++        this.delegate = delegate;
++        this.network = network;
++    }
++
++    @Override
++    public Socket createSocket() throws IOException {
++        Socket socket = delegate.createSocket();
++        try {
++            network.bindSocket(socket);
++            return socket;
++        } catch (IOException | RuntimeException e) {
++            socket.close();
++            throw e;
++        }
++    }
++
++    private Socket open(InetAddress host, int port, InetAddress local, int localPort)
++            throws IOException {
++        Socket s = createSocket();
++        try {
++            if (local != null) s.bind(new InetSocketAddress(local, localPort));
++            s.connect(new InetSocketAddress(host, port), 5000);
++            return s;
++        } catch (IOException | RuntimeException e) {
++            s.close();
++            throw e;
++        }
++    }
++
++    @Override
++    public Socket createSocket(String h, int p) throws IOException {
++        return open(network.getByName(h), p, null, 0);
++    }
++
++    @Override
++    public Socket createSocket(InetAddress h, int p) throws IOException {
++        return open(h, p, null, 0);
++    }
++
++    @Override
++    public Socket createSocket(String h, int p, InetAddress l, int lp) throws IOException {
++        return open(network.getByName(h), p, l, lp);
++    }
++
++    @Override
++    public Socket createSocket(InetAddress h, int p, InetAddress l, int lp) throws IOException {
++        return open(h, p, l, lp);
++    }
++}
+diff --git a/main/app/src/main/java/com/motorola/smartconnect/connectivity/nan/PeerDeviceInfo.java b/main/app/src/main/java/com/motorola/smartconnect/connectivity/nan/PeerDeviceInfo.java
+new file mode 100644
+index 0000000000..34565c0507
+--- /dev/null
++++ b/main/app/src/main/java/com/motorola/smartconnect/connectivity/nan/PeerDeviceInfo.java
+@@ -0,0 +1,71 @@
++/* Copyright (c) 2026 Motorola Mobility LLC. Confidential and Restricted. */
++package com.motorola.smartconnect.connectivity.nan;
++
++import java.nio.ByteBuffer;
++import java.nio.charset.CharacterCodingException;
++import java.nio.charset.CodingErrorAction;
++import java.nio.charset.StandardCharsets;
++import java.util.LinkedHashMap;
++import java.util.Map;
++
++/** Parses the peer's TXT metadata without treating arbitrary SSI bytes as a name. */
++final class PeerDeviceInfo {
++    static Map<String, String> parse(byte[] data) {
++        Map<String, String> values = new LinkedHashMap<>();
++        if (data == null || data.length == 0) return values;
++        if ((data[0] & 0xff) == 4 && data.length >= 3) {
++            // Typed TXT TLVs: one-byte type and little-endian two-byte length.
++            int offset = 0;
++            while (offset < data.length) {
++                if (data.length - offset < 3) return new LinkedHashMap<>();
++                int type = data[offset] & 0xff;
++                int size = (data[offset + 1] & 0xff) | ((data[offset + 2] & 0xff) << 8);
++                offset += 3;
++                if (size > data.length - offset) return new LinkedHashMap<>();
++                if (type == 4 && !parseTxt(data, offset, offset + size, values)) {
++                    return new LinkedHashMap<>();
++                }
++                offset += size;
++            }
++        } else if (!parseTxt(data, 0, data.length, values)) {
++            values.clear();
++        }
++        return values;
++    }
++
++    private static boolean parseTxt(byte[] data, int offset, int end, Map<String, String> values) {
++        while (offset < end) {
++            int size = data[offset++] & 0xff;
++            if (size > end - offset) return false;
++            String record;
++            try {
++                record =
++                        StandardCharsets.UTF_8
++                                .newDecoder()
++                                .onMalformedInput(CodingErrorAction.REPORT)
++                                .onUnmappableCharacter(CodingErrorAction.REPORT)
++                                .decode(ByteBuffer.wrap(data, offset, size))
++                                .toString();
++            } catch (CharacterCodingException e) {
++                return false;
++            }
++            offset += size;
++            int equals = record.indexOf('=');
++            if (equals <= 0) continue;
++            String key = record.substring(0, equals);
++            if (!key.equals("pairingName")
++                    && !key.equals("modelName")
++                    && !key.equals("vendorName")
++                    && !key.equals("ndpSecurity")) continue;
++            String value = record.substring(equals + 1).trim();
++            if (value.isEmpty()) continue;
++            for (int i = 0; i < value.length(); i++) {
++                if (Character.isISOControl(value.charAt(i))
++                        || value.charAt(i) == '\u2028'
++                        || value.charAt(i) == '\u2029') return false;
++            }
++            values.putIfAbsent(key, value);
++        }
++        return true;
++    }
++}
+diff --git a/main/app/src/test/java/com/motorola/smartconnect/connectivity/nan/NanPolicyTest.java b/main/app/src/test/java/com/motorola/smartconnect/connectivity/nan/NanPolicyTest.java
+new file mode 100644
+index 0000000000..42c080e479
+--- /dev/null
++++ b/main/app/src/test/java/com/motorola/smartconnect/connectivity/nan/NanPolicyTest.java
+@@ -0,0 +1,37 @@
++package com.motorola.smartconnect.connectivity.nan;
++
++import static org.junit.Assert.*;
++
++import org.junit.Test;
++
++import java.util.*;
++
++public class NanPolicyTest {
++    @Test
++    public void acceptsIOSPolicy() {
++        assertEquals(
++                45455,
++                NanPolicy.port(
++                        Arrays.asList("1", "_smartconnect._tcp", "invitation-123", "45455")));
++    }
++
++    @Test
++    public void rejectsMalformedInvitations() {
++        List<List<String>> bad =
++                Arrays.asList(
++                        null,
++                        Collections.emptyList(),
++                        Arrays.asList("2", NanPolicy.SERVICE, "12345678", "1"),
++                        Arrays.asList("1", "_wrong._tcp", "12345678", "1"),
++                        Arrays.asList("1", NanPolicy.SERVICE, null, "1"),
++                        Arrays.asList("1", NanPolicy.SERVICE, "12345678", "0"),
++                        Arrays.asList("1", NanPolicy.SERVICE, "12345678", "65536"));
++        for (List<String> values : bad) {
++            try {
++                NanPolicy.port(values);
++                fail("accepted " + values);
++            } catch (IllegalArgumentException expected) {
++            }
++        }
++    }
++}
+diff --git a/main/gradle/libs.versions.toml b/main/gradle/libs.versions.toml
+index f204697458..a904f0bb95 100644
+--- a/main/gradle/libs.versions.toml
++++ b/main/gradle/libs.versions.toml
+@@ -1,5 +1,5 @@
+ [versions]
+-compileSdk = "36"
++compileSdk = "37"
+ buildTools = "36.0.0"
+ ndk = "28.0.12433566"
+ minSdk = "31"

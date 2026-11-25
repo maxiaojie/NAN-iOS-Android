@@ -209,10 +209,10 @@ index 00000000..223092f8
 +@end
 diff --git a/SmartConnect/SCService/SCConnectService/NAN/SCNanTransport.swift b/SmartConnect/SCService/SCConnectService/NAN/SCNanTransport.swift
 new file mode 100644
-index 00000000..f4adf5c0
+index 00000000..4f6f65ce
 --- /dev/null
 +++ b/SmartConnect/SCService/SCConnectService/NAN/SCNanTransport.swift
-@@ -0,0 +1,366 @@
+@@ -0,0 +1,417 @@
 +// Copyright (c) 2026 Lenovo. All rights reserved.
 +import Foundation
 +import UIKit
@@ -221,6 +221,7 @@ index 00000000..f4adf5c0
 +import WiFiAware
 +import DeviceDiscoveryUI
 +import OSLog
++import Darwin
 +
 +/// Go only opens loopback sockets. Network framework owns every NAN radio socket.
 +@objc(SCNanTransport) final class SCNanTransport: NSObject {
@@ -278,6 +279,7 @@ index 00000000..f4adf5c0
 +    static let service = "_smartconnect._tcp"
 +    final class Session {
 +        var tasks: [Task<Void, Never>] = []
++        var reads: [Task<Data, Error>] = []
 +        var remote: NetworkConnection<TCP>?
 +        var ready = false
 +        var failure: Error?
@@ -317,34 +319,74 @@ index 00000000..f4adf5c0
 +        }
 +        throw error("Wi-Fi Aware operation timed out")
 +    }
++    private func startReading(_ connection: NetworkConnection<TCP>, session: Session) -> Task<Data, Error> {
++        let task = Task { let (data, _) = try await connection.receive(atMost: 131072); return data }
++        session.reads.append(task)
++        return task
++    }
++    private func waitUntilReady(_ connection: NetworkConnection<TCP>) async throws {
++        // A pending receive starts TCP without queuing an empty write ahead of TLS.
++        for _ in 0..<300 {
++            try Task.checkCancellation()
++            switch connection.state {
++            case .ready: return
++            case .failed(let failure): throw failure
++            case .cancelled: throw CancellationError()
++            default: break
++            }
++            try await Task.sleep(for: .milliseconds(50))
++        }
++        throw error("NAN TCP connection did not become ready")
++    }
 +    private func ip(_ connection: NetworkConnection<TCP>, local: Bool) throws -> String {
 +        let candidates = local
 +            ? [connection.currentPath?.localEndpoint, connection.localEndpoint]
 +            : [connection.currentPath?.remoteEndpoint, connection.remoteEndpoint]
 +        for endpoint in candidates {
 +            if case let .hostPort(host, _) = endpoint { return String(describing: host) }
++            if case let .opaque(raw) = endpoint {
++                let candidate: UnsafePointer<sockaddr>? = nw_endpoint_get_address(raw)
++                guard let address = candidate, address.pointee.sa_family == AF_INET6 else { continue }
++                var host = [CChar](repeating: 0, count: Int(NI_MAXHOST))
++                if getnameinfo(address, socklen_t(address.pointee.sa_len), &host, socklen_t(host.count), nil, 0, NI_NUMERICHOST) == 0 {
++                    return String(cString: host)
++                }
++            }
++
 +        }
-+        throw error("Missing connected Aware IPv6 endpoint")
++        throw error("Missing connected Aware IPv6 endpoint (local=\(local))")
 +    }
 +    private func startPublisher(_ id: String, session s: Session, port: UInt16 = 0) throws {
 +        guard let service = WAPublishableService.allServices[Self.service] else { throw error("NAN publish service not declared") }
 +        s.generation = UUID(); let generation = s.generation
 +        s.failure = nil; s.ready = false
-+        let listener = try NetworkListener(for: .wifiAware(.connecting(to: service, from: .allPairedDevices)),
++        Self.logger.notice("NAN publisher preparing")
++        let listener = try NetworkListener(for: .wifiAware(.connecting(to: service, from: .allPairedDevices), active: .seconds(3600)),
 +            using: .parameters { TCP() }.localPort(NWEndpoint.Port(rawValue: port)!))
 +        listener.onStateUpdate { _, state in
 +            guard s.generation == generation else { return }
++            Self.logger.notice("NAN publisher state=\(String(describing: state), privacy: .public)")
 +            if case .ready = state { s.port = listener.port?.rawValue ?? 0; s.ready = s.port != 0 }
 +            if case .failed(let e) = state { s.failure = e }
 +        }
 +        s.tasks.append(Task {
++            Self.logger.notice("NAN publisher run started")
 +            do { try await listener.run { remote in self.accept(remote, localPort: s.localPort, parent: id) } }
 +            catch { if s.generation == generation { s.failure = error } }
 +        })
 +    }
 +    func publish(_ id: String, localPort: Int) async throws -> String {
 +        // Apple permits one publisher per service. Never advertise a port before ready.
-+        guard !pairingActive, !sessions.values.contains(where: { $0.parent == "publisher" }) else { return "" }
++        guard !pairingActive else { return "" }
++        for (oldID, old) in sessions.filter({ $0.value.parent == "publisher" }) {
++            if oldID == id && old.localPort == localPort && old.ready {
++                return try policy(oldID, port: old.port)
++            }
++            // A new QR invitation supersedes an unused BLE invitation. Never
++            // interrupt an accepted data connection to replace its publisher.
++            guard !sessions.values.contains(where: { $0.parent == oldID }) else { return "" }
++            close(oldID)
++        }
 +        let s = Session(); s.parent = "publisher"; s.localPort = localPort; sessions[id] = s
 +        do {
 +            try startPublisher(id, session: s)
@@ -356,20 +398,23 @@ index 00000000..f4adf5c0
 +    private func accept(_ remote: NetworkConnection<TCP>, localPort: Int, parent: String) {
 +        let id = UUID().uuidString
 +        let s = Session(); s.parent = parent; s.remote = remote; sessions[id] = s
++        // Keep accepted connections independent of discovery expiry.
 +        s.tasks.append(Task {
 +            do {
 +                let local = NetworkConnection(to: .hostPort(host: "::1", port: NWEndpoint.Port(rawValue: UInt16(localPort))!), using: .parameters { TCP() })
 +                // Establish loopback before forwarding TLS, so Go can resolve this
 +                // ephemeral port to the real Aware peer during its HTTP upgrade.
-+                try await local.send(Data())
-+                try await remote.send(Data())
++                let firstLocal = startReading(local, session: s)
++                let firstRemote = startReading(remote, session: s)
++                try await self.waitUntilReady(local)
++                try await self.waitUntilReady(remote)
 +                guard case let .hostPort(_, port) = local.localEndpoint else { throw self.error("Missing loopback endpoint") }
 +                s.localIP = try self.ip(remote, local: true)
 +                s.remoteIP = try self.ip(remote, local: false)
 +                s.incomingPort = Int(port.rawValue)
 +                self.incoming[Int(port.rawValue)] = try self.route(id, s)
 +                Self.logger.notice("Accepted NAN transport")
-+                try await Self.pipe(local, remote)
++                try await Self.pipe(local, remote, initialA: firstLocal, initialB: firstRemote)
 +            } catch { Self.logger.error("NAN accepted transport ended: \(String(describing: error), privacy: .public)") }
 +            self.close(id)
 +        })
@@ -394,7 +439,8 @@ index 00000000..f4adf5c0
 +                remote = NetworkConnection(to: resolved, using: .parameters { TCP() })
 +            }
 +            s.remote = remote
-+            try await remote.send(Data()) // Wait for actual NDP/TCP readiness, not just discovery.
++            let firstRemote = startReading(remote, session: s)
++            try await self.waitUntilReady(remote) // Wait for actual NDP/TCP readiness, not just discovery.
 +            s.localIP = try ip(remote, local: true); s.remoteIP = try ip(remote, local: false)
 +            let listener = try NetworkListener(using: .parameters { TCP() }.localEndpoint(.hostPort(host: "::1", port: .any)))
 +            listener.onStateUpdate { _, state in
@@ -405,10 +451,10 @@ index 00000000..f4adf5c0
 +                do {
 +                    try await listener.run { local in
 +                        guard !s.consumed else { return }; s.consumed = true
-+                        s.tasks.append(Task {
-+                            do { try await Self.pipe(local, remote) } catch { }
-+                            self.close(id)
-+                        })
++                        Self.logger.notice("NAN loopback WSS client accepted")
++                        do { try await Self.pipe(local, remote, initialB: firstRemote) }
++                        catch { Self.logger.error("NAN WSS proxy ended: \(String(describing: error), privacy: .public)") }
++                        self.close(id)
 +                    }
 +                } catch { s.failure = error }
 +            })
@@ -424,32 +470,34 @@ index 00000000..f4adf5c0
 +    }
 +    private func discover(_ device: WAPairedDevice, port: UInt16) async throws -> WAEndpoint {
 +        guard let service = WASubscribableService.allServices[Self.service] else { throw error("NAN service not declared") }
-+        let provider: WASubscriberBrowser = .wifiAware(.connecting(to: .selected([device]), from: service))
-+        let browser = NWBrowser(for: provider.makeDescriptor(), using: provider.configureParameters(.tcp))
-+        let result = SCNanBrowseResult()
-+        browser.browseResultsChangedHandler = { results, _ in
-+            let endpoint = results.compactMap { $0.endpoint.wifiAware(port: NWEndpoint.Port(rawValue: port)!) }.first
-+            Task { @MainActor in result.endpoint = endpoint }
++        let browser = NetworkBrowser(for: .wifiAware(.connecting(to: .selected([device]), from: service)))
++        return try await withThrowingTaskGroup(of: WAEndpoint.self) { group in
++            group.addTask {
++                try await browser.run { endpoints in
++                    if let endpoint = endpoints.first(where: { $0.device.id == device.id }) {
++                        return .finish(endpoint)
++                    }
++                    return .continue
++                }
++            }
++            group.addTask {
++                try await Task.sleep(for: .seconds(15))
++                throw NSError(domain: "SmartConnect.NAN", code: 1,
++                              userInfo: [NSLocalizedDescriptionKey: "Selected NAN service was not discovered"])
++            }
++            defer { group.cancelAll() }
++            guard let endpoint = try await group.next() else { throw error("NAN browser ended") }
++            Self.logger.notice("Selected NAN service discovered, invitation port=\(port)")
++            return endpoint
 +        }
-+        browser.stateUpdateHandler = { state in
-+            if case .failed(let error) = state { Task { @MainActor in result.failure = error } }
-+        }
-+        browser.start(queue: .global(qos: .userInitiated))
-+        defer { browser.cancel() }
-+        for _ in 0..<200 {
-+            try Task.checkCancellation()
-+            if let error = result.failure { throw error }
-+            if let endpoint = result.endpoint { return endpoint }
-+            try await Task.sleep(for: .milliseconds(50))
-+        }
-+        throw error("Selected NAN service was not discovered")
 +    }
++
 +    func reverse(_ id: String, localPort: Int) async throws -> String {
 +        guard let remote = sessions[id]?.remote, let path = try await remote.currentPath?.wifiAware else { throw error("NAN reverse verification requires a live connection") }
 +        let child = UUID().uuidString
 +        let s = Session(); s.parent = id; sessions[child] = s
 +        do {
-+            let listener = try NetworkListener(for: .wifiAware(.addingConnections(from: .selected([path.endpoint.device]))),
++            let listener = try NetworkListener(for: .wifiAware(.addingConnections(from: .selected([path.endpoint.device])), active: .seconds(3600)),
 +                using: .parameters { TCP() }.localPort(.any))
 +            listener.onStateUpdate { _, state in
 +                if case .ready = state { s.port = listener.port?.rawValue ?? 0; s.ready = s.port != 0 }
@@ -467,15 +515,23 @@ index 00000000..f4adf5c0
 +        for child in sessions.keys.filter({ sessions[$0]?.parent == id }) { close(child) }
 +        guard let s = sessions.removeValue(forKey: id) else { return }
 +        if let port = s.incomingPort { incoming.removeValue(forKey: port) }
-+        s.tasks.forEach { $0.cancel() }; s.tasks.removeAll(); s.remote = nil
++        s.tasks.forEach { $0.cancel() }; s.tasks.removeAll()
++        s.reads.forEach { $0.cancel() }; s.reads.removeAll(); s.remote = nil
 +    }
-+    private static func pipe(_ a: NetworkConnection<TCP>, _ b: NetworkConnection<TCP>) async throws {
++    private static func pipe(_ a: NetworkConnection<TCP>, _ b: NetworkConnection<TCP>,
++                             initialA: Task<Data, Error>? = nil, initialB: Task<Data, Error>? = nil) async throws {
 +        try await withThrowingTaskGroup(of: Void.self) { group in
-+            for (source, destination) in [(a,b),(b,a)] {
++            for (index, item) in [(a,b,initialA),(b,a,initialB)].enumerated() {
++                let (source, destination, initial) = item
 +                group.addTask {
++                    var pending = initial
++                    var first = true
 +                    while !Task.isCancelled {
-+                        let (data, _) = try await source.receive(atMost: 131072)
++                        let data: Data
++                        if let read = pending { data = try await read.value; pending = nil }
++                        else { (data, _) = try await source.receive(atMost: 131072) }
 +                        if data.isEmpty { try await destination.send(Data(), endOfStream: true); return }
++                        if first { logger.debug("NAN proxy direction=\(index), first chunk bytes=\(data.count)"); first = false }
 +                        try await destination.send(data)
 +                    }
 +                }
@@ -567,11 +623,6 @@ index 00000000..f4adf5c0
 +            .navigationTitle("Wi-Fi Aware 配对").toolbar { Button("完成") { finish() } }
 +        }
 +    }
-+}
-+
-+@available(iOS 26.4, *) @MainActor private final class SCNanBrowseResult {
-+    var endpoint: WAEndpoint?
-+    var failure: Error?
 +}
 +
 +@available(iOS 26.4, *) @MainActor private final class SCNanDismissDelegate: NSObject, UIAdaptivePresentationControllerDelegate {
@@ -690,10 +741,10 @@ index 8d099cc9..435b0d82 100644
 +HEADER_SEARCH_PATHS = $(inherited) $(SRCROOT)/3rdLibs/OpenSSL_4.0.3/compat
 diff --git a/docs/NAN-integration.md b/docs/NAN-integration.md
 new file mode 100644
-index 00000000..a8107856
+index 00000000..4ea340a6
 --- /dev/null
 +++ b/docs/NAN-integration.md
-@@ -0,0 +1,116 @@
+@@ -0,0 +1,192 @@
 +# SmartConnect iOS：Wi-Fi Aware 接入
 +
 +日期：2026-11-25。工作目录：`/Users/mxj/workspace/SmartConnectIoS`。本次只修改 iOS 产品仓库，保留本地，不提交、不推送 GitHub；Android 产品端尚未接入本协议。
@@ -765,7 +816,7 @@ index 00000000..a8107856
 +- Objective-C adapter 已针对真实生成的 SCAPI 头文件和 Swift 导出头文件进行 clang 检查，通过。
 +- Xcode project 和修改的 plist 语法检查通过。
 +- 完整 SmartConnect workspace 的 Debug / iphoneos / generic iOS 目标构建通过（`CODE_SIGNING_ALLOWED=NO`）。新增 Swift、Objective-C 回调及原有 App 一起完成编译链接。
-+- 尚未签名安装或进行真机端到端连接验证，不能将构建通过解释为已验证配对、NDP、WSS 或心跳成功。
++- 上述为最初构建阶段结果；后续签名安装及真机结果见本文末尾，不以构建通过代替端到端验收。
 +
 +## 构建准备中遇到的问题
 +
@@ -777,7 +828,7 @@ index 00000000..a8107856
 +
 +## 待真机确认
 +
-+需签名的 provisioning profile 包含 Wi-Fi Aware entitlement。双方还必须使用相同服务名和 nan Policy 格式；当前 Android 产品 App 尚未修改，不能用它直接宣称本轮跨端互通。
++需签名的 provisioning profile 包含 Wi-Fi Aware entitlement。双方还必须使用相同服务名和 nan Policy 格式；Android 产品 App 已在正确的 master_android/readyfor 仓库完成本地集成和安装；跨端验收状态见下文。
 +
 +需要验证首次配对、已有配对、用户取消、错误设备 TLS 拒绝、正反向 WSS 验证、心跳、STA 断开后的存活和关闭资源。Wi-Fi Aware 与 AWDL 同时保持活动数据链路也尚未验证；Apple 对 STA+Aware 的公开说明不能用来代替此项证据。
 +
@@ -810,6 +861,82 @@ index 00000000..a8107856
 +本机工具位于 `/Users/mxj/nan-ios-tools/bin/`。CocoaPods 使用 Homebrew portable Ruby，需设置 `GEM_HOME`、`GEM_PATH` 为 `/Users/mxj/nan-ios-tools/ruby-gems`，再由 `/opt/homebrew/Library/Homebrew/vendor/portable-ruby/current/bin/ruby` 执行该目录的 pod。
 +
 +构建日志：`/tmp/sc-nan-xcode-build.log`；Go 库日志：`/tmp/sc-nan-gomobile-all.log`；Pods 日志：`/tmp/sc-nan-pod-install.log`；ShareHub/NFS 日志：`/tmp/sc-nan-sharehub-build.log`、`/tmp/sc-nan-libnfs-build.log`。日志属于本机临时产物，关键结果和异常已记录在本文。
++
++
++## 2026-11-25：签名安装及真机联调
++
++设备：Android a0807d7（TB323FU_PRC，Android SDK 37）和 iPhone 12（iPhone13,2，系统报告 iOS 27.2.1）。Android App 为 10.0.0.003.0 / 10000030；iOS 源码为 SmartConnect 产品工程，本地验证包 bundle ID 为 com.slab.wifiawaredemo。
++
++### 签名纠正及独立验证包
++
++先前把开发证书 Common Name 括号中的标识当成 Team ID，判断“没有公司团队证书”不正确。证书 Subject 的 OU 才是团队，本机实际有 K9K8AUSWF6 的有效开发身份。真正的阻挡是产品 TestDebug 的 sc_kvm_demo profile 没有 Wi-Fi Aware entitlement；自动签名又因 Xcode 未登录该团队账号而无法补 profile。
++
++使用本机已有 wifi_aware_demo profile，包含 Wi-Fi Aware Publish / Subscribe entitlement 和 iPhone 12 UDID，改用它对应的验证 bundle ID。为保留产品签名配置，生成独立项目 out/nan-validation-20261125，不修改产品 bundle ID、Team、App Group 约定；不嵌入 Share / File Provider 扩展。
++
++首次主界面启动暴露两处扩展依赖：SCWormholeFileTransiting 的 App Group 能力断言，以及 SCNFSClientService 调用缺失扩展的 documentStorageURL。只在生成工程的 ValidationSources 中，把组容器换成本 App Application Support 子目录，并停用未嵌入的 File Provider 连接；原始产品文件保持不动。因此本验证包仅用于主 App NAN / WSS 联调，不能据此验收扩展、共享容器、APNs 或完整发布签名。
++
++本机可复现生成脚本为 /Users/mxj/nan-ios-tools/create-smartconnect-nan-validation.rb。Ruby gem 环境为 /Users/mxj/nan-ios-tools/ruby-gems；脚本不包含私钥、profile 内容或登录凭证。构建时使用绝对 derivedDataPath；USER_HEADER_SEARCH_PATHS 只递归源目录，避免 $(SRCROOT)/** 把 out 内的中间 modulemap 误当头文件而报 Pods umbrella header 不存在。
++
++```sh
++GEM_HOME=/Users/mxj/nan-ios-tools/ruby-gems \
++GEM_PATH=/Users/mxj/nan-ios-tools/ruby-gems \
++/opt/homebrew/Library/Homebrew/vendor/portable-ruby/current/bin/ruby \
++/Users/mxj/nan-ios-tools/create-smartconnect-nan-validation.rb \
++/Users/mxj/workspace/SmartConnectIoS
++
++xcodebuild -workspace /Users/mxj/workspace/SmartConnectIoS/out/nan-validation-20261125/SmartConnect.xcworkspace \
++-scheme NANValidation -configuration TestDebug -sdk iphoneos \
++-destination id=00008101-0016212414D0001E \
++-derivedDataPath /Users/mxj/workspace/SmartConnectIoS/out/nan-validation-20261125/DerivedData build
++```
++
++### 真机发现与传输层定位
++
++Android 首次使用完成协议确认及测试必要权限。iOS 完成本地网络、蓝牙、通知授权，照片权限拒绝不影响本轮 NAN 配对。iOS 主 App 已签名安装并正常进入首页。
++
++Android 的 CommonValues.getWsDataJson 是二维码专用路径，之前的 PolicyData 修改没有覆盖它。已在此处发布 NAN 并加入 nan policy，成功时不再加入 wfd，延长邀请有效期。发布 Activity 在成功后自动退回二维码，需要显示 PIN 时重新打开，避免遮挡二维码。通过真实屏幕二维码解码确认 policies 包含 nan 与 wifi，不含 wfd；测试使用 Debug 专用 automation-pair 入口把这份真实二维码送入原有解析及连接路径，未伪造邀请或跳过系统 PIN。
++
++iOS 系统 DevicePicker 能发现 baldur-1；输入 Android 屏幕生成的六位 PIN 后，Android 回调系统配对成功。已有配对再次选择也能成功。
++
++原 iOS NWBrowser 手动把结果转换为 wifiAware(port:) 时没有得到可用结果，表现为 Selected NAN service was not discovered。改用与已验证示例一致的类型化 NetworkBrowser，限定系统选择的 WAPairedDevice 后，成功回调服务端点。Android NDP responder 补上 TCP 协议号 6、真实 WSS 端口及从当前邀请派生的 passphrase；未使用示例的固定密码。现有配对仍由系统处理。
++
++空口之外，Android 系统日志已确认 onDataPathConfirm accept=true、reason=0，ss 中出现 Aware 链路本地 IPv6 间的 ESTAB TCP socket；这证明已到达 NDP / TCP，不能据此宣称 WSS 或业务配对成功。
++
++另修正 iOS 端读取端点时只识别 .hostPort 的假设：实际远端有 .opaque 形式，通过公开 nw_endpoint_get_address + getnameinfo 获取 IPv6，不从描述字符串猜地址。TCP 启动不等待空写入完成，改为挂起首个 receive 并等待 .ready；首批数据保留后交给双向转发，不向 TLS 流插入自定义字节。代理接收回调持续等待转发结束，并记录失败原因和首块长度，不记录 TLS 载荷。WSS 失败时 Go 补充实际 dial 错误，仍保持证书指纹与 Token 校验。
++
++当前仍在验证 WSS 及反向验证，完整结果另行补充。首次配对成功与 NDP / TCP 成功不等于产品业务配对完成。
++
++
++### 2026-11-25 后续：WSS 成功与异步生命周期修复
++
++Android 发布、iOS 订阅方向：13:08:13 原生代理两方向均转发 TLS 数据，13:08:14 WSS result=1；iOS 首页显示 baldur-1 已连接。Android 记录 networkType10，并在 Aware 链路本地 IPv6 间保持 ESTAB TCP 至至少 13:15（约七分钟）。原有 WSS monitor 继续执行，不另加明文心跳。
++
++最终 TCP 启动方式是挂起首个 receive 再等 .ready。该首批数据由 Task 保存，代理开始转发时消费同一个读取结果；每方向始终只有一个读取，不丢字节、不重复读取，也没有在 TLS 前插入额外数据。关闭路由同时取消 listener、转发和预读取 Task。
++
++iOS 发布曾持续二十秒超时：websocketServer.setup 在全局 websocketMutex 内同步等待 native Publish，主线程的回调又需要访问受此锁保护的状态。改为 setup 注册服务后立即返回，由锁外 goroutine 执行 NAN Publish，回到锁内检查未关闭并写入 policy，然后再发送邀请。改后原生 publisher 进入 ready 并获得实际端口，iOS 屏幕二维码解码确认 wifi + nan。
++
++新的二维码邀请会替换未被接受的旧发布，避免旧 BLE 邀请占用唯一服务发布槽而让二维码缺 nan；有已接收连接时不会替换该 publisher。旧邀请不能据此继续视为有效。多设备、多邀请并发仍需单独验收。
++
++Android 订阅曾一打开界面就结束，失败 UI 显示“跨网络需同一账号”。这只是 ConnErrorCodeHelper 的通用文案，实际不是已证实的账号限制；没有因此放宽账号校验。原因是 createWebSocket 在 requestR4Network 异步返回后立即检查 mWsMap，发现为空就报错并 release，导致 NanPairingActivity 创建时会话已经不在表中。现为 NAN 放入 pending 表项，就绪后由真实 socket 替换，超时才移除并报告失败。
++
++13:59:47 已出现 iOS Accepted NAN transport，13:59:48 verifyRemoteServers result=true / connType10，WSS server result=1（serviceId8、BLE 触发）。随后另一个二维码邀请和原有蓝牙自动重连交叠，因此这轮不能冒充“二维码单路径”稳定性验证。下一轮临时关闭 Android 蓝牙，保持普通 Wi-Fi 和 NAN，单独核对二维码路径；测试后恢复蓝牙。已观察到原有文件传输仍直接拼接 IPv6 的太多冒号错误，以及 NFS 使用原始 socket / 扩展容器等未适配问题，这些业务功能不属于 WSS 通路成功的验收结果。
++
++
++### 最终验收补充（2026-11-25）
++
++- iOS 二维码单路径：14:11:45 系统已有配对被复用，Android 日志 Selected peer; paired=true、WSS onOpen、onVerifyServerReady；iOS WSS server 返回 serviceId19、channel4、connType10、result1。随后配对业务关闭这条临时连接，并尝试后续服务，不能把临时配对 WSS 的关闭直接称为 NDP 失败。此前暂停的 Android 蓝牙已恢复。
++- 持续业务连接：14:25:29 最新 iOS 验证包再次 Accepted NAN transport，14:25:30 verifyRemoteServers=true，serviceId8、channel1、connType10、result1；Android ss 显示 aware_data0 的 link-local IPv6 TCP ESTAB。由自动化读取实际 UI 的唯一候选按钮并选择，不依赖用户人工及时点击。
++- iOS NAN listener 显式 active 3600 秒；已接收连接放在独立子 Session / Task 中，不把数据连接生命周期绑定到发现 listener 的 run 回调。之前等待 listener 接收回调内转发的尝试不作为最终实现。广播停止仍不能代替 Go WSS 关闭时的 route 回收。
++- Android 设备列表只在名称或候选集合改变时更新，避免每个重复 SDF 都销毁重建按钮、造成界面无法空闲。保留会话创建、订阅、选择、失败、关闭日志，不输出 PIN、NPK 或 TXT 内容；诊断用 Throwable 栈已移除。
++- 独立 iOS 验证工程生成脚本已实际重新执行并完整签名构建成功；Android 最新 productDebug 亦已安装。主 App 路径可验收，扩展、APNs、NFS/文件传输原始 socket、后台自动连接的多邀请交叠、错误设备/取消/故障恢复矩阵仍不在本次已通过范围内。
++
++nan 四字符串：格式版本1、服务名 _smartconnect._tcp、临时邀请/发布会话标识、Aware TCP listener 的端口。iOS 原生端口可以与外层 Go wsPort 不同；Android 必须使用 nan 内端口。
++
++
++最终持续观察：最新包 14:25:30 建立 serviceId8 的 NAN WSS；截至 14:29:11（至少 3 分 41 秒）iPhone 首页仍显示 baldur-1 已连接，Android 同一 Aware TCP 仍为 ESTAB，超过原先两分钟 listener 期限。反向服务验证实际记录 result=true。此轮蓝牙已恢复为开启，未操作 Ubuntu 网络。
++
++
++最终相反方向复测中另观察到：已有业务配对后，原自动重连可与手动二维码同时创建不同角色的 NAN 会话，选择 UI 互相抢占。该分支尚未验收，不将界面自动化未完成的那轮算作连接通过。此前 Android 发布 / iOS 客户端 13:08 的 WSS 成功与七分钟存活，以及最新反方向 14:25 的持续连接成功均独立保留；不能把这些结果推广成全部后台重连场景已通过。
 diff --git a/libs/SCAPI/common/constants/constants.go b/libs/SCAPI/common/constants/constants.go
 index 27ea0458..644caa30 100644
 --- a/libs/SCAPI/common/constants/constants.go
@@ -1150,7 +1277,7 @@ index 78369f6b..ebdf9962 100644
  		log.D(TAG, "close wsb conn ")
  		wsb.conn.Close()
 diff --git a/libs/SCAPI/framework/websocket/WebsocketClient.go b/libs/SCAPI/framework/websocket/WebsocketClient.go
-index 7b206448..3e6ad56b 100644
+index 7b206448..cc3e318d 100644
 --- a/libs/SCAPI/framework/websocket/WebsocketClient.go
 +++ b/libs/SCAPI/framework/websocket/WebsocketClient.go
 @@ -24,6 +24,7 @@ import (
@@ -1161,7 +1288,7 @@ index 7b206448..3e6ad56b 100644
  	"motorola.com/readyforassistant/framework/connectivity/p2p"
  	"motorola.com/readyforassistant/framework/connectivity/tunnel"
  	"motorola.com/readyforassistant/framework/device"
-@@ -158,6 +159,32 @@ func (client *websocketClient) run() {
+@@ -158,6 +159,33 @@ func (client *websocketClient) run() {
  
  func connectWebsocket(client *websocketClient, tlsConfig *tls.Config) (*websocket.Conn, string, bool) {
  	log.D(TAG, "websocketClient connections begin. port:%d", client.port)
@@ -1182,6 +1309,7 @@ index 7b206448..3e6ad56b 100644
 +			dialer := &websocket.Dialer{TLSClientConfig: tlsConfig, HandshakeTimeout: WEBSOCKET_CONNECT_TIMEOUT, Proxy: nil}
 +			conn, _, err := dialer.DialContext(ctx, "wss://"+route.Address()+WEBSOCKET_PATH, nil)
 +			if err != nil {
++				log.W(TAG, "Aware WSS dial failed: %v", err)
 +				nan.Close(route.ID)
 +				client.nanRoute = nan.Route{}
 +				client.recordConnectionFailure(constants.TRY_CONNECT_WIFI, constants.CONN_ERR_DIS_TIMEOUT, "Aware WSS dial failed")
@@ -1194,7 +1322,7 @@ index 7b206448..3e6ad56b 100644
  	localIp := "127.0.0.1"
  	ctx, cancel := context.WithCancel(context.Background())
  	defer cancel()
-@@ -362,7 +389,7 @@ func handleConnection(client *websocketClient, conn *websocket.Conn, remoteIp st
+@@ -362,7 +390,7 @@ func handleConnection(client *websocketClient, conn *websocket.Conn, remoteIp st
  		conn.Close()
  		client.conn = nil
  		cloudResult := false
@@ -1203,7 +1331,7 @@ index 7b206448..3e6ad56b 100644
  			cloudConn, localIP := connectCloudWebsocket(client, tlsConfig)
  			if cloudConn != nil {
  				client.conn = cloudConn
-@@ -424,6 +451,9 @@ func (client *websocketClient) performHandshake(conn *websocket.Conn, remoteIp s
+@@ -424,6 +452,9 @@ func (client *websocketClient) performHandshake(conn *websocket.Conn, remoteIp s
  
  	// connType
  	client.localIp = utils.GetIp(client.conn.LocalAddr().String())
@@ -1213,7 +1341,7 @@ index 7b206448..3e6ad56b 100644
  	if client.connType == constants.CONN_TYPE_UNKNOWN {
  		client.connType = utils.GetConnType(client.localIp)
  	}
-@@ -454,17 +484,24 @@ func (client *websocketClient) performHandshake(conn *websocket.Conn, remoteIp s
+@@ -454,17 +485,24 @@ func (client *websocketClient) performHandshake(conn *websocket.Conn, remoteIp s
  	validServer, _fp, _port, verifyErr := newIPValidServer(client.dstDeviceId)
  	if verifyErr != nil {
  		log.W(TAG, "websocketClient start verifyServer failed->dstDeviceId:%s, err:%v", client.dstDeviceId, verifyErr)
@@ -1239,7 +1367,7 @@ index 7b206448..3e6ad56b 100644
  				}
  				vs.Close()
  			}()
-@@ -475,6 +512,17 @@ func (client *websocketClient) performHandshake(conn *websocket.Conn, remoteIp s
+@@ -475,6 +513,17 @@ func (client *websocketClient) performHandshake(conn *websocket.Conn, remoteIp s
  			Ip:          utils.GetIp(client.conn.LocalAddr().String()),
  			Port:        _port,
  		}
@@ -1257,7 +1385,7 @@ index 7b206448..3e6ad56b 100644
  		requestData.RemoteServers = append(requestData.RemoteServers, &item)
  	}
  	requestMsgData, _ := json.Marshal(requestData)
-@@ -487,6 +535,9 @@ func (client *websocketClient) performHandshake(conn *websocket.Conn, remoteIp s
+@@ -487,6 +536,9 @@ func (client *websocketClient) performHandshake(conn *websocket.Conn, remoteIp s
  			fmt.Sprintf("Failed to send WebSocket verify request: %v", err))
  	}
  	readDeadline := WEBSOCKET_VERIFY_TIMEOUT*2 + time.Second
@@ -1268,7 +1396,7 @@ index 7b206448..3e6ad56b 100644
  	_, data, err := client.conn.ReadMessage()
  	if err != nil {
 diff --git a/libs/SCAPI/framework/websocket/WebsocketServer.go b/libs/SCAPI/framework/websocket/WebsocketServer.go
-index 3d33d815..1846f677 100644
+index 3d33d815..52b759b8 100644
 --- a/libs/SCAPI/framework/websocket/WebsocketServer.go
 +++ b/libs/SCAPI/framework/websocket/WebsocketServer.go
 @@ -19,6 +19,7 @@ import (
@@ -1279,16 +1407,36 @@ index 3d33d815..1846f677 100644
  	"motorola.com/readyforassistant/framework/connectivity/p2p"
  	"motorola.com/readyforassistant/framework/device"
  	"motorola.com/readyforassistant/framework/discovery"
-@@ -175,6 +176,8 @@ func (server *websocketServer) setup(discoveryMsg DiscoveryMsg) {
+@@ -175,7 +176,27 @@ func (server *websocketServer) setup(discoveryMsg DiscoveryMsg) {
  	server.expired = time.Now().Add(TOKEN_TIMEOUT)
  	server.fp = utils.FingerprintToBase64(fp)
  	log.D(TAG, "websocketServer setup->DeviceId:%s, Token:%s, Port:%d, fp:%s, isPending:%t", server.dstDeviceId, server.token, server.port, server.fp, server.isPending())
+-	go server.run()
 +	server.nanPublisher = utils.GenRandomToken(128)
-+	server.nanPolicy = nan.Publish(server.nanPublisher, server.port)
- 	go server.run()
++	// setup runs with websocketMutex held. Native publishing awaits UIKit's
++	// main actor, whose callbacks also query this map. Release the global lock
++	// before crossing that synchronous native bridge.
++	go server.prepareNanAndRun()
++}
++
++func (server *websocketServer) prepareNanAndRun() {
++	policy := nan.Publish(server.nanPublisher, server.port)
++	if err := websocketMutex.Lock(); err != nil {
++		nan.Close(server.nanPublisher)
++		return
++	}
++	if server.closed {
++		websocketMutex.Unlock()
++		nan.Close(server.nanPublisher)
++		return
++	}
++	server.nanPolicy = policy
++	websocketMutex.Unlock()
++	server.run()
  }
  
-@@ -211,7 +214,13 @@ func (server *websocketServer) run() {
+ func (server *websocketServer) run() {
+@@ -211,7 +232,13 @@ func (server *websocketServer) run() {
  		return
  	} else {
  		tokenTimeout := TOKEN_TIMEOUT
@@ -1302,7 +1450,7 @@ index 3d33d815..1846f677 100644
  		if (server.channel & constants.DISCOVERY_CHANNEL_QRCODE) != 0 {
  			tokenTimeout = tokenTimeout + time.Minute
  			websocketTimeout = websocketTimeout + time.Minute
-@@ -351,12 +360,22 @@ func (server *websocketServer) readyforHandler(w http.ResponseWriter, r *http.Re
+@@ -351,12 +378,22 @@ func (server *websocketServer) readyforHandler(w http.ResponseWriter, r *http.Re
  	}
  	log.D(TAG, "websocketServer ReadMessage->Port:%d, Unmarshal ServiceManagerData:%#v", server.port, serviceManagerData)
  	localIp := utils.GetIp(conn.LocalAddr().String())
@@ -1326,7 +1474,7 @@ index 3d33d815..1846f677 100644
  		} else {
  			log.E(TAG, "websocketServer remoteServer verify fail->Port:%d, remoteIp:%s,localIp:%s,srcDeviceId:%s", server.port, r.RemoteAddr, localIp, websocketMsg.SrcDeviceId)
  			server.failAcceptedConnection(
-@@ -463,6 +482,15 @@ func (server *websocketServer) getInviteMsg() []byte {
+@@ -463,6 +500,15 @@ func (server *websocketServer) getInviteMsg() []byte {
  		server.policies = getPolicies(server.dstDeviceId)
  	}
  

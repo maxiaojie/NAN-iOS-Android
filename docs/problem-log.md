@@ -657,7 +657,7 @@ USB归档读取本轮iPhone12历史日志，确认nan0与Publish responder均为
 
 ### SC-20261125-01：SmartConnect iOS NAN 本地接入补丁
 
-SmartConnectIoS 原仓库仅配置公司 Gerrit，按用户要求将 Patch 放入本 GitHub 示例仓库，不推送产品仓库。补丁加入 nan Policy、Aware 建链后 WSS、反向验证、配对入口及生命周期管理。依赖缺失、Pods Git HTTP/2 下载异常、OpenSSL 4 头文件布局和 const API 的处理均记录在补丁内专项文档。完整 iOS 未签名构建通过，端到端真机未验证，Android 产品端尚在接入。详见 [Patch 基线、校验和及使用方法](SmartConnectIoS-nan-patch.md)。
+SmartConnect 产品源码保留本地，按用户授权将 iOS 与 Android Patch 放入本 GitHub 示例仓库，不推送公司 Gerrit。双端新增 nan Policy、先建 Aware 再连 WSS、系统配对与反向验证。构建/签名问题、二维码漏 nan、iOS 全局锁内同步发布超时、opaque IPv6 读取、空 TCP 写入阻塞、Android 异步建链被提前回收、发布期限及连接生命周期均有详细过程。a0807d7 与 iPhone12 已安装测试：Android 发布 / iOS 连接通过并保持约七分钟；最新反方向通过反向验证及 connType10 WSS，至少持续3分41秒。iOS 为独立主 App 验证签名，扩展与其他业务 socket 未验收；已有配对的自动重连/手动邀请并发仍可能抢占 UI。详见 [iOS Patch 与边界](SmartConnectIoS-nan-patch.md)、[Android Patch 与边界](SmartConnectAndroid-nan-patch.md)。
 
 
 ### Apple官网指南对非配对发布名称的规定（2026-11-25）

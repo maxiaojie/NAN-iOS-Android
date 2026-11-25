@@ -336,3 +336,10 @@ Android/Swift 协议和 TXT 测试、Android assemble/lint、iOS 真机签名构
 ### iOS Publish SDEA 发现信息对照（2026-11-25）
 
 iPhone12/HA2E6NPB只验证发布与订阅，未NDP/测速/删配对。ch6帧4645、ch149帧1732确认SDEA且无设备TXT；Framework走extended分支、App只收6字节。两端6字节内容不同，HAL原始TLV/转换前后仍待定位；不能宣称名称被Framework丢弃或HAL不支持SDEA。抓包保存在Ubuntu /home/mxj/NAN/2026-11-25；网络恢复managed、外网200，iPhone12锁屏确认。14Pro本轮未USB连接，不作为该机本轮证明。[完整分析](ios-publish-sdea-match-2026-11-25.md)。
+
+
+### SmartConnect 产品 NAN 补丁（2026-11-25）
+
+这是独立产品接入验证，不替代本仓库 AwareBridge 原有测试。a0807d7 / TB323FU_PRC 与 iPhone12：系统 PIN 配对成功；Android 发布 / iOS 连接通过 WSS并保持约七分钟；最新 iOS 发布 / Android 订阅通过 NDP、TLS、反向验证及 connType10 WSS，持续至少3分41秒。二维码临时配对服务 result1 已观察。双端完整构建通过并安装，iOS 为包含 Wi-Fi Aware entitlement 的独立主 App 测试签名，未验收产品扩展、APNs、共享容器。
+
+仍未通过或未验收：已有配对时自动重连与手动邀请并发的 UI 抢占，后台/故障恢复矩阵，文件传输/NFS 等其他 socket 业务。不得将主 WSS 成功推广为完整 SmartConnect 产品功能通过。详见 [iOS补丁](SmartConnectIoS-nan-patch.md)、[Android补丁](SmartConnectAndroid-nan-patch.md)。
