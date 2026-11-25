@@ -346,3 +346,10 @@ iPhone12/HA2E6NPB只验证发布与订阅，未NDP/测速/删配对。ch6帧4645
 
 
 本轮收尾：iPhone12 的 SpringBoard lockstate 已实际由0变1；Android 蓝牙恢复开启，临时日志标签清除，adbd 恢复非 root。只停止本轮日志采集进程；未使用或改动 Ubuntu 抓包机网络。
+
+
+### SmartConnect Android 自动连接（2026-11-25）
+
+a0807d7 / iPhone12：15:53:19自动匹配已认证alias、等待系统配对验证、建立NDP并完成WSS认证，无设备选择框；Android进程强制停止后，15:55:48持久关联再次自动WSS成功。首次未知设备仍保留一次明确关联。Android六项单测/完整APK构建、iOS Go race tests/SCAPI与签名App构建通过，双端新版已安装。iOS后台邀请不再替换二维码publisher。仅上述正常路径通过；iOS客户端系统DevicePicker、完整并发/取消/故障恢复及文件/NFS socket业务未全部验收。见[自动连接问题记录](problem-log.md#sc-20261125-02readyfor-已关联-nan-设备自动连接)。
+
+第二轮持续观察至15:58:54，NAN TCP仍ESTAB（WSS认证后至少3分6秒）；iOS反向验证result=true、connType10/result1。收尾iPhone12实际lockstate0→1；Android日志标签清除、蓝牙开启、adbd恢复shell。只停止本轮采集进程，未操作Ubuntu网络。

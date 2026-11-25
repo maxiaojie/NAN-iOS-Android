@@ -663,3 +663,18 @@ SmartConnect 产品源码保留本地，按用户授权将 iOS 与 Android Patch
 ### Apple官网指南对非配对发布名称的规定（2026-11-25）
 
 下载并核对2026-10-30版Accessory Design Guidelines，官网PDF与本地副本hash一致，目视检查326/328页。55.4与55.5.1明确要求非配对/已配对连接发现中不包含pairingName/vendorName/modelName，因此本轮普通Publish无名称与隐私规则一致，不能仅凭名称缺失判HAL问题。该指南没有0xDD类型表；厂商TLV/OUI解释仍为有依据推断，不冒充Apple直接定义。仅文档核对，未改代码或运行设备。[官方页码与结论](ios-publish-sdea-match-2026-11-25.md)。
+
+
+### SC-20261125-02：ReadyFor 已关联 NAN 设备自动连接
+
+环境：a0807d7/TB323FU_PRC（SDK37）与iPhone12（iPhone13,2，系统报告iOS27.2.1）。原行为每个WSS请求都开设备选择框，后台与手动邀请重复启动；完整NAN二维码还被送入BLE协商，约23秒后GATT128。
+
+处理：只有WSS指纹/Token/设备身份认证通过后，保存realDeviceId和邀请nonce到公开pairedAlias的私有App关联；静默发现匹配alias，首次未知对端保留明确关联，不按名称认定身份。不读取NIK/NPK。NDP按设备共享且有WSS租约计数，最后使用者关闭才释放；在建同邀请去重、失败退避15秒、系统配对验证失败暂停后台重连、取消回收pending资源。NAN完整邀请直接setupWs，等待时间145秒。
+
+先后定位：自动发现alias不等于本次配对验证完成，过早请求NDP曾RESP_RX_FAIL；已等待onPairingVerificationSucceed。另有二维码端口60616已经被iOS后台发布替换为60620，导致NDP成功后TCP五秒超时；iOS增加QR优先发布，后台不再抢占。保留失败历史，不把此前失败算作通过。
+
+验证：完整Android构建和六项身份/Policy单测通过，iOS SCAPI真机/模拟器构建、Go NAN race tests、主App签名构建通过。15:32首次人工关联后保存身份；15:53:19自动匹配、缓存验证、NDP和WSS认证通过；强制停止Android App后，15:55:48新邀请再次自动WSS成功，无Opening session UI，也没有点击候选按钮。最新双端软件已装到上述设备。iOS为已有Wi-FiAware profile的独立主App验证签名。
+
+边界：首次配对许可/PIN仍需要用户；iOS客户端DevicePicker自动选取、ROM旧同身份多凭据、完整并发/取消/故障矩阵和文件/NFS等业务socket未据此全部解决。代码、调用路径和失败证据见[Android补丁](SmartConnectAndroid-nan-patch.md)、[iOS补丁](SmartConnectIoS-nan-patch.md)。本轮未操作Ubuntu网络。
+
+第二轮持续观察至15:58:54，NAN TCP仍ESTAB（WSS认证后至少3分6秒）；iOS反向验证result=true、connType10/result1。收尾iPhone12实际lockstate0→1；Android日志标签清除、蓝牙开启、adbd恢复shell。只停止本轮采集进程，未操作Ubuntu网络。

@@ -209,10 +209,10 @@ index 00000000..223092f8
 +@end
 diff --git a/SmartConnect/SCService/SCConnectService/NAN/SCNanTransport.swift b/SmartConnect/SCService/SCConnectService/NAN/SCNanTransport.swift
 new file mode 100644
-index 00000000..4f6f65ce
+index 00000000..892e94ef
 --- /dev/null
 +++ b/SmartConnect/SCService/SCConnectService/NAN/SCNanTransport.swift
-@@ -0,0 +1,417 @@
+@@ -0,0 +1,422 @@
 +// Copyright (c) 2026 Lenovo. All rights reserved.
 +import Foundation
 +import UIKit
@@ -367,7 +367,7 @@ index 00000000..4f6f65ce
 +            guard s.generation == generation else { return }
 +            Self.logger.notice("NAN publisher state=\(String(describing: state), privacy: .public)")
 +            if case .ready = state { s.port = listener.port?.rawValue ?? 0; s.ready = s.port != 0 }
-+            if case .failed(let e) = state { s.failure = e }
++            if case .failed(let e) = state { s.ready = false; s.failure = e }
 +        }
 +        s.tasks.append(Task {
 +            Self.logger.notice("NAN publisher run started")
@@ -379,11 +379,16 @@ index 00000000..4f6f65ce
 +        // Apple permits one publisher per service. Never advertise a port before ready.
 +        guard !pairingActive else { return "" }
 +        for (oldID, old) in sessions.filter({ $0.value.parent == "publisher" }) {
-+            if oldID == id && old.localPort == localPort && old.ready {
++            if oldID == id && old.localPort == localPort && old.ready && old.failure == nil {
 +                return try policy(oldID, port: old.port)
 +            }
-+            // A new QR invitation supersedes an unused BLE invitation. Never
-+            // interrupt an accepted data connection to replace its publisher.
++            // A background invitation must not invalidate a visible QR's port.
++            // Only a new QR may supersede an unused background publisher.
++            if oldID != id && oldID.hasPrefix("qr:") && !id.hasPrefix("qr:") {
++                Self.logger.notice("Kept QR NAN publisher; deferred background invitation")
++                return ""
++            }
++            // Never interrupt an accepted data connection to replace its publisher.
 +            guard !sessions.values.contains(where: { $0.parent == oldID }) else { return "" }
 +            close(oldID)
 +        }
@@ -741,10 +746,10 @@ index 8d099cc9..435b0d82 100644
 +HEADER_SEARCH_PATHS = $(inherited) $(SRCROOT)/3rdLibs/OpenSSL_4.0.3/compat
 diff --git a/docs/NAN-integration.md b/docs/NAN-integration.md
 new file mode 100644
-index 00000000..4ea340a6
+index 00000000..3d796257
 --- /dev/null
 +++ b/docs/NAN-integration.md
-@@ -0,0 +1,192 @@
+@@ -0,0 +1,205 @@
 +# SmartConnect iOS：Wi-Fi Aware 接入
 +
 +日期：2026-11-25。工作目录：`/Users/mxj/workspace/SmartConnectIoS`。本次只修改 iOS 产品仓库，保留本地，不提交、不推送 GitHub；Android 产品端尚未接入本协议。
@@ -937,6 +942,19 @@ index 00000000..4ea340a6
 +
 +
 +最终相反方向复测中另观察到：已有业务配对后，原自动重连可与手动二维码同时创建不同角色的 NAN 会话，选择 UI 互相抢占。该分支尚未验收，不将界面自动化未完成的那轮算作连接通过。此前 Android 发布 / iOS 客户端 13:08 的 WSS 成功与七分钟存活，以及最新反方向 14:25 的持续连接成功均独立保留；不能把这些结果推广成全部后台重连场景已通过。
++
++
++### 2026-11-25：二维码 NAN 发布不再被后台邀请替换
++
++联调 Android 自动连接时发现，iOS 屏幕 QR 中端口 60616 对应的 native publisher 已被后台 BLE 服务邀请替换成 60620。Android 能建立 NDP，但对旧端口 TCP 连接五秒超时；这与用户输入 PIN、账号校验无关。
++
++WebsocketServer 内部发布实例增加 qr:/bg: 前缀，随机部分缩短到120字符，使完整实例仍满足现有 policy 128字符上限。SCNanEngine.publish 遇到 QR publisher 时拒绝后台邀请抢占，后台邀请不虚假宣称自己有 NAN endpoint；新的 QR 可以替换未使用的后台发布。已有 accepted 连接仍受原规则保护。listener failed 时清除 ready，不能继续返回假就绪端口。未更改 policy 的四字符串格式、TLS指纹/Token校验或系统配对。
++
++验证：SCAPI 真机/模拟器 gomobile bind 完成、Go NAN race tests 通过、NANValidation 主 App 完整签名构建成功，安装 iPhone12。15:53:17 实际记录 Kept QR NAN publisher; deferred background invitation，随后 Accepted NAN transport 和双方向 TLS 转发；Android15:53:19自动匹配后 WSS认证完成，无设备选择UI。某个后台非NAN STA请求仍可能超时，这不是该条已认证 NAN WSS失败。文件/NFS socket及iOS客户端系统DevicePicker自动选择尚不在本轮实现范围。
++
++此轮 Go 构建仅使用本机 module cache；校验站外网超时后，使用临时环境 GOSUMDB=off 完成离线构建，未修改项目 go.mod/go.sum 或全局Go配置。产品源代码保持本地，按用户授权仅导出Patch到NAN-iOS-Android仓库。
++
++补充：Android强制停止进程后，15:55:48通过持久关联再次自动连接，iOS反向验证result=true、connType10/WSS result1，15:58:54同一NAN TCP仍ESTAB。收尾iPhone12实测锁屏0→1，Android恢复非root/临时日志标签/蓝牙开启；Ubuntu未改动。
 diff --git a/libs/SCAPI/common/constants/constants.go b/libs/SCAPI/common/constants/constants.go
 index 27ea0458..644caa30 100644
 --- a/libs/SCAPI/common/constants/constants.go
@@ -1396,7 +1414,7 @@ index 7b206448..cc3e318d 100644
  	_, data, err := client.conn.ReadMessage()
  	if err != nil {
 diff --git a/libs/SCAPI/framework/websocket/WebsocketServer.go b/libs/SCAPI/framework/websocket/WebsocketServer.go
-index 3d33d815..52b759b8 100644
+index 3d33d815..ca712282 100644
 --- a/libs/SCAPI/framework/websocket/WebsocketServer.go
 +++ b/libs/SCAPI/framework/websocket/WebsocketServer.go
 @@ -19,6 +19,7 @@ import (
@@ -1407,12 +1425,15 @@ index 3d33d815..52b759b8 100644
  	"motorola.com/readyforassistant/framework/connectivity/p2p"
  	"motorola.com/readyforassistant/framework/device"
  	"motorola.com/readyforassistant/framework/discovery"
-@@ -175,7 +176,27 @@ func (server *websocketServer) setup(discoveryMsg DiscoveryMsg) {
+@@ -175,7 +176,30 @@ func (server *websocketServer) setup(discoveryMsg DiscoveryMsg) {
  	server.expired = time.Now().Add(TOKEN_TIMEOUT)
  	server.fp = utils.FingerprintToBase64(fp)
  	log.D(TAG, "websocketServer setup->DeviceId:%s, Token:%s, Port:%d, fp:%s, isPending:%t", server.dstDeviceId, server.token, server.port, server.fp, server.isPending())
 -	go server.run()
-+	server.nanPublisher = utils.GenRandomToken(128)
++	server.nanPublisher = "bg:" + utils.GenRandomToken(120)
++	if server.channel&constants.DISCOVERY_CHANNEL_QRCODE != 0 {
++		server.nanPublisher = "qr:" + utils.GenRandomToken(120)
++	}
 +	// setup runs with websocketMutex held. Native publishing awaits UIKit's
 +	// main actor, whose callbacks also query this map. Release the global lock
 +	// before crossing that synchronous native bridge.
@@ -1436,7 +1457,7 @@ index 3d33d815..52b759b8 100644
  }
  
  func (server *websocketServer) run() {
-@@ -211,7 +232,13 @@ func (server *websocketServer) run() {
+@@ -211,7 +235,13 @@ func (server *websocketServer) run() {
  		return
  	} else {
  		tokenTimeout := TOKEN_TIMEOUT
@@ -1450,7 +1471,7 @@ index 3d33d815..52b759b8 100644
  		if (server.channel & constants.DISCOVERY_CHANNEL_QRCODE) != 0 {
  			tokenTimeout = tokenTimeout + time.Minute
  			websocketTimeout = websocketTimeout + time.Minute
-@@ -351,12 +378,22 @@ func (server *websocketServer) readyforHandler(w http.ResponseWriter, r *http.Re
+@@ -351,12 +381,22 @@ func (server *websocketServer) readyforHandler(w http.ResponseWriter, r *http.Re
  	}
  	log.D(TAG, "websocketServer ReadMessage->Port:%d, Unmarshal ServiceManagerData:%#v", server.port, serviceManagerData)
  	localIp := utils.GetIp(conn.LocalAddr().String())
@@ -1474,7 +1495,7 @@ index 3d33d815..52b759b8 100644
  		} else {
  			log.E(TAG, "websocketServer remoteServer verify fail->Port:%d, remoteIp:%s,localIp:%s,srcDeviceId:%s", server.port, r.RemoteAddr, localIp, websocketMsg.SrcDeviceId)
  			server.failAcceptedConnection(
-@@ -463,6 +500,15 @@ func (server *websocketServer) getInviteMsg() []byte {
+@@ -463,6 +503,15 @@ func (server *websocketServer) getInviteMsg() []byte {
  		server.policies = getPolicies(server.dstDeviceId)
  	}
  
