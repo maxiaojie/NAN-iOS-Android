@@ -12,3 +12,5 @@
 - Ubuntu 已于 2026-11-18 一次授权固定命令 `/usr/local/sbin/nan-monitor-control`。使用 `sudo -n` 加 prepare、capture（信道 6/149，10～120 秒）、stop、restore、status；以后不要重复要求用户 sudo 恢复。restore 若因 NetworkManager 接口暂未就绪失败，继续自行重试并验证 HTTPS。安装源文件为 tools/setup-nan-monitor-control.sh，安装后的命令和 sudoers 由 root 持有。
 
 - iPhone USB 收尾锁屏使用 `tools/lock-iphone.py <明确UDID>`（本机 Python：`/Users/mxj/nan-ios-tools/bin/python`）。先查 SpringBoard lockstate，已锁定不要再按侧键；只用 0.05 秒短按，不能使用旧版 0.5 秒长按（会触发 Siri）。以实际 lockstate 转换确认，不能仅凭 devicectl passcodeRequired 或命令返回成功。详见 `docs/iphone-usb-lock.md`。
+
+- 用户于2026-11-25确认当前iPhone12（00008101-0016212414D0001E）没有密码。已授权双端测试时，先尝试USB唤醒和上滑解锁，不要默认要求用户手动解锁。当前已验证的手势是universal-hid-service的drag（屏幕归一化坐标32768,64000→32768,12000）；swipe命令只移动指针，不产生触摸。若实际出现密码页，则由用户解锁，不能尝试猜密码。结束后仍按上面的短按锁屏及状态核对规则执行。

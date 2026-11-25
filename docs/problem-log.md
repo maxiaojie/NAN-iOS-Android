@@ -687,3 +687,14 @@ a0807d7与iPhone12，在已有设备页交替点击连接，最初五轮（iPhon
 额外扫码只为强制反向NAN角色，超出了本次要求；其角色争抢与上述普通页面失败分开记录，未证实为用户原故障原因。实验性角色互斥改动已撤回，双端重新安装原功能代码；没有删除系统配对。环境、每轮结果、失败阶段、残留重试暂停标记恢复及解释边界见[完整复测记录](SmartConnect-nan-reconnect-validation-2026-11-25.md)。
 
 收尾核对：iPhone12实际SpringBoard lockstate从0变1；Android adbd恢复非root、临时日志标签已清除，停止的只有本轮两个采集进程。Ubuntu未改动。
+
+
+### SC-20261125-04：重连失败收到对端NDP End，排除alias与App提前取消
+
+在原有配对设备页复现两次PEER_DATA_END。19:08失败轮次同时保留空口和cnss固件日志；匹配197458.2字典恢复到msg29616 / wlan_nan20_sm.c:3988，nan20_sm_data_end_received_ota(data_end_in_progress0,state4)，发生在Confirm ACK之后、host-end请求之前。驱动reason9011，Framework先收失败通知再回收；错误78和iOS listener关闭属于后续清理。两端时钟有约0.7～0.8秒偏差，按同一BLE报文收发关系校正，否定“iOS因收到78提前关闭导致NDP失败”的假设。
+
+另确认设备仍用旧Data20.msc，和197458.2包内字典同VERSION却有7450项共同消息映射/参数定义不同；旧日志“No FA found”等不能直接作为根因。只重解释文本中仍保留的参数，缺失参数不猜测；未替换设备字典、固件或产品逻辑。
+
+**直接原因已确认到NDP Confirm后收到对端End；iPhone为何发送End的内部原因仍未证实，不直接定责iOS固件，也不宣称所有INSTALL_RX_FAIL相同或已修复。** iOS“decode key data”等报错在成功轮次也存在，排除为独立证据。完整时序、两份字典hash、解码边界及私有归档见[根因调查](SmartConnect-nan-reconnect-root-analysis-2026-11-25.md)。Ubuntu抓包集中在/home/mxj/NAN/2026-11-25/smartconnect-root，原始日志/字典不上传。
+
+收尾核实：Ubuntu已恢复managed，wlp3s0连接lenovo-internet，有默认路由，访问清华镜像HTTPS返回HTTP/2 200。恢复时第一次因接口尚不可用失败，第二次自行重试成功，未要求用户sudo。iPhone12已实测上滑无密码解锁，结束后SpringBoard锁屏0→1；Android恢复shell UID、临时日志级别清除，保留原cnss_diag服务，只停止本轮采集。

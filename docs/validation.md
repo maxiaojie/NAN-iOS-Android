@@ -358,3 +358,8 @@ a0807d7 / iPhone12：15:53:19自动匹配已认证alias、等待系统配对验�
 ### SmartConnect常规重连复测（2026-11-25晚）
 
 前五轮交替从iPhone/Android已有设备页发起均通过，随后冷启动又出现已验证配对后的NDP失败（PEER_DATA_END/INSTALL_RX_FAIL）；另一轮临时配对WSS成功但iOS仍提示失败。不能认定已配对设备自动连接稳定，不能将临时service19推广为持续service8通过。额外扫码和角色互斥实验不计入普通页面验收，实验改动已撤回。见[逐轮证据与边界](SmartConnect-nan-reconnect-validation-2026-11-25.md)。
+
+
+### SmartConnect NDP终止来源调查（2026-11-25）
+
+仍未修复。本段内核日志观察到34个SUCCESS和2个PEER_DATA_END，不据此推算概率。失败轮次由固件nan20_sm_data_end_received_ota确认收到对端End，先于host-end与App回收；确认直接失败路径，尚缺iPhone为何结束的内部原因。旧Data20字典不匹配且同VERSION，已使用随197458.2提供的字典重解释可保留的参数，未改设备软件。对时校正后错误78不是首个起因。见[证据与限制](SmartConnect-nan-reconnect-root-analysis-2026-11-25.md)。
