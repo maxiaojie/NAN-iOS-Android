@@ -193,3 +193,20 @@ WiFiAwarePublishDatapathServiceSpecificInfo:
 参考实现：[Wireshark NAN dissector](https://github.com/wireshark/wireshark/blob/master/epan/dissectors/packet-wifi-nan.c)。
 
 没有在本轮 iPhone 系统日志中找到 `dd03000017f2` 被识别为地址的记录，也没有找到直接解析这段 SSI、明确给出 0xDD 类型名称的日志。因而当前结论是：**日志已确认实际地址；6字节强烈符合携带Apple OUI的TLV，而非本轮设备单播地址；具体内层类型语义仍是有依据的解释，不能冒充日志直接确认。** 它也不是完整六字节设备MAC的后半段，更不能用Apple OUI作为唯一设备身份。此前空口与Android上报字节不一致的问题仍独立存在。
+
+
+## Apple 官网指南核对：0xDD 语义的边界与非配对发布名称规则
+
+直接下载 Apple 官网 [Accessory Design Guidelines](https://developer.apple.com/accessories/Accessory-Design-Guidelines.pdf)，文档页脚版本 **2026-10-30**，PDF 408 页。官网文件与 Downloads 现有副本 SHA256 完全一致：`d94721a5c78039ec813a897027754fb42ed3d21890d6f1c2af3c02854aafd81e`。本轮文本提取，并渲染、目视检查第326和328页。
+
+该文档第55章（Wi-Fi Aware）以及全文检索未找到 `0xDD` 对应的 SSI 类型表，未定义本次6字节的具体编码。其55.4对SDEA引用 Wi-Fi Aware Specification v4.0 §9.5.4.2/Table55；不要把“Apple官网说明了Wi-Fi Aware互通要求”混同为“Apple明确公开了0xDD的私有含义”。Wireshark NAN属性0xdd=Vendor Specific与6字节TLV结构仍支持厂商TLV解释，但不补足内层SSI命名空间的规范证明。
+
+官方明确规定的内容：
+
+- **55.4 Peer as a Publisher，第326页**：发布端处于配对模式时，SSI携带规定的设备TXT；不在配对模式时，不应携带这些设备信息。
+- **55.5.1 Service & Device Discovery，第327～328页**：连接已配对设备时，不包含 pairingName/vendorName/modelName，避免额外SSI；该规则属于隐私保护，防止通过公开发现帧跟踪设备。
+- **55.5.2，第328页**：NMI/NDI使用随机、本地管理、单播MAC，进一步不支持把首字节0xdd的6字节解释成本机普通单播NAN地址。
+
+因此对“未提供名称”的解释从“iOS普通发布可能不提供”收窄为：**本轮处于普通的已配对连接发布，未带名称TXT与Apple官方设计要求一致。不能要求每个普通Publish都携带配对名称，也不能把名称缺失本身判作HAL丢字段。** 应在配对阶段取得并关联展示信息，或在安全数据链路建立后交换名称；持久设备关联和App缓存策略需另行设计。
+
+0xDD当前的准确表述：从报文形状看最符合厂商特定TLV、值为Apple OUI的解释；Apple此次核对的公开指南没有直接定义该编号，不能标为“Apple文档已确认的类型”。已有空口/Android字节差异仍待独立定位，本轮仅文档核对，未重新操作手机、抓包、测试或修改代码。

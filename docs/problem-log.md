@@ -658,3 +658,8 @@ USB归档读取本轮iPhone12历史日志，确认nan0与Publish responder均为
 ### SC-20261125-01：SmartConnect iOS NAN 本地接入补丁
 
 SmartConnectIoS 原仓库仅配置公司 Gerrit，按用户要求将 Patch 放入本 GitHub 示例仓库，不推送产品仓库。补丁加入 nan Policy、Aware 建链后 WSS、反向验证、配对入口及生命周期管理。依赖缺失、Pods Git HTTP/2 下载异常、OpenSSL 4 头文件布局和 const API 的处理均记录在补丁内专项文档。完整 iOS 未签名构建通过，端到端真机未验证，Android 产品端尚在接入。详见 [Patch 基线、校验和及使用方法](SmartConnectIoS-nan-patch.md)。
+
+
+### Apple官网指南对非配对发布名称的规定（2026-11-25）
+
+下载并核对2026-10-30版Accessory Design Guidelines，官网PDF与本地副本hash一致，目视检查326/328页。55.4与55.5.1明确要求非配对/已配对连接发现中不包含pairingName/vendorName/modelName，因此本轮普通Publish无名称与隐私规则一致，不能仅凭名称缺失判HAL问题。该指南没有0xDD类型表；厂商TLV/OUI解释仍为有依据推断，不冒充Apple直接定义。仅文档核对，未改代码或运行设备。[官方页码与结论](ios-publish-sdea-match-2026-11-25.md)。
