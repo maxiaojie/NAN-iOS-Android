@@ -1,0 +1,1527 @@
+diff --git a/3rdLibs/OpenSSL_4.0.3/compat/openssl b/3rdLibs/OpenSSL_4.0.3/compat/openssl
+new file mode 120000
+index 00000000..f5030fe8
+--- /dev/null
++++ b/3rdLibs/OpenSSL_4.0.3/compat/openssl
+@@ -0,0 +1 @@
++../include
+\ No newline at end of file
+diff --git a/SmartConnect.xcodeproj/project.pbxproj b/SmartConnect.xcodeproj/project.pbxproj
+index dc9babe7..f1407022 100644
+--- a/SmartConnect.xcodeproj/project.pbxproj
++++ b/SmartConnect.xcodeproj/project.pbxproj
+@@ -506,6 +506,7 @@
+ 		63EDABC930907E590079130F /* dt2socket.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 63EDABC630907E370079130F /* dt2socket.framework */; };
+ 		63EDABCA30907E590079130F /* dt2socket.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 63EDABC630907E370079130F /* dt2socket.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+ 		68074C579C48E7C2A30ADB0A /* Pods_SCProviderExtension.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 79531106A0E6DD3C8B653E7B /* Pods_SCProviderExtension.framework */; };
++		694707D5934A44969A92AABC /* SCNanTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 456DA3D1A6FA4DBB824727DB /* SCNanTransport.swift */; };
+ 		6AB59092DFC22B2B348682AA /* Pods_SCProviderExtension.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8AEE97D1350857F952A0FB44 /* Pods_SCProviderExtension.framework */; };
+ 		6F91E8CB4DA51064AF672DA7 /* Pods_SCShareExtension.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2240B527835C074802E3B12E /* Pods_SCShareExtension.framework */; };
+ 		760107102EEAA81D00FA6304 /* SCNFSClientResourceLoaderManager.m in Sources */ = {isa = PBXBuildFile; fileRef = 7601070F2EEAA81D00FA6304 /* SCNFSClientResourceLoaderManager.m */; };
+@@ -1028,6 +1029,7 @@
+ 		D4F0AE9AB04BC0D516F05E2E /* Pods_SCShareExtension.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1E20BEDCF535D934DB07A64B /* Pods_SCShareExtension.framework */; };
+ 		D8C930A731A10001009F1001 /* MotoIDTokenValidator.m in Sources */ = {isa = PBXBuildFile; fileRef = D8C930A731A10001009F1003 /* MotoIDTokenValidator.m */; };
+ 		E5B4C091471F27B1834E9696 /* NSString+SCRegex.m in Sources */ = {isa = PBXBuildFile; fileRef = AE157A0943253F8EBCCFEA92 /* NSString+SCRegex.m */; };
++		F4B465E61785489A94FB13A9 /* SCNanCallback.m in Sources */ = {isa = PBXBuildFile; fileRef = 13523639D44245BA9D287866 /* SCNanCallback.m */; };
+ /* End PBXBuildFile section */
+ 
+ /* Begin PBXContainerItemProxy section */
+@@ -1097,6 +1099,7 @@
+ 		07D87C2823E99348A5726464 /* Pods-SCBroadcastExtension.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SCBroadcastExtension.release.xcconfig"; path = "Target Support Files/Pods-SCBroadcastExtension/Pods-SCBroadcastExtension.release.xcconfig"; sourceTree = "<group>"; };
+ 		0CA36AAADC3CCD973111AA34 /* Pods-SCShareExtension.testdebug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SCShareExtension.testdebug.xcconfig"; path = "Target Support Files/Pods-SCShareExtension/Pods-SCShareExtension.testdebug.xcconfig"; sourceTree = "<group>"; };
+ 		0DED9B0FB718F1BF2AD0CEF7 /* Pods_SCBroadcastExtension.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_SCBroadcastExtension.framework; sourceTree = BUILT_PRODUCTS_DIR; };
++		13523639D44245BA9D287866 /* SCNanCallback.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = NAN/SCNanCallback.m; sourceTree = "<group>"; };
+ 		1562FB797F020C34109DE8B3 /* Pods-SCBroadcastExtension.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SCBroadcastExtension.debug.xcconfig"; path = "Target Support Files/Pods-SCBroadcastExtension/Pods-SCBroadcastExtension.debug.xcconfig"; sourceTree = "<group>"; };
+ 		17167B7D40EE84BD447E20E0 /* Pods_SCBroadcastExtension.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_SCBroadcastExtension.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+ 		1E20BEDCF535D934DB07A64B /* Pods_SCShareExtension.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_SCShareExtension.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+@@ -1763,8 +1766,10 @@
+ 		32988F1DCDEC6B074103D5E8 /* Pods-SmartConnect.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SmartConnect.debug.xcconfig"; path = "Target Support Files/Pods-SmartConnect/Pods-SmartConnect.debug.xcconfig"; sourceTree = "<group>"; };
+ 		360800C440F4E4FDFDF99658 /* Pods-SCShareExtension.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SCShareExtension.release.xcconfig"; path = "Target Support Files/Pods-SCShareExtension/Pods-SCShareExtension.release.xcconfig"; sourceTree = "<group>"; };
+ 		3EF73614A9EB8D0DC412631B /* Pods-SCBroadcastExtension.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SCBroadcastExtension.release.xcconfig"; path = "Target Support Files/Pods-SCBroadcastExtension/Pods-SCBroadcastExtension.release.xcconfig"; sourceTree = "<group>"; };
++		456DA3D1A6FA4DBB824727DB /* SCNanTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NAN/SCNanTransport.swift; sourceTree = "<group>"; };
+ 		47810F4A9DF759BDEECA5256 /* Pods-SCProviderExtension.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SCProviderExtension.debug.xcconfig"; path = "Target Support Files/Pods-SCProviderExtension/Pods-SCProviderExtension.debug.xcconfig"; sourceTree = "<group>"; };
+ 		47F94620F0D3919AA2C8607B /* Pods-SCProviderExtension.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SCProviderExtension.debug.xcconfig"; path = "Target Support Files/Pods-SCProviderExtension/Pods-SCProviderExtension.debug.xcconfig"; sourceTree = "<group>"; };
++		513A164585864EB9A7645E94 /* SCNanCallback.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = NAN/SCNanCallback.h; sourceTree = "<group>"; };
+ 		52221C168D451C553C587465 /* Pods-SCProviderExtension.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SCProviderExtension.debug.xcconfig"; path = "Target Support Files/Pods-SCProviderExtension/Pods-SCProviderExtension.debug.xcconfig"; sourceTree = "<group>"; };
+ 		5CE0DE1A0000000000000002 /* SceneDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SceneDelegate.h; sourceTree = "<group>"; };
+ 		5CE0DE1A0000000000000003 /* SceneDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SceneDelegate.m; sourceTree = "<group>"; };
+@@ -2913,6 +2918,8 @@
+ /* Begin PBXFileSystemSynchronizedRootGroup section */
+ 		6364B5E12F358587009228AB /* View */ = {
+ 			isa = PBXFileSystemSynchronizedRootGroup;
++			exceptions = (
++			);
+ 			path = View;
+ 			sourceTree = "<group>";
+ 		};
+@@ -5007,6 +5014,9 @@
+ 		76788DC22CC7E8D2008425ED /* SCConnectService */ = {
+ 			isa = PBXGroup;
+ 			children = (
++				456DA3D1A6FA4DBB824727DB /* SCNanTransport.swift */,
++				13523639D44245BA9D287866 /* SCNanCallback.m */,
++				513A164585864EB9A7645E94 /* SCNanCallback.h */,
+ 				767897492CC804BC008425ED /* SCConnectManager.h */,
+ 				76BAEC622CCBA1090077CADE /* SCConnectManager.m */,
+ 				76BAEC652CCBA1090077CADE /* SCConnectManager+Connect.m */,
+@@ -7258,8 +7268,7 @@
+ 			);
+ 			runOnlyForDeploymentPostprocessing = 0;
+ 			shellPath = /bin/sh;
+-			shellScript = "
+-";
++			shellScript = "\n";
+ 			showEnvVarsInLog = 0;
+ 		};
+ 		776300864966FAD232AE520A /* [CP] Check Pods Manifest.lock */ = {
+@@ -7292,14 +7301,10 @@
+ 			inputFileListPaths = (
+ 				"${PODS_ROOT}/Target Support Files/Pods-SmartConnect/Pods-SmartConnect-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+ 			);
+-			inputPaths = (
+-			);
+ 			name = "[CP] Embed Pods Frameworks";
+ 			outputFileListPaths = (
+ 				"${PODS_ROOT}/Target Support Files/Pods-SmartConnect/Pods-SmartConnect-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+ 			);
+-			outputPaths = (
+-			);
+ 			runOnlyForDeploymentPostprocessing = 0;
+ 			shellPath = /bin/sh;
+ 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-SmartConnect/Pods-SmartConnect-frameworks.sh\"\n";
+@@ -7586,6 +7591,8 @@
+ 				762F7F622D1A90C000917EA4 /* SCNFSPhotoFileModel.m in Sources */,
+ 				7673374D2D26920000129DEE /* SCNFSService.mm in Sources */,
+ 				A6B66D832D9D5EF000613FC5 /* SCDeviceManager.m in Sources */,
++				694707D5934A44969A92AABC /* SCNanTransport.swift in Sources */,
++				F4B465E61785489A94FB13A9 /* SCNanCallback.m in Sources */,
+ 				76BAEC632CCBA1090077CADE /* SCConnectManager.m in Sources */,
+ 				76BAEC642CCBA1090077CADE /* SCConnectManager+Connect.m in Sources */,
+ 				76BAEC672CCBA1090077CADE /* SCConnectManager+Message.m in Sources */,
+diff --git a/SmartConnect/Resources/Info.plist b/SmartConnect/Resources/Info.plist
+index 681709d4..5aaa975c 100644
+--- a/SmartConnect/Resources/Info.plist
++++ b/SmartConnect/Resources/Info.plist
+@@ -116,5 +116,10 @@
+ 	<true/>
+ 	<key>UIViewControllerBasedStatusBarAppearance</key>
+ 	<true/>
++	<key>WiFiAwareServices</key>
++    <dict>
++        <key>_smartconnect._tcp</key>
++        <dict><key>Publishable</key><dict/><key>Subscribable</key><dict/></dict>
++    </dict>
+ </dict>
+ </plist>
+diff --git a/SmartConnect/SCModule/Pairing/Controller/SCPairingQrCodeController.m b/SmartConnect/SCModule/Pairing/Controller/SCPairingQrCodeController.m
+index 100af235..952a6a78 100644
+--- a/SmartConnect/SCModule/Pairing/Controller/SCPairingQrCodeController.m
++++ b/SmartConnect/SCModule/Pairing/Controller/SCPairingQrCodeController.m
+@@ -32,6 +32,9 @@ - (void)dealloc {
+ 
+ - (void)viewDidLoad {
+     [super viewDidLoad];
++    if (@available(iOS 26.4, *)) {
++        self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"Wi-Fi Aware" style:UIBarButtonItemStylePlain target:self action:@selector(showNanPairing)];
++    }
+     self.codeView = [SCQrCodeView getInstance];
+     self.codeView.frame = CGRectMake(0, (kScreenHeightFix - 450) * 0.5, kScreenWidthFix, 500);
+     self.codeView.delegate = self;
+@@ -55,6 +58,10 @@ - (void)setPageVisible:(BOOL)visible {
+     }
+ }
+ 
++- (void)showNanPairing {
++    [SCNanTransport.shared showPairingFrom:self];
++}
++
+ - (void)trublePairingAction {
+     TroubleScanningController *vc = [[TroubleScanningController alloc] init];
+     [self.navigationController pushViewController:vc animated:YES];
+diff --git a/SmartConnect/SCModule/Pairing/Controller/SCPairingScanController.m b/SmartConnect/SCModule/Pairing/Controller/SCPairingScanController.m
+index b512def4..58c68d22 100644
+--- a/SmartConnect/SCModule/Pairing/Controller/SCPairingScanController.m
++++ b/SmartConnect/SCModule/Pairing/Controller/SCPairingScanController.m
+@@ -307,7 +307,17 @@ - (void)handleScanResult:(NSString *)result {
+     self.lastResult = result;
+     self.stopScanByHand = YES;
+     [self stopScanning];
+-    if ([SCNetworkMonitor sharedMonitor].connectionType == SCNetworkConnectionTypeNone) {
++    BOOL hasNANPolicy = NO;
++    for (NSDictionary *policy in connectData.policies) {
++        if (![policy isKindOfClass:NSDictionary.class]) continue;
++        id value = policy[@"nan"];
++        if ([value isKindOfClass:NSArray.class] && [value count] > 0) {
++            hasNANPolicy = YES;
++            break;
++        }
++    }
++    // NAN does not require an infrastructure Wi-Fi/cellular connection.
++    if (!hasNANPolicy && [SCNetworkMonitor sharedMonitor].connectionType == SCNetworkConnectionTypeNone) {
+         @weakify(self);
+         [SCCommonAlertView showUnableToPairWithConfirm:NSLocalizedString(@"Try again", nil)
+                                          cancel:NSLocalizedString(@"Cancel", nil)
+diff --git a/SmartConnect/SCService/SCConnectService/NAN/SCNanCallback.h b/SmartConnect/SCService/SCConnectService/NAN/SCNanCallback.h
+new file mode 100644
+index 00000000..5bf0a158
+--- /dev/null
++++ b/SmartConnect/SCService/SCConnectService/NAN/SCNanCallback.h
+@@ -0,0 +1,5 @@
++// Copyright (c) 2026 Lenovo. All rights reserved.
++#import <Foundation/Foundation.h>
++@interface SCNanCallback : NSObject
+++ (void)install;
++@end
+diff --git a/SmartConnect/SCService/SCConnectService/NAN/SCNanCallback.m b/SmartConnect/SCService/SCConnectService/NAN/SCNanCallback.m
+new file mode 100644
+index 00000000..223092f8
+--- /dev/null
++++ b/SmartConnect/SCService/SCConnectService/NAN/SCNanCallback.m
+@@ -0,0 +1,29 @@
++// Copyright (c) 2026 Lenovo. All rights reserved.
++#import "SCNanCallback.h"
++#import <SCAPI/SCAPI.h>
++#import "SmartConnect-Swift.h"
++@interface SCNanCallback () <IOSNanAPICallback>
++@end
++@implementation SCNanCallback
+++ (void)install {
++    static SCNanCallback *callback;
++    static dispatch_once_t once;
++    dispatch_once(&once, ^{
++        callback = [SCNanCallback new];
++        IOSSCAPI_InitNanCallback(callback);
++    });
++}
++- (NSString *)publish:(NSString *)instance localPort:(long)localPort {
++    return [SCNanTransport.shared publish:instance localPort:localPort];
++}
++- (NSString *)connect:(NSString *)deviceID policyJSON:(NSString *)policyJSON parentRoute:(NSString *)parentRoute {
++    return [SCNanTransport.shared connect:deviceID policyJSON:policyJSON parentRoute:parentRoute];
++}
++- (NSString *)reverse:(NSString *)route localPort:(long)localPort {
++    return [SCNanTransport.shared reverse:route localPort:localPort];
++}
++- (NSString *)resolveIncoming:(long)port {
++    return [SCNanTransport.shared resolveIncoming:port];
++}
++- (void)close:(NSString *)route { [SCNanTransport.shared close:route]; }
++@end
+diff --git a/SmartConnect/SCService/SCConnectService/NAN/SCNanTransport.swift b/SmartConnect/SCService/SCConnectService/NAN/SCNanTransport.swift
+new file mode 100644
+index 00000000..f4adf5c0
+--- /dev/null
++++ b/SmartConnect/SCService/SCConnectService/NAN/SCNanTransport.swift
+@@ -0,0 +1,366 @@
++// Copyright (c) 2026 Lenovo. All rights reserved.
++import Foundation
++import UIKit
++import SwiftUI
++import Network
++import WiFiAware
++import DeviceDiscoveryUI
++import OSLog
++
++/// Go only opens loopback sockets. Network framework owns every NAN radio socket.
++@objc(SCNanTransport) final class SCNanTransport: NSObject {
++    @objc static let shared = SCNanTransport()
++    @objc func publish(_ instance: String, localPort: Int) -> String {
++        guard #available(iOS 26.4, *) else { return "" }
++        return call { try await SCNanEngine.shared.publish(instance, localPort: localPort) }
++    }
++    @objc func connect(_ deviceID: String, policyJSON: String, parentRoute: String) -> String {
++        guard #available(iOS 26.4, *) else { return "" }
++        return call(timeout: parentRoute.isEmpty ? 95 : 20) { try await SCNanEngine.shared.connect(policyJSON, parent: parentRoute) }
++    }
++    @objc func reverse(_ route: String, localPort: Int) -> String {
++        guard #available(iOS 26.4, *) else { return "" }
++        return call { try await SCNanEngine.shared.reverse(route, localPort: localPort) }
++    }
++    @objc func resolveIncoming(_ port: Int) -> String {
++        guard #available(iOS 26.4, *) else { return "" }
++        return call { SCNanEngine.shared.incoming[port] ?? "" }
++    }
++    @objc func close(_ route: String) {
++        if #available(iOS 26.4, *) { Task { @MainActor in SCNanEngine.shared.close(route) } }
++    }
++    @objc func showPairing(from controller: UIViewController) {
++        if #available(iOS 26.4, *) {
++            Task { @MainActor in SCNanEngine.shared.showPairing(from: controller) }
++        }
++    }
++    // The generated Go callback is synchronous, and is called from Go workers.
++    // Never wait on UIKit's main thread. Cancellation prevents late UI/listeners.
++    private func call(timeout: Double = 20, _ body: @escaping @MainActor () async throws -> String) -> String {
++        guard #available(iOS 26.4, *), !Thread.isMainThread else { return "" }
++        let box = SCNanResult()
++        let done = DispatchSemaphore(value: 0)
++        let task = Task { @MainActor in
++            defer { done.signal() }
++            do { box.set(try await body()) }
++            catch { SCNanEngine.logger.error("NAN operation failed: \(String(describing: error), privacy: .public)") }
++        }
++        if done.wait(timeout: .now() + timeout) == .timedOut { task.cancel(); return "" }
++        return box.get()
++    }
++}
++private final class SCNanResult: @unchecked Sendable {
++    private let lock = NSLock()
++    private var value = ""
++    func set(_ text: String) { lock.lock(); defer { lock.unlock() }; value = text }
++    func get() -> String { lock.lock(); defer { lock.unlock() }; return value }
++}
++
++@available(iOS 26.4, *)
++@MainActor private final class SCNanEngine {
++    static let shared = SCNanEngine()
++    static let logger = Logger(subsystem: "com.lenovo.smartconnect.ios", category: "NAN")
++    static let service = "_smartconnect._tcp"
++    final class Session {
++        var tasks: [Task<Void, Never>] = []
++        var remote: NetworkConnection<TCP>?
++        var ready = false
++        var failure: Error?
++        var port: UInt16 = 0
++        var localIP = ""
++        var remoteIP = ""
++        var parent = ""
++        var generation = UUID()
++        var localPort = 0
++        var consumed = false
++        var incomingPort: Int?
++    }
++    var sessions: [String: Session] = [:]
++    var incoming: [Int: String] = [:]
++    var picker: UIViewController?
++    var pairingActive = false
++    var pairingDelegate: SCNanDismissDelegate?
++    weak var pairingHost: UIViewController?
++    private func error(_ text: String) -> NSError {
++        NSError(domain: "SmartConnect.NAN", code: 1, userInfo: [NSLocalizedDescriptionKey: text])
++    }
++    private func json(_ object: Any) throws -> String {
++        String(decoding: try JSONSerialization.data(withJSONObject: object), as: UTF8.self)
++    }
++    private func policy(_ id: String, port: UInt16) throws -> String {
++        try json(["1", Self.service, id, String(port)])
++    }
++    private func route(_ id: String, _ s: Session) throws -> String {
++        try json(["id": id, "port": Int(s.port), "localIP": s.localIP, "remoteIP": s.remoteIP])
++    }
++    private func wait(_ s: Session, seconds: Int = 15) async throws {
++        for _ in 0..<(seconds * 20) {
++            try Task.checkCancellation()
++            if let failure = s.failure { throw failure }
++            if s.ready { return }
++            try await Task.sleep(for: .milliseconds(50))
++        }
++        throw error("Wi-Fi Aware operation timed out")
++    }
++    private func ip(_ connection: NetworkConnection<TCP>, local: Bool) throws -> String {
++        let candidates = local
++            ? [connection.currentPath?.localEndpoint, connection.localEndpoint]
++            : [connection.currentPath?.remoteEndpoint, connection.remoteEndpoint]
++        for endpoint in candidates {
++            if case let .hostPort(host, _) = endpoint { return String(describing: host) }
++        }
++        throw error("Missing connected Aware IPv6 endpoint")
++    }
++    private func startPublisher(_ id: String, session s: Session, port: UInt16 = 0) throws {
++        guard let service = WAPublishableService.allServices[Self.service] else { throw error("NAN publish service not declared") }
++        s.generation = UUID(); let generation = s.generation
++        s.failure = nil; s.ready = false
++        let listener = try NetworkListener(for: .wifiAware(.connecting(to: service, from: .allPairedDevices)),
++            using: .parameters { TCP() }.localPort(NWEndpoint.Port(rawValue: port)!))
++        listener.onStateUpdate { _, state in
++            guard s.generation == generation else { return }
++            if case .ready = state { s.port = listener.port?.rawValue ?? 0; s.ready = s.port != 0 }
++            if case .failed(let e) = state { s.failure = e }
++        }
++        s.tasks.append(Task {
++            do { try await listener.run { remote in self.accept(remote, localPort: s.localPort, parent: id) } }
++            catch { if s.generation == generation { s.failure = error } }
++        })
++    }
++    func publish(_ id: String, localPort: Int) async throws -> String {
++        // Apple permits one publisher per service. Never advertise a port before ready.
++        guard !pairingActive, !sessions.values.contains(where: { $0.parent == "publisher" }) else { return "" }
++        let s = Session(); s.parent = "publisher"; s.localPort = localPort; sessions[id] = s
++        do {
++            try startPublisher(id, session: s)
++            try await wait(s)
++            Self.logger.notice("NAN publisher ready, port=\(s.port)")
++            return try policy(id, port: s.port)
++        } catch { close(id); throw error }
++    }
++    private func accept(_ remote: NetworkConnection<TCP>, localPort: Int, parent: String) {
++        let id = UUID().uuidString
++        let s = Session(); s.parent = parent; s.remote = remote; sessions[id] = s
++        s.tasks.append(Task {
++            do {
++                let local = NetworkConnection(to: .hostPort(host: "::1", port: NWEndpoint.Port(rawValue: UInt16(localPort))!), using: .parameters { TCP() })
++                // Establish loopback before forwarding TLS, so Go can resolve this
++                // ephemeral port to the real Aware peer during its HTTP upgrade.
++                try await local.send(Data())
++                try await remote.send(Data())
++                guard case let .hostPort(_, port) = local.localEndpoint else { throw self.error("Missing loopback endpoint") }
++                s.localIP = try self.ip(remote, local: true)
++                s.remoteIP = try self.ip(remote, local: false)
++                s.incomingPort = Int(port.rawValue)
++                self.incoming[Int(port.rawValue)] = try self.route(id, s)
++                Self.logger.notice("Accepted NAN transport")
++                try await Self.pipe(local, remote)
++            } catch { Self.logger.error("NAN accepted transport ended: \(String(describing: error), privacy: .public)") }
++            self.close(id)
++        })
++    }
++    func connect(_ text: String, parent: String) async throws -> String {
++        guard let values = try JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String],
++              values.count == 4, values[0] == "1", values[1] == Self.service,
++              let port = UInt16(values[3]), port > 0 else { throw error("Invalid NAN policy") }
++        let id = UUID().uuidString
++        let s = Session(); s.parent = parent; sessions[id] = s
++        do {
++            let remote: NetworkConnection<TCP>
++            if !parent.isEmpty {
++                guard let original = sessions[parent]?.remote, let address = original.currentPath?.remoteEndpoint ?? original.remoteEndpoint else { throw error("NAN parent connection no longer exists") }
++                // Preserve the scoped, Network-owned Aware endpoint; never dial a
++                // raw link-local IP through BSD sockets.
++                guard let copied = NWEndpoint(copying: address, newPort: NWEndpoint.Port(rawValue: port)!) else { throw error("Cannot copy Aware endpoint") }
++                remote = NetworkConnection(to: copied, using: .parameters { TCP() })
++            } else {
++                let endpoint = try await pickDevice()
++                let resolved = try await discover(endpoint.device, port: port)
++                remote = NetworkConnection(to: resolved, using: .parameters { TCP() })
++            }
++            s.remote = remote
++            try await remote.send(Data()) // Wait for actual NDP/TCP readiness, not just discovery.
++            s.localIP = try ip(remote, local: true); s.remoteIP = try ip(remote, local: false)
++            let listener = try NetworkListener(using: .parameters { TCP() }.localEndpoint(.hostPort(host: "::1", port: .any)))
++            listener.onStateUpdate { _, state in
++                if case .ready = state { s.port = listener.port?.rawValue ?? 0; s.ready = s.port != 0 }
++                if case .failed(let e) = state { s.failure = e }
++            }
++            s.tasks.append(Task {
++                do {
++                    try await listener.run { local in
++                        guard !s.consumed else { return }; s.consumed = true
++                        s.tasks.append(Task {
++                            do { try await Self.pipe(local, remote) } catch { }
++                            self.close(id)
++                        })
++                    }
++                } catch { s.failure = error }
++            })
++            try await wait(s)
++            // Reclaim an abandoned proxy if the Go dial was cancelled.
++            s.tasks.append(Task {
++                try? await Task.sleep(for: .seconds(30))
++                if !Task.isCancelled && !s.consumed { self.close(id) }
++            })
++            Self.logger.notice("NAN ready before WSS, local proxy port=\(s.port)")
++            return try route(id, s)
++        } catch { close(id); throw error }
++    }
++    private func discover(_ device: WAPairedDevice, port: UInt16) async throws -> WAEndpoint {
++        guard let service = WASubscribableService.allServices[Self.service] else { throw error("NAN service not declared") }
++        let provider: WASubscriberBrowser = .wifiAware(.connecting(to: .selected([device]), from: service))
++        let browser = NWBrowser(for: provider.makeDescriptor(), using: provider.configureParameters(.tcp))
++        let result = SCNanBrowseResult()
++        browser.browseResultsChangedHandler = { results, _ in
++            let endpoint = results.compactMap { $0.endpoint.wifiAware(port: NWEndpoint.Port(rawValue: port)!) }.first
++            Task { @MainActor in result.endpoint = endpoint }
++        }
++        browser.stateUpdateHandler = { state in
++            if case .failed(let error) = state { Task { @MainActor in result.failure = error } }
++        }
++        browser.start(queue: .global(qos: .userInitiated))
++        defer { browser.cancel() }
++        for _ in 0..<200 {
++            try Task.checkCancellation()
++            if let error = result.failure { throw error }
++            if let endpoint = result.endpoint { return endpoint }
++            try await Task.sleep(for: .milliseconds(50))
++        }
++        throw error("Selected NAN service was not discovered")
++    }
++    func reverse(_ id: String, localPort: Int) async throws -> String {
++        guard let remote = sessions[id]?.remote, let path = try await remote.currentPath?.wifiAware else { throw error("NAN reverse verification requires a live connection") }
++        let child = UUID().uuidString
++        let s = Session(); s.parent = id; sessions[child] = s
++        do {
++            let listener = try NetworkListener(for: .wifiAware(.addingConnections(from: .selected([path.endpoint.device]))),
++                using: .parameters { TCP() }.localPort(.any))
++            listener.onStateUpdate { _, state in
++                if case .ready = state { s.port = listener.port?.rawValue ?? 0; s.ready = s.port != 0 }
++                if case .failed(let e) = state { s.failure = e }
++            }
++            s.tasks.append(Task {
++                do { try await listener.run { remote in self.accept(remote, localPort: localPort, parent: child) } }
++                catch { s.failure = error }
++            })
++            try await wait(s)
++            return try policy(child, port: s.port)
++        } catch { close(child); throw error }
++    }
++    func close(_ id: String) {
++        for child in sessions.keys.filter({ sessions[$0]?.parent == id }) { close(child) }
++        guard let s = sessions.removeValue(forKey: id) else { return }
++        if let port = s.incomingPort { incoming.removeValue(forKey: port) }
++        s.tasks.forEach { $0.cancel() }; s.tasks.removeAll(); s.remote = nil
++    }
++    private static func pipe(_ a: NetworkConnection<TCP>, _ b: NetworkConnection<TCP>) async throws {
++        try await withThrowingTaskGroup(of: Void.self) { group in
++            for (source, destination) in [(a,b),(b,a)] {
++                group.addTask {
++                    while !Task.isCancelled {
++                        let (data, _) = try await source.receive(atMost: 131072)
++                        if data.isEmpty { try await destination.send(Data(), endOfStream: true); return }
++                        try await destination.send(data)
++                    }
++                }
++            }
++            defer { group.cancelAll() }
++            try await group.next()
++        }
++    }
++    private func presentingController() throws -> UIViewController {
++        guard let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first(where: { $0.activationState == .foregroundActive }),
++              var controller = scene.windows.first(where: \.isKeyWindow)?.rootViewController else { throw error("NAN device selection requires foreground UI") }
++        while let next = controller.presentedViewController { controller = next }
++        return controller
++    }
++    private func pickDevice() async throws -> WAEndpoint {
++        guard picker == nil, let service = WASubscribableService.allServices[Self.service] else { throw error("NAN device picker unavailable or busy") }
++        let presenter = try presentingController()
++        let selection = SCNanSelection()
++        let view = SCNanPicker(service: service, selection: selection)
++        let controller = UIHostingController(rootView: view)
++        picker = controller; presenter.present(controller, animated: true)
++        controller.presentationController?.delegate = selection
++        defer { controller.dismiss(animated: true); picker = nil }
++        for _ in 0..<1600 {
++            try Task.checkCancellation()
++            if let endpoint = selection.endpoint { return endpoint }
++            if selection.cancelled { throw error("NAN selection cancelled") }
++            try await Task.sleep(for: .milliseconds(50))
++        }
++        throw error("NAN device selection timed out")
++    }
++    func showPairing(from controller: UIViewController) {
++        guard !pairingActive, let service = WAPublishableService.allServices[Self.service] else { return }
++        pairingActive = true
++        // DevicePairingView owns the service advertisement while its UI is open.
++        // Pause only publishers; existing accepted data connections remain alive.
++        let paused = sessions.filter { $0.value.parent == "publisher" }
++        for (_, s) in paused {
++            s.generation = UUID()
++            s.tasks.forEach { $0.cancel() }; s.tasks.removeAll(); s.ready = false
++        }
++        let finish: () -> Void = { [weak self] in
++            guard let self, self.pairingActive else { return }
++            self.pairingActive = false; self.pairingDelegate = nil; self.pairingHost = nil
++            for (id, s) in paused where self.sessions[id] === s {
++                do { try self.startPublisher(id, session: s, port: s.port) }
++                catch { Self.logger.error("NAN publisher resume failed: \(String(describing: error), privacy: .public)") }
++            }
++        }
++        let host = UIHostingController(rootView: SCNanPairing(service: service, finish: { [weak self] in
++            self?.pairingHost?.dismiss(animated: true, completion: finish)
++        }))
++        pairingHost = host
++        let delegate = SCNanDismissDelegate(finish)
++        pairingDelegate = delegate
++        controller.present(host, animated: true)
++        host.presentationController?.delegate = delegate
++    }
++
++}
++@available(iOS 26.4, *) @MainActor private final class SCNanSelection: NSObject, UIAdaptivePresentationControllerDelegate {
++    var endpoint: WAEndpoint?
++    var cancelled = false
++    func presentationControllerDidDismiss(_ presentationController: UIPresentationController) { cancelled = true }
++}
++@available(iOS 26.4, *) private struct SCNanPicker: View {
++    let service: WASubscribableService
++    let selection: SCNanSelection
++    var body: some View {
++        NavigationStack {
++            VStack(spacing: 24) {
++                Text("选择邀请方的 Wi-Fi Aware 设备，完成系统配对后继续连接。")
++                DevicePicker(.wifiAware(.connecting(to: .userSpecifiedDevices, from: service))) { selection.endpoint = $0 } label: {
++                    Label("选择附近设备", systemImage: "wifi")
++                } fallback: { Text("当前设备不支持 Wi-Fi Aware") }
++            }.padding().navigationTitle("Wi-Fi Aware")
++                .toolbar { Button("取消") { selection.cancelled = true } }
++        }
++    }
++}
++@available(iOS 26.4, *) private struct SCNanPairing: View {
++    let service: WAPublishableService
++    let finish: () -> Void
++    var body: some View {
++        NavigationStack {
++            DevicePairingView(.wifiAware(.connecting(to: service, from: .userSpecifiedDevices))) {
++                Label("允许附近设备配对", systemImage: "wifi")
++            } fallback: { Text("当前设备不支持 Wi-Fi Aware") }
++            .navigationTitle("Wi-Fi Aware 配对").toolbar { Button("完成") { finish() } }
++        }
++    }
++}
++
++@available(iOS 26.4, *) @MainActor private final class SCNanBrowseResult {
++    var endpoint: WAEndpoint?
++    var failure: Error?
++}
++
++@available(iOS 26.4, *) @MainActor private final class SCNanDismissDelegate: NSObject, UIAdaptivePresentationControllerDelegate {
++    let finish: () -> Void
++    init(_ finish: @escaping () -> Void) { self.finish = finish }
++    func presentationControllerDidDismiss(_ presentationController: UIPresentationController) { finish() }
++}
+diff --git a/SmartConnect/SCService/SCConnectService/SCConnectManager.m b/SmartConnect/SCService/SCConnectService/SCConnectManager.m
+index b93c821f..99d683ef 100644
+--- a/SmartConnect/SCService/SCConnectService/SCConnectManager.m
++++ b/SmartConnect/SCService/SCConnectService/SCConnectManager.m
+@@ -2,6 +2,7 @@
+ // Confidential and Restricted.
+ 
+ #import "SCConnectManager.h"
++#import "SCNanCallback.h"
+ #import "SCDeviceManager.h"
+ #import "SCConnectDelegateProtocol.h"
+ #import "NSDictionary+SCSafe.h"
+@@ -76,6 +77,7 @@ - (void)initGoConnectService {
+ 
+ - (void)initGoCallBack {
+     IOSSCAPI_InitCallback(self.SCAPIPath, self);
++    [SCNanCallback install];
+ }
+ 
+ - (SCDeviceManager *)deviceManager {
+@@ -116,6 +118,7 @@ - (void)networkChangedNotification:(NSNotification *)notification {
+     NSArray *onlineDevice = [self.deviceManager onlineDevices];
+     if ([connectionType integerValue] == SCNetworkConnectionTypeNone) {
+         for (SCRemoteDevice *device in onlineDevice) {
++            if ([self.connetionInfoStore connectTypeForDeviceId:device.realDeviceId] == SCConnectTypeNAN) continue;
+             SCLogT(kTag,@"⚡️ no network close wsconnect ->deviceId:%@ deviceName:%@",device.realDeviceId,device.deviceName);
+             [self cancelWSConnectWithDeviceId:device.realDeviceId osType:device.os isManual:NO];
+         }
+diff --git a/SmartConnect/SCService/SCConnectService/SCConnectionInfo.h b/SmartConnect/SCService/SCConnectService/SCConnectionInfo.h
+index 9c3b4181..874d15a4 100644
+--- a/SmartConnect/SCService/SCConnectService/SCConnectionInfo.h
++++ b/SmartConnect/SCService/SCConnectService/SCConnectionInfo.h
+@@ -13,6 +13,7 @@ typedef NS_ENUM(NSUInteger, SCDisplayNetType) {
+ /// Connection type
+ typedef NS_ENUM(NSUInteger, SCConnectType) {
+     SCConnectTypeWifi  = 1,
++    SCConnectTypeNAN = 10,
+     SCConnectTypeCloudWifi = 8,
+     SCConnectTypeCloudCellular   = 9
+ };
+diff --git a/SmartConnect/SmartConnect.entitlements b/SmartConnect/SmartConnect.entitlements
+index 8d8cf66f..f59f3bb1 100644
+--- a/SmartConnect/SmartConnect.entitlements
++++ b/SmartConnect/SmartConnect.entitlements
+@@ -16,5 +16,7 @@
+ 	<array>
+ 		<string>group.com.lenovo.smartconnect.ios</string>
+ 	</array>
++	<key>com.apple.developer.wifi-aware</key>
++	<array><string>Publish</string><string>Subscribe</string></array>
+ </dict>
+ </plist>
+diff --git a/SmartConnect/SmartConnectDebug.entitlements b/SmartConnect/SmartConnectDebug.entitlements
+index 8d8cf66f..f59f3bb1 100644
+--- a/SmartConnect/SmartConnectDebug.entitlements
++++ b/SmartConnect/SmartConnectDebug.entitlements
+@@ -16,5 +16,7 @@
+ 	<array>
+ 		<string>group.com.lenovo.smartconnect.ios</string>
+ 	</array>
++	<key>com.apple.developer.wifi-aware</key>
++	<array><string>Publish</string><string>Subscribe</string></array>
+ </dict>
+ </plist>
+diff --git a/SmartConnect/SmartConnectTestDebug.entitlements b/SmartConnect/SmartConnectTestDebug.entitlements
+index e99671de..0656e363 100644
+--- a/SmartConnect/SmartConnectTestDebug.entitlements
++++ b/SmartConnect/SmartConnectTestDebug.entitlements
+@@ -14,5 +14,7 @@
+ 	<array>
+ 		<string>group.com.slab.testsmartconnect</string>
+ 	</array>
++	<key>com.apple.developer.wifi-aware</key>
++	<array><string>Publish</string><string>Subscribe</string></array>
+ </dict>
+ </plist>
+diff --git a/SmartConnect/configurations/App/Debug.xcconfig b/SmartConnect/configurations/App/Debug.xcconfig
+index a94a8988..ef10e03d 100644
+--- a/SmartConnect/configurations/App/Debug.xcconfig
++++ b/SmartConnect/configurations/App/Debug.xcconfig
+@@ -4,3 +4,6 @@ APP_GROUP_ID = group.com.lenovo.smartconnect.ios
+ 
+ // Enable the debug-only automation-pair URL handler.
+ GCC_PREPROCESSOR_DEFINITIONS = $(inherited) SC_AUTOMATION_PAIRING=1
++
++// OpenSSL headers are stored flat; compat supplies the openssl/ prefix.
++HEADER_SEARCH_PATHS = $(inherited) $(SRCROOT)/3rdLibs/OpenSSL_4.0.3/compat
+diff --git a/SmartConnect/configurations/App/Release.xcconfig b/SmartConnect/configurations/App/Release.xcconfig
+index dc385af2..8bade1b0 100644
+--- a/SmartConnect/configurations/App/Release.xcconfig
++++ b/SmartConnect/configurations/App/Release.xcconfig
+@@ -1,3 +1,6 @@
+ 
+ #include "Pods/Target Support Files/Pods-SmartConnect/Pods-SmartConnect.release.xcconfig"
+ APP_GROUP_ID = group.com.lenovo.smartconnect.ios
++
++// OpenSSL headers are stored flat; compat supplies the openssl/ prefix.
++HEADER_SEARCH_PATHS = $(inherited) $(SRCROOT)/3rdLibs/OpenSSL_4.0.3/compat
+diff --git a/SmartConnect/configurations/App/TestDebug.xcconfig b/SmartConnect/configurations/App/TestDebug.xcconfig
+index 8d099cc9..435b0d82 100644
+--- a/SmartConnect/configurations/App/TestDebug.xcconfig
++++ b/SmartConnect/configurations/App/TestDebug.xcconfig
+@@ -4,3 +4,6 @@ APP_GROUP_ID = group.com.slab.testsmartconnect
+ 
+ // Enable the debug-only automation-pair URL handler.
+ GCC_PREPROCESSOR_DEFINITIONS = $(inherited) SC_AUTOMATION_PAIRING=1
++
++// OpenSSL headers are stored flat; compat supplies the openssl/ prefix.
++HEADER_SEARCH_PATHS = $(inherited) $(SRCROOT)/3rdLibs/OpenSSL_4.0.3/compat
+diff --git a/docs/NAN-integration.md b/docs/NAN-integration.md
+new file mode 100644
+index 00000000..a8107856
+--- /dev/null
++++ b/docs/NAN-integration.md
+@@ -0,0 +1,116 @@
++# SmartConnect iOS：Wi-Fi Aware 接入
++
++日期：2026-11-25。工作目录：`/Users/mxj/workspace/SmartConnectIoS`。本次只修改 iOS 产品仓库，保留本地，不提交、不推送 GitHub；Android 产品端尚未接入本协议。
++
++## 行为与边界
++
++- App 原最低系统版本保持 iOS 15。新 NAN 路径要求 iOS 26.4+，因为反向 WSS 验证需要复用 Aware 数据链路的 additional connections API。
++- iOS 作为邀请方：Go 建立原有 WSS 服务，原生层再建立 Aware TCP listener。只有 listener 已就绪且获得真实端口，邀请 `wsData.policies` 才包含 `nan`。不支持、未授权、发布失败或者已有同服务 publisher 占用时，不宣称 NAN 可用。
++- iOS 作为客户端：只要邀请包含非空 `nan`，优先执行 NAN 路径。显示系统设备选择入口，用户选择邀请方并完成 Wi-Fi Aware 系统配对；重新发现所选设备的服务，建立 Aware TCP 连接，之后才开放本地代理并启动现有 WSS。失败上报连接失败，不静默退回 STA/cloud。
++- 选择设备的名称不作为身份认证。选错设备仍须通过原有 TLS 指纹和 Token 校验，不能绕过产品配对。
++- QR 页面增加 Wi-Fi Aware 配对入口，供发布端允许附近设备配对。配对页面期间暂停普通 publisher，避免同一服务重复发布；关闭后恢复原端口。已接受的数据连接独立保留。
++- 扫码端收到 NAN 邀请时，不再以“没有普通 Wi-Fi/蜂窝网络”为由直接拒绝。已连接 NAN 的设备也不因普通 STA 网络消失而被 UI 主动断开。
++- Apple 限制同一服务同时只有一个 publisher；本轮实现不将多个不同 WSS 邀请端口复用到一个 NAN 服务。并发邀请没有可用 publisher 时不添加 nan。
++- 本轮没有实现后台弹出系统设备选择、NAN 系统配对记录管理，以及 Android 产品端的 nan 消费/生成逻辑。控制 WSS 打通后，另行使用独立 TCP/UDP socket 的业务服务仍需单独评估、适配 Aware 数据路径。
++
++## Policy 格式
++
++保留现有 `policies` 字典中值为字符串数组的格式，与 `wifi`、`wfd` 并列：
++
++```json
++{
++  "policies": [
++    {"wifi": ["192.0.2.1"]},
++    {"nan": ["1", "_smartconnect._tcp", "invitation-instance", "45455"]}
++  ]
++}
++```
++
++四项依次是协议版本、固定服务名、邀请实例标记、原生 Aware TCP listener 端口。NAN 端口可以不同于外层 wsPort，因为现有 Go WSS 服务保留自己的监听端口。实例标记用于标识邀请，不是密钥、NIK 或可信设备标识；真正的认证仍由 WSS 完成。
++
++## 数据路径
++
++```text
++现有 Go WSS（TLS/Token/产品配对/心跳）
++  ↕ 本机 IPv6 loopback TCP（只承载原始 TLS 字节）
++SCNanTransport：Network framework TCP
++  ↕ Wi-Fi Aware NDP
++对端
++```
++
++不使用 BSD socket 直接连接 Aware IPv6。Go Dial 目标始终为 `[::1]:代理端口`，原生层的 NetworkConnection 负责无线连接。原生层不解密 TLS，不替换证书，不降低 TLS 指纹校验。
++
++现有服务端在 WSS 握手中要求反向连接 VerifyServer；只代理正向链路不够。本次在客户端建立 additional Aware listener，并在 `RemoteServer` 中添加同格式 nan 字段。对端沿已建立的 Aware peer endpoint 连接该端口，再由原生层转发到原有 VerifyServer；不会再次弹设备选择，也不通过普通 STA 完成此项验证。
++
++接收端将 loopback 临时源端口映射到真实 Aware IPv6 地址和原生 route ID。Go 握手使用该映射，不把 `::1` 当成对端真实地址。连接类型增加 `CONN_TYPE_NAN = 10`，UI 仍使用现有 Wi-Fi 图标。
++
++## 主要文件
++
++- `SmartConnect/SCService/SCConnectService/NAN/SCNanTransport.swift`：发布、设备选择、发现、建链、双向字节转发、反向验证 listener、取消和资源回收。
++- 同目录 `SCNanCallback.h/.m`：实现 gomobile 生成的 `IOSNanAPICallback`。
++- `SCConnectManager.m`：注册回调；普通网络断开时保留 NAN 连接。
++- `SCPairingQrCodeController.m`、`SCPairingScanController.m`：配对入口及 NAN 扫码网络检查。
++- `libs/SCAPI/framework/connectivity/nan/`：Policy 校验、原生回调、路由结果校验、测试。
++- `libs/SCAPI/platformApi/core/ios/api_nan.go`：导出回调注册接口。
++- `libs/SCAPI/framework/websocket/`：邀请信息、先建链再 Dial、反向验证、连接类型、关闭资源。
++- Info.plist、三套 App entitlements、Xcode project：服务声明、Publish/Subscribe 权限、编译文件登记。
++
++## 生命周期与超时
++
++原生状态集中在 MainActor。Go 回调来自工作线程，限时等待原生操作，绝不在 UIKit 主线程阻塞等待。首次设备选择/配对最长约 95 秒，其他操作最多 20 秒；超时取消 Task。系统设备选择可取消或下滑关闭。
++
++本地代理只接受一次 WSS 连接；如果 30 秒内没有被使用则关闭。WSS 关闭时回收主 route、反向 listener 和子连接。任一方向 EOF/错误结束后，取消另一方向的转发。NAN 邀请延长等待配对的 Token/连接超时，反向验证的接收等待也相应放宽。
++
++## 已执行验证
++
++- `go test -race ./framework/connectivity/nan` 通过：非法 Policy 不调用原生层；未就绪 listener 不发布；拒绝普通 STA/loopback 作为 Aware 路由结果并回收；正确使用真实 IPv6 和本地代理端口。
++- 新增 Swift 传输层针对 arm64 真机、arm64 模拟器、iOS 15 最低部署版本完成类型检查。
++- `gomobile bind -target ios` 成功（包含 arm64 真机及 arm64/x86_64 模拟器），已生成本地 `libs/SCAPI.xcframework`；整个 iOS Go 依赖图完成目标编译。
++- Objective-C adapter 已针对真实生成的 SCAPI 头文件和 Swift 导出头文件进行 clang 检查，通过。
++- Xcode project 和修改的 plist 语法检查通过。
++- 完整 SmartConnect workspace 的 Debug / iphoneos / generic iOS 目标构建通过（`CODE_SIGNING_ALLOWED=NO`）。新增 Swift、Objective-C 回调及原有 App 一起完成编译链接。
++- 尚未签名安装或进行真机端到端连接验证，不能将构建通过解释为已验证配对、NDP、WSS 或心跳成功。
++
++## 构建准备中遇到的问题
++
++仓库起初没有 Pods、Podfile.lock 和 SCAPI.xcframework，直接 xcodebuild 因缺少 Pods xcconfig/filelist 和 SCAPI 失败。已补装 gomobile/gobind 和 CocoaPods，生成 SCAPI 真机/模拟器库并安装全部 12 个 Pods。
++
++gomobile 临时模块的 tidy 最初尝试访问无法连通的 Lenovo 内网；本机缓存实际已有项目要求的 mesh/udsmultimodal 版本。采用本地 Go module cache 作为临时构建代理，并补齐缺失的公开依赖后成功；没有改项目 go.mod/go.sum。
++
++裸跑 macOS 的 websocket Go 测试因项目原有 getInterfaces 仅实现 iOS/Android/Windows 而失败；没有为测试伪造平台实现。使用真实 ios/arm64 gomobile 构建验证生产 Go 代码。
++
++## 待真机确认
++
++需签名的 provisioning profile 包含 Wi-Fi Aware entitlement。双方还必须使用相同服务名和 nan Policy 格式；当前 Android 产品 App 尚未修改，不能用它直接宣称本轮跨端互通。
++
++需要验证首次配对、已有配对、用户取消、错误设备 TLS 拒绝、正反向 WSS 验证、心跳、STA 断开后的存活和关闭资源。Wi-Fi Aware 与 AWDL 同时保持活动数据链路也尚未验证；Apple 对 STA+Aware 的公开说明不能用来代替此项证据。
++
++
++补充：CocoaPods 的 Masonry Git 下载遇到 HTTP/2 framing 错误，HTTP/1.1 重试仍不稳定。改用官方相同 tag 的归档补齐本地 CocoaPods 缓存。SDWebImage、YYText 的归档包含大量非构建资源，下载也超时，因此按官方 tag 的 Git tree 下载构建源文件，并逐文件校验 Git blob SHA-1 后补齐缓存；不修改 Podfile 中的依赖版本或源码来源声明。
++
++
++## 完整构建遇到的原有 SDK 问题与修复
++
++依赖安装后，App 首先报 `ssl/sslsocket.h: openssl/err.h file not found`。仓库的 OpenSSL 4.0.3 头文件实际平铺在 include/ 下，但源码使用 openssl/ 前缀。新增 `3rdLibs/OpenSSL_4.0.3/compat/openssl -> ../include` 兼容路径，三套 App xcconfig 及 ShareHubServer project 指向 compat，避免依赖 `/opt/homebrew/include/openssl` 的本机绝对路径。
++
++构建 ShareHubServer 又发现 `cert.cpp:197`：OpenSSL 4 的 `X509_get_subject_name()` 返回 const 指针，原代码尝试可变赋值。改为创建独立的 `X509_NAME`（unique_ptr 自动释放），填充原有 CN/O/OU/C 字段后，通过 `X509_set_subject_name` 和 `X509_set_issuer_name` 安装。没有更改证书字段值、有效期、序列号、RSA 密钥生成或 SHA256 签名算法。
++
++已分别构建原仓库 ShareHubServer 静态库以及 SCNFSClient 的 libnfs 真机库。完成上述准备后，完整 App 构建成功。
++
++## 本次验证命令
++
++在仓库根目录执行 App 构建：
++
++```sh
++xcodebuild -workspace SmartConnect.xcworkspace -scheme SmartConnect \
++  -configuration Debug -sdk iphoneos -destination 'generic/platform=iOS' \
++  CODE_SIGNING_ALLOWED=NO build
++```
++
++Go 测试：在 `libs/SCAPI` 运行 `go test -race ./framework/connectivity/nan`。
++
++SCAPI：在 `libs/SCAPI` 运行 `gomobile bind -target ios -o ../SCAPI.xcframework ./platformApi/core/ios`；本机本轮使用 `GOPROXY=file:///Users/mxj/go/pkg/mod/cache/download GONOPROXY=none GONOSUMDB=lenovo.com`，从已补齐的本地 cache 构建。
++
++本机工具位于 `/Users/mxj/nan-ios-tools/bin/`。CocoaPods 使用 Homebrew portable Ruby，需设置 `GEM_HOME`、`GEM_PATH` 为 `/Users/mxj/nan-ios-tools/ruby-gems`，再由 `/opt/homebrew/Library/Homebrew/vendor/portable-ruby/current/bin/ruby` 执行该目录的 pod。
++
++构建日志：`/tmp/sc-nan-xcode-build.log`；Go 库日志：`/tmp/sc-nan-gomobile-all.log`；Pods 日志：`/tmp/sc-nan-pod-install.log`；ShareHub/NFS 日志：`/tmp/sc-nan-sharehub-build.log`、`/tmp/sc-nan-libnfs-build.log`。日志属于本机临时产物，关键结果和异常已记录在本文。
+diff --git a/libs/SCAPI/common/constants/constants.go b/libs/SCAPI/common/constants/constants.go
+index 27ea0458..644caa30 100644
+--- a/libs/SCAPI/common/constants/constants.go
++++ b/libs/SCAPI/common/constants/constants.go
+@@ -134,6 +134,7 @@ const (
+ 	WENSOCKET_TYPE_SERVER  = 1
+ 	WENSOCKET_TYPE_CLIENT  = 2
+ 
++	CONN_TYPE_NAN         = 10
+ 	CONN_TYPE_UNKNOWN     = 0
+ 	CONN_TYPE_WIFI        = 1
+ 	CONN_TYPE_USB         = 2
+diff --git a/libs/SCAPI/framework/connectivity/nan/nan.go b/libs/SCAPI/framework/connectivity/nan/nan.go
+new file mode 100644
+index 00000000..ab63cf5e
+--- /dev/null
++++ b/libs/SCAPI/framework/connectivity/nan/nan.go
+@@ -0,0 +1,141 @@
++// Copyright (c) 2026 Lenovo. All rights reserved.
++// Confidential and Restricted.
++
++// Package nan adapts Apple's Network/WiFiAware transport to the existing WSS core.
++// Native sockets stay on loopback; TLS and the SmartConnect handshake stay in Go.
++package nan
++
++import (
++	"encoding/json"
++	"errors"
++	"fmt"
++	"net"
++	"strconv"
++	"sync"
++)
++
++const Service = "_smartconnect._tcp"
++
++// Policy v1: [version, service name, invitation instance, Aware TCP port].
++// All elements remain strings for Android's existing policies map decoder.
++type Policy struct {
++	Service, Instance string
++	Port              int
++}
++
++func Parse(values []string) (Policy, error) {
++	if len(values) != 4 || values[0] != "1" || values[1] != Service || len(values[2]) < 8 || len(values[2]) > 128 {
++		return Policy{}, errors.New("unsupported NAN policy")
++	}
++	port, err := strconv.Atoi(values[3])
++	if err != nil || port < 1 || port > 65535 {
++		return Policy{}, errors.New("invalid NAN port")
++	}
++	return Policy{values[1], values[2], port}, nil
++}
++func (p Policy) Values() []string { return []string{"1", p.Service, p.Instance, strconv.Itoa(p.Port)} }
++
++// Callback methods run on Go workers, never on UIKit's main thread.
++// Native owns the Aware connection and a bounded-lifetime loopback proxy.
++type Callback interface {
++	Publish(instance string, localPort int) string
++	Connect(deviceID string, policyJSON string, parentRoute string) string
++	Reverse(route string, localPort int) string
++	ResolveIncoming(localPort int) string
++	Close(route string)
++}
++type Route struct {
++	ID       string `json:"id"`
++	Port     int    `json:"port"`
++	LocalIP  string `json:"localIP"`
++	RemoteIP string `json:"remoteIP"`
++}
++
++var mu sync.RWMutex
++var callback Callback
++
++func Init(cb Callback) { mu.Lock(); callback = cb; mu.Unlock() }
++func cb() Callback     { mu.RLock(); defer mu.RUnlock(); return callback }
++func Publish(instance string, port int) []string {
++	c := cb()
++	if c == nil {
++		return nil
++	}
++	var values []string
++	if json.Unmarshal([]byte(c.Publish(instance, port)), &values) != nil {
++		return nil
++	}
++	if _, err := Parse(values); err != nil {
++		return nil
++	}
++	return values
++}
++func Open(deviceID string, values []string, parent string) (Route, error) {
++	if _, err := Parse(values); err != nil {
++		return Route{}, err
++	}
++	c := cb()
++	if c == nil {
++		return Route{}, errors.New("Wi-Fi Aware native transport unavailable")
++	}
++	data, _ := json.Marshal(values)
++	var route Route
++	if json.Unmarshal([]byte(c.Connect(deviceID, string(data), parent)), &route) != nil || route.ID == "" || route.Port < 1 || route.Port > 65535 || !isIPv6(route.LocalIP) || !isIPv6(route.RemoteIP) {
++		if route.ID != "" {
++			c.Close(route.ID)
++		}
++		return Route{}, errors.New("Wi-Fi Aware connection was not established")
++	}
++	return route, nil
++}
++func Reverse(route string, localPort int) ([]string, error) {
++	c := cb()
++	if c == nil {
++		return nil, errors.New("NAN callback unavailable")
++	}
++	var values []string
++	if json.Unmarshal([]byte(c.Reverse(route, localPort)), &values) != nil {
++		return nil, errors.New("NAN reverse listener failed")
++	}
++	if _, err := Parse(values); err != nil {
++		return nil, err
++	}
++	return values, nil
++}
++func Resolve(address string) Route {
++	host, p, err := net.SplitHostPort(address)
++	if err != nil {
++		return Route{}
++	}
++	ip := net.ParseIP(host)
++	if ip == nil || !ip.IsLoopback() {
++		return Route{}
++	}
++	port, _ := strconv.Atoi(p)
++	c := cb()
++	if c == nil {
++		return Route{}
++	}
++	var route Route
++	_ = json.Unmarshal([]byte(c.ResolveIncoming(port)), &route)
++	return route
++}
++func Close(id string) {
++	if id != "" {
++		if c := cb(); c != nil {
++			c.Close(id)
++		}
++	}
++}
++func (r Route) Address() string { return net.JoinHostPort("::1", fmt.Sprint(r.Port)) }
++func isIPv6(address string) bool {
++	host, _, _ := net.SplitHostPort(net.JoinHostPort(address, "1"))
++	for i, c := range host {
++		if c == '%' {
++			host = host[:i]
++			break
++		}
++	}
++	ip := net.ParseIP(host)
++	return ip != nil && ip.To4() == nil && ip.IsLinkLocalUnicast()
++}
+diff --git a/libs/SCAPI/framework/connectivity/nan/nan_test.go b/libs/SCAPI/framework/connectivity/nan/nan_test.go
+new file mode 100644
+index 00000000..cc03bfcd
+--- /dev/null
++++ b/libs/SCAPI/framework/connectivity/nan/nan_test.go
+@@ -0,0 +1,133 @@
++// Copyright (c) 2026 Lenovo. All rights reserved.
++// Confidential and Restricted.
++
++package nan
++
++import (
++	"encoding/json"
++	"testing"
++)
++
++func TestPolicyWireCompatibility(t *testing.T) {
++	valid := []string{"1", Service, "invite-123456", "45455"}
++	p, err := Parse(valid)
++	if err != nil || p.Port != 45455 {
++		t.Fatal(p, err)
++	}
++	data, _ := json.Marshal([]map[string][]string{{"wifi": {"192.0.2.1"}}, {"nan": p.Values()}})
++	var legacy []map[string][]string
++	if json.Unmarshal(data, &legacy) != nil || legacy[0]["wifi"][0] != "192.0.2.1" {
++		t.Fatal(string(data))
++	}
++	for _, bad := range [][]string{nil, {"1", Service, "invite-123456"}, {"2", Service, "invite-123456", "1"}, {"1", "_wrong._tcp", "invite-123456", "1"}, {"1", Service, "invite-123456", "0"}, {"1", Service, "invite-123456", "65536"}} {
++		if _, err := Parse(bad); err == nil {
++			t.Fatal("accepted", bad)
++		}
++	}
++}
++func TestNoCallbackDoesNotClaimReady(t *testing.T) {
++	Init(nil)
++	if Publish("instance-1234", 1234) != nil {
++		t.Fatal("advertised unavailable NAN")
++	}
++	if _, err := Open("peer", []string{"1", Service, "instance-1234", "1234"}, ""); err == nil {
++		t.Fatal("connected without native transport")
++	}
++}
++func TestScopeValidation(t *testing.T) {
++	for _, s := range []string{"fe80::1%nan0", "fe80::2"} {
++		if !isIPv6(s) {
++			t.Fatal(s)
++		}
++	}
++	for _, s := range []string{"::1", "127.0.0.1", "192.0.2.1", ""} {
++		if isIPv6(s) {
++			t.Fatal(s)
++		}
++	}
++}
++
++type fakeNative struct {
++	response string
++	calls    []string
++}
++
++func (f *fakeNative) Publish(string, int) string {
++	f.calls = append(f.calls, "publish")
++	return f.response
++}
++func (f *fakeNative) Connect(deviceID, policy, parent string) string {
++	f.calls = append(f.calls, "connect:"+deviceID+":"+parent)
++	return f.response
++}
++func (f *fakeNative) Reverse(string, int) string { return f.response }
++func (f *fakeNative) ResolveIncoming(int) string {
++	f.calls = append(f.calls, "resolve")
++	return f.response
++}
++func (f *fakeNative) Close(id string) { f.calls = append(f.calls, "close:"+id) }
++
++func TestOpenOnlyAcceptsEstablishedAwareRoute(t *testing.T) {
++	f := &fakeNative{}
++	Init(f)
++	t.Cleanup(func() { Init(nil) })
++	values := []string{"1", Service, "invitation-123", "5555"}
++	// A callback that supplies loopback/STA rather than the Aware IPv6 path
++	// must not cause WSS to run or leak the native route.
++	f.response = `{"id":"bad","port":4321,"localIP":"::1","remoteIP":"192.0.2.1"}`
++	if _, err := Open("device", values, ""); err == nil {
++		t.Fatal("accepted non-Aware route")
++	}
++	if len(f.calls) != 2 || f.calls[1] != "close:bad" {
++		t.Fatal(f.calls)
++	}
++	f.response = `{"id":"ready","port":4321,"localIP":"fe80::1%nan0","remoteIP":"fe80::2%nan0"}`
++	route, err := Open("device", values, "parent")
++	if err != nil || route.Address() != "[::1]:4321" || f.calls[2] != "connect:device:parent" {
++		t.Fatal(route, err, f.calls)
++	}
++	Close(route.ID)
++	if f.calls[3] != "close:ready" {
++		t.Fatal(f.calls)
++	}
++}
++func TestMalformedPolicyNeverReachesNative(t *testing.T) {
++	f := &fakeNative{}
++	Init(f)
++	t.Cleanup(func() { Init(nil) })
++	if _, err := Open("device", []string{"1", Service, "12345678", "99999"}, ""); err == nil {
++		t.Fatal("accepted invalid port")
++	}
++	if len(f.calls) != 0 {
++		t.Fatal(f.calls)
++	}
++}
++func TestPublishRequiresValidNativeListenerPolicy(t *testing.T) {
++	f := &fakeNative{response: `["1","_smartconnect._tcp","invitation-123","0"]`}
++	Init(f)
++	t.Cleanup(func() { Init(nil) })
++	if Publish("invitation-123", 1234) != nil {
++		t.Fatal("advertised listener without bound port")
++	}
++	f.response = `["1","_smartconnect._tcp","invitation-123","4321"]`
++	if p := Publish("invitation-123", 1234); len(p) != 4 || p[3] != "4321" {
++		t.Fatal(p)
++	}
++}
++
++func TestIncomingRouteResolutionIsLoopbackOnly(t *testing.T) {
++	f := &fakeNative{response: `{"id":"incoming","localIP":"fe80::1","remoteIP":"fe80::2"}`}
++	Init(f)
++	t.Cleanup(func() { Init(nil) })
++	for _, addr := range []string{"192.0.2.1:1234", "[fe80::1]:1234", "invalid"} {
++		if Resolve(addr).ID != "" {
++			t.Fatal("resolved external connection", addr)
++		}
++	}
++	if len(f.calls) != 0 {
++		t.Fatal(f.calls)
++	}
++	if Resolve("[::1]:1234").ID != "incoming" {
++		t.Fatal("missing loopback mapping")
++	}
++}
+diff --git a/libs/SCAPI/framework/websocket/WebsocketBase.go b/libs/SCAPI/framework/websocket/WebsocketBase.go
+index 78369f6b..ebdf9962 100644
+--- a/libs/SCAPI/framework/websocket/WebsocketBase.go
++++ b/libs/SCAPI/framework/websocket/WebsocketBase.go
+@@ -15,6 +15,7 @@ import (
+ 	"motorola.com/readyforassistant/common/constants"
+ 	"motorola.com/readyforassistant/common/log"
+ 	"motorola.com/readyforassistant/framework/broadcast"
++	"motorola.com/readyforassistant/framework/connectivity/nan"
+ 	"motorola.com/readyforassistant/framework/device"
+ 	"motorola.com/readyforassistant/framework/discovery"
+ 	verifyserver "motorola.com/readyforassistant/services/SDKService/VerifyServer"
+@@ -49,6 +50,9 @@ type Websocket interface {
+ }
+ 
+ type websocketBase struct {
++	nanRoute            nan.Route
++	nanPublisher        string
++	nanPolicy           []string
+ 	reqId               int
+ 	dstDeviceId         string
+ 	dstRealId           string
+@@ -128,6 +132,9 @@ func (wsb *websocketBase) closeVerifyServer() {
+ 
+ func (wsb *websocketBase) setup(discoveryMsg DiscoveryMsg) {
+ 	wsb.usbReady = true
++	wsb.nanRoute = nan.Route{}
++	wsb.nanPublisher = ""
++	wsb.nanPolicy = nil
+ 	wsb.reqId = discoveryMsg.ReqId
+ 	wsb.discoverAutoTrigger = discoveryMsg.discoverAutoTrigger
+ 	wsb.dstDeviceId = discoveryMsg.DeviceId
+@@ -385,6 +392,8 @@ func (wsb *websocketBase) closeWithLock(errorCode int) {
+ 	if wsb.isServer {
+ 		wsb.done <- errorCode
+ 	}
++	nan.Close(wsb.nanRoute.ID)
++	nan.Close(wsb.nanPublisher)
+ 	if wsb.conn != nil {
+ 		log.D(TAG, "close wsb conn ")
+ 		wsb.conn.Close()
+diff --git a/libs/SCAPI/framework/websocket/WebsocketClient.go b/libs/SCAPI/framework/websocket/WebsocketClient.go
+index 7b206448..3e6ad56b 100644
+--- a/libs/SCAPI/framework/websocket/WebsocketClient.go
++++ b/libs/SCAPI/framework/websocket/WebsocketClient.go
+@@ -24,6 +24,7 @@ import (
+ 	"motorola.com/readyforassistant/common/log"
+ 	"motorola.com/readyforassistant/common/utils"
+ 	"motorola.com/readyforassistant/framework/connectivity"
++	"motorola.com/readyforassistant/framework/connectivity/nan"
+ 	"motorola.com/readyforassistant/framework/connectivity/p2p"
+ 	"motorola.com/readyforassistant/framework/connectivity/tunnel"
+ 	"motorola.com/readyforassistant/framework/device"
+@@ -158,6 +159,32 @@ func (client *websocketClient) run() {
+ 
+ func connectWebsocket(client *websocketClient, tlsConfig *tls.Config) (*websocket.Conn, string, bool) {
+ 	log.D(TAG, "websocketClient connections begin. port:%d", client.port)
++	for _, policy := range client.policies {
++		if len(policy.Nan) > 0 {
++			route, err := nan.Open(client.dstDeviceId, policy.Nan, "")
++			if err != nil {
++				client.recordConnectionFailure(constants.TRY_CONNECT_WIFI, constants.CONN_ERR_DIS_TIMEOUT, "Wi-Fi Aware setup failed")
++				return nil, "", true
++			}
++			if client.isClosed() {
++				nan.Close(route.ID)
++				return nil, "", true
++			}
++			client.nanRoute = route
++			ctx, cancel := context.WithTimeout(context.Background(), WEBSOCKET_CONNECT_TIMEOUT)
++			defer cancel()
++			dialer := &websocket.Dialer{TLSClientConfig: tlsConfig, HandshakeTimeout: WEBSOCKET_CONNECT_TIMEOUT, Proxy: nil}
++			conn, _, err := dialer.DialContext(ctx, "wss://"+route.Address()+WEBSOCKET_PATH, nil)
++			if err != nil {
++				nan.Close(route.ID)
++				client.nanRoute = nan.Route{}
++				client.recordConnectionFailure(constants.TRY_CONNECT_WIFI, constants.CONN_ERR_DIS_TIMEOUT, "Aware WSS dial failed")
++				return nil, "", true
++			}
++			client.connType = constants.CONN_TYPE_NAN
++			return conn, route.RemoteIP, true
++		}
++	}
+ 	localIp := "127.0.0.1"
+ 	ctx, cancel := context.WithCancel(context.Background())
+ 	defer cancel()
+@@ -362,7 +389,7 @@ func handleConnection(client *websocketClient, conn *websocket.Conn, remoteIp st
+ 		conn.Close()
+ 		client.conn = nil
+ 		cloudResult := false
+-		if client.connType != constants.CONN_TYPE_CB_WIFI && client.connType != constants.CONN_TYPE_CB_MOBILE {
++		if client.connType != constants.CONN_TYPE_NAN && client.connType != constants.CONN_TYPE_CB_WIFI && client.connType != constants.CONN_TYPE_CB_MOBILE {
+ 			cloudConn, localIP := connectCloudWebsocket(client, tlsConfig)
+ 			if cloudConn != nil {
+ 				client.conn = cloudConn
+@@ -424,6 +451,9 @@ func (client *websocketClient) performHandshake(conn *websocket.Conn, remoteIp s
+ 
+ 	// connType
+ 	client.localIp = utils.GetIp(client.conn.LocalAddr().String())
++	if client.nanRoute.ID != "" {
++		client.localIp = client.nanRoute.LocalIP
++	}
+ 	if client.connType == constants.CONN_TYPE_UNKNOWN {
+ 		client.connType = utils.GetConnType(client.localIp)
+ 	}
+@@ -454,17 +484,24 @@ func (client *websocketClient) performHandshake(conn *websocket.Conn, remoteIp s
+ 	validServer, _fp, _port, verifyErr := newIPValidServer(client.dstDeviceId)
+ 	if verifyErr != nil {
+ 		log.W(TAG, "websocketClient start verifyServer failed->dstDeviceId:%s, err:%v", client.dstDeviceId, verifyErr)
++		if client.nanRoute.ID != "" {
++			return client.handshakeFailed(source, constants.CONN_ERR_SERVER_VERIFY_PEER, "Aware reverse verifier unavailable")
++		}
+ 	} else {
+ 		// Bind lifecycle to the client so closeWithLock can shut this down
+ 		// immediately, and defer a bounded close that fires as soon as the
+ 		// peer's reverse dial succeeds (Verified) instead of blindly sleeping.
+ 		client.setVerifyServer(validServer)
+ 		log.D(TAG, "websocketClient setup server success->remoteIp:%s, server port:%d", client.remoteIp, _port)
++		verifyLifetime := WEBSOCKET_VERIFY_TIMEOUT*2 + time.Second
++		if client.nanRoute.ID != "" {
++			verifyLifetime = WEBSOCKET_SETUP_TIMEOUT
++		}
+ 		defer func(vs *verifyserver.WebsocketServer) {
+ 			go func() {
+ 				select {
+ 				case <-vs.Verified():
+-				case <-time.After(WEBSOCKET_VERIFY_TIMEOUT*2 + time.Second):
++				case <-time.After(verifyLifetime):
+ 				}
+ 				vs.Close()
+ 			}()
+@@ -475,6 +512,17 @@ func (client *websocketClient) performHandshake(conn *websocket.Conn, remoteIp s
+ 			Ip:          utils.GetIp(client.conn.LocalAddr().String()),
+ 			Port:        _port,
+ 		}
++		if client.nanRoute.ID != "" {
++			policy, err := nan.Reverse(client.nanRoute.ID, _port)
++			if err != nil {
++				return client.handshakeFailed(source, constants.CONN_ERR_SERVER_VERIFY_PEER, "Aware reverse verification listener failed")
++			}
++			parsed, _ := nan.Parse(policy)
++			item.ConnType = constants.CONN_TYPE_NAN
++			item.Nan = policy
++			item.Ip = client.localIp
++			item.Port = parsed.Port
++		}
+ 		requestData.RemoteServers = append(requestData.RemoteServers, &item)
+ 	}
+ 	requestMsgData, _ := json.Marshal(requestData)
+@@ -487,6 +535,9 @@ func (client *websocketClient) performHandshake(conn *websocket.Conn, remoteIp s
+ 			fmt.Sprintf("Failed to send WebSocket verify request: %v", err))
+ 	}
+ 	readDeadline := WEBSOCKET_VERIFY_TIMEOUT*2 + time.Second
++	if client.nanRoute.ID != "" {
++		readDeadline = WEBSOCKET_SETUP_TIMEOUT
++	}
+ 	client.conn.SetReadDeadline(time.Now().Add(readDeadline))
+ 	_, data, err := client.conn.ReadMessage()
+ 	if err != nil {
+diff --git a/libs/SCAPI/framework/websocket/WebsocketServer.go b/libs/SCAPI/framework/websocket/WebsocketServer.go
+index 3d33d815..1846f677 100644
+--- a/libs/SCAPI/framework/websocket/WebsocketServer.go
++++ b/libs/SCAPI/framework/websocket/WebsocketServer.go
+@@ -19,6 +19,7 @@ import (
+ 	"motorola.com/readyforassistant/common/selfsign"
+ 	"motorola.com/readyforassistant/common/utils"
+ 	"motorola.com/readyforassistant/framework/connectivity"
++	"motorola.com/readyforassistant/framework/connectivity/nan"
+ 	"motorola.com/readyforassistant/framework/connectivity/p2p"
+ 	"motorola.com/readyforassistant/framework/device"
+ 	"motorola.com/readyforassistant/framework/discovery"
+@@ -175,6 +176,8 @@ func (server *websocketServer) setup(discoveryMsg DiscoveryMsg) {
+ 	server.expired = time.Now().Add(TOKEN_TIMEOUT)
+ 	server.fp = utils.FingerprintToBase64(fp)
+ 	log.D(TAG, "websocketServer setup->DeviceId:%s, Token:%s, Port:%d, fp:%s, isPending:%t", server.dstDeviceId, server.token, server.port, server.fp, server.isPending())
++	server.nanPublisher = utils.GenRandomToken(128)
++	server.nanPolicy = nan.Publish(server.nanPublisher, server.port)
+ 	go server.run()
+ }
+ 
+@@ -211,7 +214,13 @@ func (server *websocketServer) run() {
+ 		return
+ 	} else {
+ 		tokenTimeout := TOKEN_TIMEOUT
++		if len(server.nanPolicy) > 0 {
++			tokenTimeout += 90 * time.Second
++		}
+ 		websocketTimeout := WEBSOCKET_SETUP_TIMEOUT
++		if len(server.nanPolicy) > 0 {
++			websocketTimeout += 90 * time.Second
++		}
+ 		if (server.channel & constants.DISCOVERY_CHANNEL_QRCODE) != 0 {
+ 			tokenTimeout = tokenTimeout + time.Minute
+ 			websocketTimeout = websocketTimeout + time.Minute
+@@ -351,12 +360,22 @@ func (server *websocketServer) readyforHandler(w http.ResponseWriter, r *http.Re
+ 	}
+ 	log.D(TAG, "websocketServer ReadMessage->Port:%d, Unmarshal ServiceManagerData:%#v", server.port, serviceManagerData)
+ 	localIp := utils.GetIp(conn.LocalAddr().String())
++	incomingNan := nan.Resolve(conn.RemoteAddr().String())
++	if incomingNan.ID != "" {
++		server.nanRoute = incomingNan
++		server.connType = constants.CONN_TYPE_NAN
++		localIp = incomingNan.LocalIP
++		server.remoteIp = incomingNan.RemoteIP
++	}
+ 	if len(serviceManagerData.RemoteServers) > 0 {
+ 		log.D(TAG, "websocketServer find remoteServer start verify")
+-		result, ip, connType := verifyRemoteServers(serviceManagerData.RemoteServers)
++		result, ip, connType := verifyRemoteServers(serviceManagerData.RemoteServers, incomingNan.ID)
+ 		if result {
+ 			server.remoteIp = ip
+ 			server.connType = connType
++			if incomingNan.ID != "" {
++				server.connType = constants.CONN_TYPE_NAN
++			}
+ 		} else {
+ 			log.E(TAG, "websocketServer remoteServer verify fail->Port:%d, remoteIp:%s,localIp:%s,srcDeviceId:%s", server.port, r.RemoteAddr, localIp, websocketMsg.SrcDeviceId)
+ 			server.failAcceptedConnection(
+@@ -463,6 +482,15 @@ func (server *websocketServer) getInviteMsg() []byte {
+ 		server.policies = getPolicies(server.dstDeviceId)
+ 	}
+ 
++	if len(server.nanPolicy) > 0 {
++		filtered := server.policies[:0]
++		for _, p := range server.policies {
++			if len(p.Nan) == 0 {
++				filtered = append(filtered, p)
++			}
++		}
++		server.policies = append(filtered, Policy{Nan: server.nanPolicy})
++	}
+ 	scb := 1
+ 	if p2p.IsSwitchOn() {
+ 		scb = 0
+diff --git a/libs/SCAPI/framework/websocket/message.go b/libs/SCAPI/framework/websocket/message.go
+index edddc1b8..93fe7b17 100644
+--- a/libs/SCAPI/framework/websocket/message.go
++++ b/libs/SCAPI/framework/websocket/message.go
+@@ -40,14 +40,16 @@ type ServiceManagerData struct {
+ }
+ 
+ type RemoteServer struct {
+-	ConnType    int    `json:"connType,omitempty"`
+-	Ip          string `json:"ip,omitempty"`
+-	Port        int    `json:"port,omitempty"`
+-	Fingerprint string `json:"fp,omitempty"`
+-	OK          bool   `json:"-"`
++	Nan         []string `json:"nan,omitempty"`
++	ConnType    int      `json:"connType,omitempty"`
++	Ip          string   `json:"ip,omitempty"`
++	Port        int      `json:"port,omitempty"`
++	Fingerprint string   `json:"fp,omitempty"`
++	OK          bool     `json:"-"`
+ }
+ 
+ type Policy struct {
++	Nan  []string `json:"nan,omitempty"`
+ 	Acc  []string `json:"acc,omitempty"`
+ 	Usb  []string `json:"usb,omitempty"`
+ 	Wfd  []string `json:"wfd,omitempty"`
+@@ -79,7 +81,6 @@ type DiscoveryMsg struct {
+ 	scb                 int      `json:"supportCloud,omitempty"`
+ }
+ 
+-
+ type ViewMsg struct {
+ 	Cmd          int             `json:"cmd,omitempty"`
+ 	Version      string          `json:"ver,omitempty"`
+diff --git a/libs/SCAPI/framework/websocket/websocket.go b/libs/SCAPI/framework/websocket/websocket.go
+index aa2f0bc4..0db979b1 100644
+--- a/libs/SCAPI/framework/websocket/websocket.go
++++ b/libs/SCAPI/framework/websocket/websocket.go
+@@ -6,6 +6,7 @@ package websocket
+ import (
+ 	"encoding/json"
+ 	"fmt"
++	"net"
+ 	"net/http"
+ 	"net/url"
+ 	"sync"
+@@ -19,6 +20,7 @@ import (
+ 	"motorola.com/readyforassistant/common/mutex"
+ 	"motorola.com/readyforassistant/common/utils"
+ 	"motorola.com/readyforassistant/framework/broadcast"
++	"motorola.com/readyforassistant/framework/connectivity/nan"
+ 	"motorola.com/readyforassistant/framework/connectivity/p2p"
+ 	"motorola.com/readyforassistant/framework/device"
+ 	"motorola.com/readyforassistant/framework/discovery"
+@@ -346,26 +348,42 @@ func DisconnectAllWebsocket() {
+ func getAppVer() string {
+ 	return constants.VerName
+ }
+-func verifyRemoteServers(remoteServers []*RemoteServer) (result bool, ip string, connType int) {
++func verifyRemoteServers(remoteServers []*RemoteServer, nanParent string) (result bool, ip string, connType int) {
+ 	var wg sync.WaitGroup
+ 	for _, remoteServer := range remoteServers {
+ 		wg.Add(1)
+ 		rs := remoteServer
+ 		go func() {
+ 			defer wg.Done()
++			if nanParent != "" && len(rs.Nan) == 0 {
++				return
++			}
+ 			if rs.ConnType == constants.CONN_TYPE_ACC || rs.ConnType == constants.CONN_TYPE_P2P || rs.ConnType == constants.CONN_TYPE_RELAY {
+ 				connType = rs.ConnType
+ 				ip = rs.Ip
+ 				result = true
+ 				return
+ 			}
+-			host := fmt.Sprintf("%s:%d", rs.Ip, rs.Port)
++			host := net.JoinHostPort(rs.Ip, fmt.Sprint(rs.Port))
++			var nanExtra nan.Route
++			if len(rs.Nan) > 0 {
++				var err error
++				nanExtra, err = nan.Open("", rs.Nan, nanParent)
++				if err != nil {
++					return
++				}
++				defer nan.Close(nanExtra.ID)
++				host = nanExtra.Address()
++			}
+ 			u := url.URL{Scheme: "wss", Host: host, Path: WEBSOCKET_PATH}
+ 			addr := u.String()
+ 			log.D(TAG, "verify remote server: %s", addr)
+ 			dialer := &websocket.Dialer{
+ 				Proxy: http.ProxyFromEnvironment,
+ 			}
++			if len(rs.Nan) > 0 {
++				dialer.Proxy = nil
++			}
+ 			dialer.HandshakeTimeout = WEBSOCKET_VERIFY_TIMEOUT
+ 			dialer.TLSClientConfig = utils.NewTlsConfigByFpBase64(rs.Fingerprint)
+ 			var conn *websocket.Conn
+@@ -406,7 +424,7 @@ func connTypePriority(connType int) int {
+ 		return 5
+ 	case constants.CONN_TYPE_ETHERNET:
+ 		return 4
+-	case constants.CONN_TYPE_WIFI:
++	case constants.CONN_TYPE_WIFI, constants.CONN_TYPE_NAN:
+ 		return 3
+ 	case constants.CONN_TYPE_WIFI_DIRECT:
+ 		return 2
+diff --git a/libs/SCAPI/platformApi/core/ios/api_nan.go b/libs/SCAPI/platformApi/core/ios/api_nan.go
+new file mode 100644
+index 00000000..a117e34d
+--- /dev/null
++++ b/libs/SCAPI/platformApi/core/ios/api_nan.go
+@@ -0,0 +1,10 @@
++// Copyright (c) 2026 Lenovo. All rights reserved.
++// Confidential and Restricted.
++
++package iOS
++
++import "motorola.com/readyforassistant/framework/connectivity/nan"
++
++type NanAPICallback interface{ nan.Callback }
++
++func SCAPI_InitNanCallback(callback NanAPICallback) { nan.Init(callback) }
+diff --git a/libs/ShareHubServer/ShareHubServer.xcodeproj/project.pbxproj b/libs/ShareHubServer/ShareHubServer.xcodeproj/project.pbxproj
+index 76617fc3..35ff347e 100644
+--- a/libs/ShareHubServer/ShareHubServer.xcodeproj/project.pbxproj
++++ b/libs/ShareHubServer/ShareHubServer.xcodeproj/project.pbxproj
+@@ -270,7 +270,7 @@
+ 			buildSettings = {
+ 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
+ 				CODE_SIGN_STYLE = Automatic;
+-				HEADER_SEARCH_PATHS = /opt/homebrew/include/openssl;
++				HEADER_SEARCH_PATHS = "$(inherited) $(PROJECT_DIR)/../../3rdLibs/OpenSSL_4.0.3/compat";
+ 				LIBRARY_SEARCH_PATHS = (
+ 					"$(inherited)",
+ 					"$(PROJECT_DIR)/SCNFS/ShareHubServer/out/Release_x64",
+@@ -291,7 +291,7 @@
+ 			buildSettings = {
+ 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
+ 				CODE_SIGN_STYLE = Automatic;
+-				HEADER_SEARCH_PATHS = /opt/homebrew/include/openssl;
++				HEADER_SEARCH_PATHS = "$(inherited) $(PROJECT_DIR)/../../3rdLibs/OpenSSL_4.0.3/compat";
+ 				LIBRARY_SEARCH_PATHS = (
+ 					"$(inherited)",
+ 					"$(PROJECT_DIR)/SCNFS/ShareHubServer/out/Release_x64",
+diff --git a/libs/ShareHubServer/ShareHubServer/ssl/cert.cpp b/libs/ShareHubServer/ShareHubServer/ssl/cert.cpp
+index eb45bca0..a5d14860 100644
+--- a/libs/ShareHubServer/ShareHubServer/ssl/cert.cpp
++++ b/libs/ShareHubServer/ShareHubServer/ssl/cert.cpp
+@@ -193,23 +193,25 @@ uint32_t Cert::GenerateX509Cert(EVP_PKEY* pkey, X509* x509)
+ 
+ 	X509_set_pubkey(x509, pkey);
+ 
+-	X509_NAME* name;
+-	name = X509_get_subject_name(x509);
++	// OpenSSL 4 returns a const subject name. Use an owned name and setter.
++	std::unique_ptr<X509_NAME, decltype(&X509_NAME_free)> name(X509_NAME_new(), X509_NAME_free);
++	if (!name) return 1;
+ 
+ 	//country
+-	X509_NAME_add_entry_by_txt(name, "C", MBSTRING_ASC,
++	X509_NAME_add_entry_by_txt(name.get(), "C", MBSTRING_ASC,
+ 		(unsigned char*)"CN", -1, -1, 0);
+ 	//organization
+-	X509_NAME_add_entry_by_txt(name, "O", MBSTRING_ASC,
++	X509_NAME_add_entry_by_txt(name.get(), "O", MBSTRING_ASC,
+ 		(unsigned char*)"Lenovo", -1, -1, 0);
+ 	//common name
+-	X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC,
++	X509_NAME_add_entry_by_txt(name.get(), "CN", MBSTRING_ASC,
+ 		(unsigned char*)"Lenovo", -1, -1, 0);
+ 	//origanization unit
+-	X509_NAME_add_entry_by_txt(name, "OU", MBSTRING_ASC,
++	X509_NAME_add_entry_by_txt(name.get(), "OU", MBSTRING_ASC,
+ 		(unsigned char*)"DC", -1, -1, 0);
+ 
+-	X509_set_issuer_name(x509, name);
++	if (X509_set_subject_name(x509, name.get()) != 1 ||
++		X509_set_issuer_name(x509, name.get()) != 1) return 1;
+ 	int ret = X509_sign(x509, pkey, EVP_sha256());
+ 	if (ret == 0)
+ 	{

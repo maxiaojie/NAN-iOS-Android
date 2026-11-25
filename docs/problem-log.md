@@ -653,3 +653,8 @@ iPhone 12 发布、HA2E6NPB 订阅，6/149 信道各抓到40/38个目标 Publish
 ### SDEA 6字节的 MAC/TLV 解释核对（2026-11-25）
 
 USB归档读取本轮iPhone12历史日志，确认nan0与Publish responder均为56:f8:44:71:55:d2；普通发布配置blob/txtRecordData/instanceName均null。因此dd03000017f2不是本轮NAN接口地址。dd|0300|0017f2完整符合Type1字节+Length2字节LE+Apple OUI三字节的TLV，0xdd作为NAN Vendor Specific也有参考实现支持，但日志未直接解释此SSI的0xdd语义，明确保留该边界，不认定为六字节设备MAC。手机未唤醒、仍锁屏。[日志摘录与解释边界](ios-publish-sdea-match-2026-11-25.md)。
+
+
+### SC-20261125-01：SmartConnect iOS NAN 本地接入补丁
+
+SmartConnectIoS 原仓库仅配置公司 Gerrit，按用户要求将 Patch 放入本 GitHub 示例仓库，不推送产品仓库。补丁加入 nan Policy、Aware 建链后 WSS、反向验证、配对入口及生命周期管理。依赖缺失、Pods Git HTTP/2 下载异常、OpenSSL 4 头文件布局和 const API 的处理均记录在补丁内专项文档。完整 iOS 未签名构建通过，端到端真机未验证，Android 产品端尚在接入。详见 [Patch 基线、校验和及使用方法](SmartConnectIoS-nan-patch.md)。
