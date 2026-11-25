@@ -331,3 +331,8 @@ Android/Swift 协议和 TXT 测试、Android assemble/lint、iOS 真机签名构
 ### 四台设备统一安装最新 App（2026-11-24）
 
 按用户要求由当前源码重新构建，Android assembleDebug 与 iOS iphoneos 签名构建均通过。a0807d7、HA2E6NPB 的 adb install -r 均 Success，设备 base.apk SHA256 与本地最新 APK 完全一致（a5b7aa6da5e714e9c783fef29cf8b56b779b24d2927f61d190bb6f1c2af6bcfd）。iPhone 12 与 iPhone 14 Pro 安装同一最终版 AwareBridge.app，devicectl 均返回 App installed（com.slab.wifiawaredemo）。本轮仅安装及收尾锁屏，未启动连接或吞吐测试，不能作为 CrashDump 修复验收。
+
+
+### iOS Publish SDEA 发现信息对照（2026-11-25）
+
+iPhone12/HA2E6NPB只验证发布与订阅，未NDP/测速/删配对。ch6帧4645、ch149帧1732确认SDEA且无设备TXT；Framework走extended分支、App只收6字节。两端6字节内容不同，HAL原始TLV/转换前后仍待定位；不能宣称名称被Framework丢弃或HAL不支持SDEA。抓包保存在Ubuntu /home/mxj/NAN/2026-11-25；网络恢复managed、外网200，iPhone12锁屏确认。14Pro本轮未USB连接，不作为该机本轮证明。[完整分析](ios-publish-sdea-match-2026-11-25.md)。

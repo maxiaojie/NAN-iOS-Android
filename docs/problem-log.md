@@ -643,3 +643,8 @@ iPhone 14 Pro 同一模拟电源键命令后锁定状态为真；iPhone 12 命�
 ### iPhone 12 USB 锁屏已定位：长按触发 Siri（2026-11-24）
 
 核对本机实现和上游 #2210/#2212，旧 lock 命令按住电源键 0.5 秒会触发 Siri。改用 0.05 秒短按，在 iPhone 12 上 SpringBoard lockstate 从 0 变 1，截图黑屏；同期 devicectl passcodeRequired 仍 false，纠正此前将它等同屏幕锁定的判断。已修本机 CLI/web 两处映射并备份，增加幂等收尾脚本：先查状态、只短按一次、验证状态、不自动重试。脚本已锁屏不发按键分支通过；未额外唤醒注入异常测试。[方法与证据](iphone-usb-lock.md)。
+
+
+### iOS 普通 Publish 名称缺失：SDEA 空口与发现路径核对（2026-11-25）
+
+iPhone 12 发布、HA2E6NPB 订阅，6/149 信道各抓到40/38个目标 Publish。SDA无Service Info，SDEA存在，Service Info 10字节（4字节WFA头+6字节Specific Info），没有设备名称TXT。Framework isExtendedServiceSpecificInfo=true，App收到6字节、fields=[]；但空口 dd03000017f2 与Java日志 b8a7b3010000 不同，保留为下层待查，不声称传递逐字节一致。AOSP NanMatchInd 的 sdea_service_specific_info[_len] → AIDL extendedServiceSpecificInfo → eventMatch；此字段V1/V3/V4均已有，与Bootstrap新增字段无关。SDA非空优先、空才回退SDEA，但本轮未命中优先级覆盖。Ubuntu已恢复managed和HTTP200，iPhone12已锁屏。[抓包、结构体与源码调用链](ios-publish-sdea-match-2026-11-25.md)。
