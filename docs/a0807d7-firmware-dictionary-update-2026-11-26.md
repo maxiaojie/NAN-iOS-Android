@@ -57,3 +57,14 @@ adb -s a0807d7 unroot
 ```
 
 脚本只接受当前文件为本次新版或原版哈希，校验备份后临时rw恢复、再ro，并重启cnss_diag。原始字典、新字典和完整日志属于厂商/本地诊断材料，不上传GitHub。
+
+
+## 同日补充：HA2E6NPB也已更新
+
+用户随后要求另一台平板执行相同操作，本轮目标HA2E6NPB / TB323FU_US。dumpsys确认实际固件197458.2，amss20.bin哈希b6f89c304e8f01a276413bcc112807638f7d2340bb4c04b85b108799a3cbdae6。原字典同样为2024278字节、旧哈希1742dbe5…，已更新至2024168字节、完整新哈希fa711c932deb35bf9e1178e94db0d6a3565c557c42311cb169950cb197b18e45。固件本体哈希未变。
+
+Mac备份和脚本在 `/Users/mxj/workspace/nan-firmware-analysis/2026-11-26/HA2E6NPB-dictionary/`；设备备份、新版暂存、更新/回退脚本在 `/data/local/tmp/nan-dictionary-backup-20261126/`。原件Data20.msc.original哈希核对后保存，回退脚本通过设备sh -n检查，实际没有回退。
+
+只重启vendor.cnss_diag，PID由1756变为16168，服务running；11:19:11.079及11:19:11.138加载日志明确读取目标Data20.msc，chipset0/78802。文件仍system:system、firmware_file标签、r--r-----，vfat固件分区恢复ro。收尾adbd恢复非root；未改APK、HAL或固件，未操作iPhone/Ubuntu。本轮同样仅验收字典部署及重新加载，不代表NDP连接故障已修复。
+
+回退命令将上一节设备序列号改为HA2E6NPB：`adb -s HA2E6NPB root`、`adb -s HA2E6NPB shell sh /data/local/tmp/nan-dictionary-backup-20261126/restore-dictionary.sh`、`adb -s HA2E6NPB unroot`。

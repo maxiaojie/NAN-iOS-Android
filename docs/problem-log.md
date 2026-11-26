@@ -703,3 +703,8 @@ a0807d7与iPhone12，在已有设备页交替点击连接，最初五轮（iPhon
 ### SC-20261126-01：a0807d7补齐197458.2固件日志字典
 
 按用户要求备份原Data20.msc，替换/vendor/firmware_mnt/image/peach/Data20.msc为随197458.2固件提供的字典，目标SHA256 fa711c932deb35bf9e1178e94db0d6a3565c557c42311cb169950cb197b18e45。只重启vendor.cnss_diag；CNSS加载日志确认重新读取目标路径（chipset78802），日志继续输出，固件分区恢复ro。原字典和回退脚本双端保存；未替换固件或做新的NDP验收，历史错误解码文本不会自动修复。[部署、哈希、备份和回退](a0807d7-firmware-dictionary-update-2026-11-26.md)。
+
+
+### SC-20261126-02：HA2E6NPB日志字典同步更新
+
+用户要求另一台平板也更新，实际识别为HA2E6NPB / TB323FU_US，固件同为197458.2且amss20哈希一致。原字典双端备份后更新Data20.msc，新哈希fa711c932deb35bf9e1178e94db0d6a3565c557c42311cb169950cb197b18e45；cnss_diag由PID1756重启至16168并明确重新加载目标字典。固件分区恢复ro、adbd恢复非root，回退脚本就绪；未运行NDP验收。[部署与回退](a0807d7-firmware-dictionary-update-2026-11-26.md#同日补充ha2e6npb也已更新)。
