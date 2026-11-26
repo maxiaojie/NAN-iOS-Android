@@ -363,3 +363,8 @@ a0807d7 / iPhone12：15:53:19自动匹配已认证alias、等待系统配对验�
 ### SmartConnect NDP终止来源调查（2026-11-25）
 
 仍未修复。本段内核日志观察到34个SUCCESS和2个PEER_DATA_END，不据此推算概率。失败轮次由固件nan20_sm_data_end_received_ota确认收到对端End，先于host-end与App回收；确认直接失败路径，尚缺iPhone为何结束的内部原因。旧Data20字典不匹配且同VERSION，已使用随197458.2提供的字典重解释可保留的参数，未改设备软件。对时校正后错误78不是首个起因。见[证据与限制](SmartConnect-nan-reconnect-root-analysis-2026-11-25.md)。
+
+
+### a0807d7固件日志字典（2026-11-26）
+
+197458.2匹配Data20.msc已部署；SHA256及大小一致，cnss_diag重启后明确从目标路径加载且继续输出，分区ro。备份与回退脚本就绪。仅字典部署/加载通过，不代表NDP失败修复。[记录](a0807d7-firmware-dictionary-update-2026-11-26.md)。

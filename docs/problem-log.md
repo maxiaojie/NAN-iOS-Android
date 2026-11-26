@@ -698,3 +698,8 @@ a0807d7与iPhone12，在已有设备页交替点击连接，最初五轮（iPhon
 **直接原因已确认到NDP Confirm后收到对端End；iPhone为何发送End的内部原因仍未证实，不直接定责iOS固件，也不宣称所有INSTALL_RX_FAIL相同或已修复。** iOS“decode key data”等报错在成功轮次也存在，排除为独立证据。完整时序、两份字典hash、解码边界及私有归档见[根因调查](SmartConnect-nan-reconnect-root-analysis-2026-11-25.md)。Ubuntu抓包集中在/home/mxj/NAN/2026-11-25/smartconnect-root，原始日志/字典不上传。
 
 收尾核实：Ubuntu已恢复managed，wlp3s0连接lenovo-internet，有默认路由，访问清华镜像HTTPS返回HTTP/2 200。恢复时第一次因接口尚不可用失败，第二次自行重试成功，未要求用户sudo。iPhone12已实测上滑无密码解锁，结束后SpringBoard锁屏0→1；Android恢复shell UID、临时日志级别清除，保留原cnss_diag服务，只停止本轮采集。
+
+
+### SC-20261126-01：a0807d7补齐197458.2固件日志字典
+
+按用户要求备份原Data20.msc，替换/vendor/firmware_mnt/image/peach/Data20.msc为随197458.2固件提供的字典，目标SHA256 fa711c932deb35bf9e1178e94db0d6a3565c557c42311cb169950cb197b18e45。只重启vendor.cnss_diag；CNSS加载日志确认重新读取目标路径（chipset78802），日志继续输出，固件分区恢复ro。原字典和回退脚本双端保存；未替换固件或做新的NDP验收，历史错误解码文本不会自动修复。[部署、哈希、备份和回退](a0807d7-firmware-dictionary-update-2026-11-26.md)。
