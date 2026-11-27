@@ -708,3 +708,14 @@ a0807d7与iPhone12，在已有设备页交替点击连接，最初五轮（iPhon
 ### SC-20261126-02：HA2E6NPB日志字典同步更新
 
 用户要求另一台平板也更新，实际识别为HA2E6NPB / TB323FU_US，固件同为197458.2且amss20哈希一致。原字典双端备份后更新Data20.msc，新哈希fa711c932deb35bf9e1178e94db0d6a3565c557c42311cb169950cb197b18e45；cnss_diag由PID1756重启至16168并明确重新加载目标字典。固件分区恢复ro、adbd恢复非root，回退脚本就绪；未运行NDP验收。[部署与回退](a0807d7-firmware-dictionary-update-2026-11-26.md#同日补充ha2e6npb也已更新)。
+
+
+## SC-20261127-01：HA2E6NPB 与 iPhone12 经 NAN 上线10次及双向 TCP 性能
+
+**环境/步骤：** HA2E6NPB / TB323FU_US / Android17，FW197458.2；iPhone12 / iOS27.2.1。新版SmartConnect，先首次配对，再从已有设备页交替由Android/iPhone各发起5次，保持Android STA连接。每次上线后，同一SC NDP运行TCP4并行流、每方向目标10秒。
+
+**结果：** 10/10缓存验证、NDP、WSS认证及双端在线通过，测速后SC TCP均保持。Android→iPhone10/10完成，接收平均22.67 Mbps（18.67—28.42）；iPhone→Android仅第6轮完成4.40 Mbps，其余9轮接收超时。失败不记为有效0 Mbps。双向性能未通过，不推广为全业务可靠。
+
+**分析/限制：** 现有native接收停顿超时5秒，iOS通过Network framework转发到loopback libiperf；尚未区分转发/缓冲/并发调度/底层原因，不归责固件。另观察NFS挂载与服务启动失败，文件业务未验收。iOS service8/19分别是CONNECT_SERVER/CONNECT_CLIENT；19不能单独判断为临时配对失败，以connType10/result1、认证、TCP和双端UI组合判断。本批实际都是iOS发布/Android订阅，发起端交替不代表NAN角色切换。
+
+**处理/记录：** 本地生成验证工程临时接入iperf，同一正式构建完成10轮；产品正常源码未改。保留每轮失败与原始JSON，不重试覆盖；收尾恢复普通SC验证构建。详见[逐轮结果、实现和剩余问题](SmartConnect-nan-reliability-2026-11-27.md)及[CSV](results/sc-nan-ha2e6npb-iphone12-2026-11-27.csv)。收尾实测状态以专项文档为准。

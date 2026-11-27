@@ -1,0 +1,11 @@
+trial,initiator,trigger_time_CST,online,observed_online_upper_bound_s,ios_conn_type,ios_service_id,android_to_ios_receiver_mbps,android_to_ios_error,ios_to_android_receiver_mbps,ios_to_android_error,sc_tcp_alive_after_test,nfs_mount_failure_count,nfs_server_start_failure_count
+1,Android,2026-11-27T16:22:48.426832+08:00,True,15.93,10,19,25.533,,,idle timeout for receiving data,True,16,7
+2,iPhone,2026-11-27T16:24:11.597799+08:00,True,15.85,10,8,22.989,,,idle timeout for receiving data,True,17,7
+3,Android,2026-11-27T16:26:15.582274+08:00,True,15.33,10,19,18.907,,,idle timeout for receiving data,True,18,8
+4,iPhone,2026-11-27T16:27:12.836641+08:00,True,11.44,10,8,23.953,,,idle timeout for receiving data,True,17,7
+5,Android,2026-11-27T16:28:13.884309+08:00,True,8.73,10,19,28.421,,,idle timeout for receiving data,True,16,7
+6,iPhone,2026-11-27T16:29:01.878779+08:00,True,11.36,10,8,22.009,,4.404,,True,22,8
+7,Android,2026-11-27T16:30:31.251522+08:00,True,10.86,10,19,21.793,,,idle timeout for receiving data,True,17,8
+8,iPhone,2026-11-27T16:31:20.887210+08:00,True,11.26,10,8,20.155,,,idle timeout for receiving data,True,17,7
+9,Android,2026-11-27T16:32:36.995284+08:00,True,9.03,10,19,18.665,,,idle timeout for receiving data,True,16,7
+10,iPhone,2026-11-27T16:33:22.510679+08:00,True,13.76,10,8,24.318,,,idle timeout for receiving data,True,17,7

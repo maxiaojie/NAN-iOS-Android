@@ -371,3 +371,8 @@ a0807d7 / iPhone12：15:53:19自动匹配已认证alias、等待系统配对验�
 
 
 HA2E6NPB同日补充：197458.2匹配字典已部署、哈希通过，cnss_diag重启并明确重新加载，原件双端备份及回退脚本就绪，分区ro、adbd非root。无新的NDP验收。
+
+
+### SmartConnect HA2E6NPB ↔ iPhone12：10次上线与性能（2026-11-27）
+
+Android保持STA，已有配对详情页双端各发起5次，10/10经NAN缓存验证、NDP和WSS认证并在双端在线；实际均为iOS发布/Android订阅。TCP4并行流/目标10秒：Android→iPhone10/10完成，接收平均22.67 Mbps；iPhone→Android仅1/10完成4.40 Mbps，其余9次接收超时，测速后SC控制TCP仍在。双向性能和NFS业务未通过。采用临时本地Network framework/loopback libiperf测量SC同一NDP，不能当成纯无线峰值或WSS业务速度。service19不能单独作为临时连接的判断依据，当前iOS定义其为CONNECT_CLIENT。[逐轮报告](SmartConnect-nan-reliability-2026-11-27.md)、[CSV](results/sc-nan-ha2e6npb-iphone12-2026-11-27.csv)。
