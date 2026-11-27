@@ -1,0 +1,340 @@
+diff --git a/SmartConnect/SCService/SCConnectService/NAN/SCNanTransport.swift b/SmartConnect/SCService/SCConnectService/NAN/SCNanTransport.swift
+--- a/SmartConnect/SCService/SCConnectService/NAN/SCNanTransport.swift
++++ b/SmartConnect/SCService/SCConnectService/NAN/SCNanTransport.swift
+@@ -33,6 +33,17 @@
+     @objc func showPairing(from controller: UIViewController) {
+         if #available(iOS 26.4, *) {
+             Task { @MainActor in SCNanEngine.shared.showPairing(from: controller) }
++        }
++    }
++    // NFS owns TLS; Network framework owns only its NAN TCP transport.
++    @objc func forwardTCP(_ peerIP: String, port: Int, accepting: Bool, completion: @escaping (Int) -> Void) {
++        guard #available(iOS 26.4, *) else { completion(0); return }
++        Task { @MainActor in
++            do { completion(Int(try await SCNanEngine.shared.nfsTCP(peerIP, port: port, accepting: accepting))) }
++            catch {
++                SCNanEngine.logger.error("NAN NFS transport failed: \(String(describing: error), privacy: .public)")
++                completion(0)
++            }
+         }
+     }
+     // The generated Go callback is synchronous, and is called from Go workers.
+@@ -74,6 +85,7 @@
+         var parent = ""
+         var generation = UUID()
+         var localPort = 0
++        var purpose = ""
+         var consumed = false
+         var incomingPort: Int?
+     }
+@@ -301,6 +313,78 @@
+             return try policy(child, port: s.port)
+         } catch { close(child); throw error }
+     }
++    // Resolve only an already established SC peer; no fresh discovery or raw-IP dial.
++    func nfsTCP(_ peerIP: String, port: Int, accepting: Bool) async throws -> UInt16 {
++        guard (1...65535).contains(port) else { throw error("Invalid NFS TCP port") }
++        func host(_ value: String) -> String {
++            String(value.trimmingCharacters(in: CharacterSet(charactersIn: "[]")).split(separator: "%")[0]).lowercased()
++        }
++        guard !peerIP.isEmpty,
++              let (parentID, owner) = sessions.first(where: {
++                  $0.value.purpose.isEmpty && !$0.value.remoteIP.isEmpty &&
++                  ($0.value.parent.isEmpty || sessions[$0.value.parent]?.parent == "publisher") &&
++                  host($0.value.remoteIP) == host(peerIP) && $0.value.remote != nil
++              }), let original = owner.remote else { throw error("No established SC NAN peer for NFS") }
++        guard case .ready = original.state else { throw error("SC NAN peer is not ready") }
++        let id = "nfs:\(accepting ? "listen" : "connect"):\(parentID):\(port)"
++        if let existing = sessions[id] {
++            if existing.failure == nil {
++                do { try await wait(existing); return existing.port }
++                catch { close(id); throw error }
++            }
++            close(id)
++        }
++        let s = Session(); s.parent = parentID; s.purpose = "nfs"; sessions[id] = s
++        do {
++            let listener: NetworkListener<TCP>
++            if accepting {
++                guard let path = try await original.currentPath?.wifiAware else { throw error("Missing NFS Aware path") }
++                listener = try NetworkListener(for: .wifiAware(.addingConnections(from: .selected([path.endpoint.device])), active: .seconds(3600)),
++                    using: .parameters { TCP() }.localPort(.any).wifiAware { $0.performanceMode = .bulk })
++            } else {
++                listener = try NetworkListener(using: .parameters { TCP() }.localEndpoint(.hostPort(host: "127.0.0.1", port: .any)))
++            }
++            listener.onStateUpdate { _, state in
++                if case .ready = state { s.port = listener.port?.rawValue ?? 0; s.ready = s.port != 0 }
++                if case .failed(let failure) = state { s.ready = false; s.failure = failure }
++            }
++            s.tasks.append(Task {
++                do {
++                    try await listener.run { accepted in
++                        if accepting {
++                            let local = NetworkConnection(to: .hostPort(host: "127.0.0.1", port: NWEndpoint.Port(rawValue: UInt16(port))!), using: .parameters { TCP() })
++                            self.relayNFS(accepted, local, parent: id)
++                        } else {
++                            guard let endpoint = original.currentPath?.remoteEndpoint ?? original.remoteEndpoint,
++                                  let copied = NWEndpoint(copying: endpoint, newPort: NWEndpoint.Port(rawValue: UInt16(port))!) else {
++                                throw self.error("Cannot preserve NFS Aware endpoint")
++                            }
++                            let remote = NetworkConnection(to: copied, using: .parameters { TCP() }.wifiAware { $0.performanceMode = .bulk })
++                            self.relayNFS(accepted, remote, parent: id)
++                        }
++                    }
++                } catch { s.ready = false; s.failure = error }
++            })
++            try await wait(s)
++            guard sessions[parentID] === owner else { throw error("SC disconnected while preparing NFS") }
++            Self.logger.notice("NAN NFS TCP ready accepting=\(accepting) localPort=\(port) exposedPort=\(s.port)")
++            return s.port
++        } catch { close(id); throw error }
++    }
++    private func relayNFS(_ a: NetworkConnection<TCP>, _ b: NetworkConnection<TCP>, parent: String) {
++        guard sessions[parent] != nil else { return }
++        let id = UUID().uuidString
++        let s = Session(); s.parent = parent; s.purpose = "nfs-flow"; sessions[id] = s
++        s.tasks.append(Task {
++            defer { self.close(id) }
++            do {
++                let firstA = startReading(a, session: s), firstB = startReading(b, session: s)
++                try await waitUntilReady(a); try await waitUntilReady(b)
++                Self.logger.notice("NAN NFS TCP relay ready")
++                try await Self.pipe(a, b, initialA: firstA, initialB: firstB)
++            } catch { Self.logger.error("NAN NFS TCP relay ended: \(String(describing: error), privacy: .public)") }
++        })
++    }
+     func close(_ id: String) {
+         for child in sessions.keys.filter({ sessions[$0]?.parent == id }) { close(child) }
+         guard let s = sessions.removeValue(forKey: id) else { return }
+diff --git a/SmartConnect/SCService/SCConnectService/NAN/SCNanCallback.h b/SmartConnect/SCService/SCConnectService/NAN/SCNanCallback.h
+--- a/SmartConnect/SCService/SCConnectService/NAN/SCNanCallback.h
++++ b/SmartConnect/SCService/SCConnectService/NAN/SCNanCallback.h
+@@ -2,4 +2,5 @@
+ #import <Foundation/Foundation.h>
+ @interface SCNanCallback : NSObject
+ + (void)install;
+++ (void)forwardTCPToPeer:(NSString *)peerIP port:(NSInteger)port accepting:(BOOL)accepting completion:(void (^)(NSInteger port))completion;
+ @end
+diff --git a/SmartConnect/SCService/SCConnectService/NAN/SCNanCallback.m b/SmartConnect/SCService/SCConnectService/NAN/SCNanCallback.m
+--- a/SmartConnect/SCService/SCConnectService/NAN/SCNanCallback.m
++++ b/SmartConnect/SCService/SCConnectService/NAN/SCNanCallback.m
+@@ -5,6 +5,9 @@
+ @interface SCNanCallback () <IOSNanAPICallback>
+ @end
+ @implementation SCNanCallback
+++ (void)forwardTCPToPeer:(NSString *)peerIP port:(NSInteger)port accepting:(BOOL)accepting completion:(void (^)(NSInteger))completion {
++    [SCNanTransport.shared forwardTCP:peerIP ?: @"" port:port accepting:accepting completion:^(NSInteger value) { completion(value); }];
++}
+ + (void)install {
+     static SCNanCallback *callback;
+     static dispatch_once_t once;
+diff --git a/SmartConnect/SCService/SCNFSService/SCNFSService.h b/SmartConnect/SCService/SCNFSService/SCNFSService.h
+--- a/SmartConnect/SCService/SCNFSService/SCNFSService.h
++++ b/SmartConnect/SCService/SCNFSService/SCNFSService.h
+@@ -11,7 +11,7 @@
+ 
+ - (void)initNFSService;
+ 
+--(void)addNFSService:(NSString *)deviceId message:(NSString *)message localip:(NSString *)localIp;
++-(void)addNFSService:(NSString *)deviceId message:(NSString *)message localip:(NSString *)localIp remoteIp:(NSString *)remoteIp;
+ 
+ -(void)checkNFSService:(NSString *)deviceID message:(NSString *)message localip:(NSString *)localIp;
+ 
+diff --git a/SmartConnect/SCService/SCNFSService/SCNFSService.mm b/SmartConnect/SCService/SCNFSService/SCNFSService.mm
+--- a/SmartConnect/SCService/SCNFSService/SCNFSService.mm
++++ b/SmartConnect/SCService/SCNFSService/SCNFSService.mm
+@@ -17,6 +17,8 @@
+ #import "SCGOConstants.h"
+ #import "SCNFSConstants.h"
+ #import "SCMacros.h"
++#import "SCNanCallback.h"
++#include <memory>
+ 
+ #define NFS_SOCKET_SSL 2
+ #define NFS_SOCKET_DT2 3
+@@ -49,7 +51,7 @@
+     [[SCNFSPhotosDataManager shareInstance] initAllData];
+ }
+ 
+--(void)addNFSService:(NSString *)deviceID message:(NSString *)message localip:(NSString *)localIp {
++-(void)addNFSService:(NSString *)deviceID message:(NSString *)message localip:(NSString *)localIp remoteIp:(NSString *)remoteIp {
+     SCLogInfoT(TAG,@"recieve message:%@",message);
+     @synchronized (self.pendingAddDeviceIDs) {
+         if ([self.pendingAddDeviceIDs containsObject:deviceID]) {
+@@ -99,20 +101,21 @@
+             for (int attempt = 0; attempt < maxAttempts; attempt++) {
+                 @autoreleasepool {
+                     service = [[ShareHubServer alloc] init];
+-                    ShareHubServerInfo *serverInfo = new ShareHubServerInfo();
++                    auto serverInfo = std::make_shared<ShareHubServerInfo>();
+                     serverInfo->p2pType = [dt2type intValue];
+                     if (serverInfo->p2pType != NFS_SOCKET_DT2) {
+                         serverInfo->p2pType = NFS_SOCKET_SSL;
+                     }
+                     SCConnectType connType = [[SCConnectManager sharedInstance] connectType:deviceID];
+                     SCLogInfoT(TAG, @"check deviceID:%@ connType:%lu",deviceID, connType);
+-                    if (connType == SCConnectTypeCloudWifi || connType == SCConnectTypeCloudCellular) {
++                    if (connType == SCConnectTypeCloudWifi || connType == SCConnectTypeCloudCellular || connType == SCConnectTypeNAN) {
+                         serverInfo->p2pType = NFS_SOCKET_SSL;
+                     }
+                     serverInfo->nfsVersion = [version intValue];
+                     serverInfo->nfsCapability = [capability intValue];
+                     NFSSDKSetupCppDataWithObject(NFSString, serverInfo->deviceId, deviceID);
+-                    NFSSDKSetupCppDataWithObject(NFSString, serverInfo->ip, localIp);
++                    NSString *bindIP = connType == SCConnectTypeNAN ? @"127.0.0.1" : localIp;
++                    NFSSDKSetupCppDataWithObject(NFSString, serverInfo->ip, bindIP);
+                     if (attempt == 0) {
+                         port = [self getServerPort:service deviceID:deviceID];
+                     }
+@@ -129,12 +132,11 @@
+                     dispatch_semaphore_t sem = dispatch_semaphore_create(0);
+                     __block int startRet = -1;
+                     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+-                        startRet = [service startNFSServer:serverInfo];
++                        startRet = [service startNFSServer:serverInfo.get()];
+                         dispatch_semaphore_signal(sem);
+                     });
+ 
+                     long waitResult = dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, timeoutNs));
+-                    delete serverInfo;
+ 
+                     if (waitResult == 0) {
+                         // startNFSServer completed (success or failure) within timeout
+@@ -144,7 +146,7 @@
+                     } else {
+                         // Timeout — startNFSServer is stuck (likely Dt2Bind/Dt2Listen).
+                         // Clean up this stuck server and retry with a fresh one.
+-                        SCLogInfoT(TAG, @"startNFSServer timed out after 2s, cleaning up (attempt %d/%d)",
++                        SCLogInfoT(TAG, @"startNFSServer timed out after 5s, cleaning up (attempt %d/%d)",
+                                    attempt + 1, maxAttempts);
+                         ShareHubServer *stuckService = service;
+                         dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+@@ -166,12 +168,13 @@
+                             ShareHubServer *find = [self findNFSService:deviceID];
+                             if (!find) {
+                                 SCLogInfoT(TAG, @"create server success!!! deviceID:%@", deviceID);
++                                [self parseFp:service deviceID:deviceID message:message p2pType:service.serverInfo.p2pType];
+                                 [self.serviceArray addObject:service];
+-                                [self sendMessage:service localIp:localIp];
++                                [self sendMessage:service localIp:localIp remoteIp:remoteIp];
+                              } else {
+                                 SCLogInfoT(TAG, @"server is ready! deviceID:%@", deviceID);
+                                 [self parseFp:find deviceID:deviceID message:message p2pType:find.serverInfo.p2pType];
+-                                [self sendMessage:find localIp:localIp];
++                                [self sendMessage:find localIp:localIp remoteIp:remoteIp];
+                             }
+                         }
+                     }
+@@ -189,7 +192,7 @@
+             SCLogInfoT(TAG,@"server is ready, deviceID:%@",deviceID);
+             // update fp
+             [self parseFp:find deviceID:deviceID message:message p2pType:find.serverInfo.p2pType];
+-            [self sendMessage:find localIp:localIp];
++            [self sendMessage:find localIp:localIp remoteIp:remoteIp];
+         }
+         // Clean up pending flag so future add attempts can proceed
+         @synchronized (self.pendingAddDeviceIDs) {
+@@ -313,12 +316,12 @@
+     return cap;
+ }
+ #pragma mark - private
+--(void)sendMessage:(ShareHubServer *)service localIp:(NSString *)localIp{
++-(void)sendMessage:(ShareHubServer *)service localIp:(NSString *)localIp remoteIp:(NSString *)remoteIp{
+     ShareHubServerInfo info = [service serverInfo];
+     unsigned int nfsport = info.nfsProcPort;
+     NSString *deviceId = [SCDeviceManager sharedInstance].localDevice.realDeviceId;
+     NSString *fp = [NSString stringWithNFSString:info.serverFp];
+-    NSDictionary *data = @{@"deviceId":deviceId?:@"",
++    NSMutableDictionary *data = [@{@"deviceId":deviceId?:@"",
+                            @"type":@(1),
+                            @"dt2type":@(info.p2pType),
+                            @"fp":fp?:@"",
+@@ -328,15 +331,25 @@
+                            @"ip":localIp,
+                            @"nfs_version":@(SCNFSVersionLivePhotoSupport),
+                            @"nfs_capability":@(kNFSServerCapability)
+-    };
++    } mutableCopy];
++    NSString *dstDeviceID = [NSString stringWithNFSString:info.deviceId];
++    if ([[SCConnectManager sharedInstance] connectType:dstDeviceID] == SCConnectTypeNAN) {
++        [SCNanCallback forwardTCPToPeer:remoteIp port:nfsport accepting:YES completion:^(NSInteger exposedPort) {
++            if (exposedPort <= 0) { SCLogErrorT(TAG, @"NAN NFS server TCP listener failed"); return; }
++            data[@"port"] = @(exposedPort); data[@"nfsport"] = @(exposedPort);
++            [self sendServerData:data to:dstDeviceID];
++        }];
++    } else { [self sendServerData:data to:dstDeviceID]; }
++}
++
++- (void)sendServerData:(NSDictionary *)data to:(NSString *)dstDeviceID {
+     NSString *jsonData = [NSString convertToJSONData:data];
+     NSDictionary *sendMsg = @{@"cmd":@(1001),
+                               @"data":jsonData?:@"",
+                               @"ver":@"1.0"};
+-    SCLogInfoT(TAG,@"send 1001 type(1) message to:%@",deviceId);
++    SCLogInfoT(TAG,@"send 1001 type(1) message to:%@",dstDeviceID);
+     NSString *result = [NSString convertToJSONData:sendMsg];
+     SCConnectManager *connect = [SCConnectManager sharedInstance];
+-    NSString *dstDeviceID = [NSString stringWithNFSString:info.deviceId];
+     [connect sendMessage:dstDeviceID dstServiceId:SERVICE_ID_NFS srcServiceId:SERVICE_ID_NFS msg:result];
+ }
+ @end
+diff --git a/SmartConnect/SCService/SCNFSClientService/SCNFSClientManager.m b/SmartConnect/SCService/SCNFSClientService/SCNFSClientManager.m
+--- a/SmartConnect/SCService/SCNFSClientService/SCNFSClientManager.m
++++ b/SmartConnect/SCService/SCNFSClientService/SCNFSClientManager.m
+@@ -2,6 +2,7 @@
+ // Confidential and Restricted.
+ 
+ #import "SCNFSClientManager.h"
++#import "SCNanCallback.h"
+ #import "SCConnectManager.h"
+ #import "SCDeviceManager.h"
+ #import "NSDictionary+SCSafe.h"
+@@ -210,6 +211,27 @@
+         SCLogT(TAG,@"client has mount success! msg:%@\n",message);
+         return;
+     }
++    if ([[SCConnectManager sharedInstance] connectType:client.deviceId] == SCConnectTypeNAN) {
++        NSDictionary *envelope = [NSString dictionaryWithJsonString:message];
++        NSMutableDictionary *data = [[NSString dictionaryWithJsonString:[envelope sc_stringForKey:@"data"]] mutableCopy];
++        if ([data[@"dt2type"] integerValue] != 2) {
++            SCLogErrorT(TAG, @"NAN NFS peer did not negotiate TCP/TLS"); return;
++        }
++        [SCNanCallback forwardTCPToPeer:ip port:[data[@"nfsport"] integerValue] accepting:NO completion:^(NSInteger localPort) {
++            dispatch_async(self.clientAccessQueue, ^{
++                if (self.nfsClients[client.deviceId] != client || localPort <= 0 ||
++                    [[SCConnectManager sharedInstance] connectState:client.deviceId] != SCConnectStateConnected) return;
++                data[@"nfsport"] = @(localPort); data[@"port"] = @(localPort);
++                NSMutableDictionary *localEnvelope = [envelope mutableCopy];
++                localEnvelope[@"data"] = [NSString convertToJSONData:data];
++                NSString *localMessage = [NSString convertToJSONData:localEnvelope];
++                dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
++                    [client initNFSClient:client.deviceId deviceName:client.deviceName message:localMessage serverIP:@"127.0.0.1"];
++                });
++            });
++        }];
++        return;
++    }
+     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+         [client initNFSClient:client.deviceId deviceName:client.deviceName message:message serverIP:ip];
+     });
+@@ -268,7 +290,7 @@
+     NSString *deviceId = localDevice ? localDevice.realDeviceId : @"";
+     NSDictionary *data = @{@"deviceId":deviceId?:@"",
+                            @"type":@(0),
+-                           @"dt2type":@(3),
++                           @"dt2type":@([[SCConnectManager sharedInstance] connectType:dstDeviceID] == SCConnectTypeNAN ? 2 : 3),
+                            @"fp":fp?:@"",
+                            @"path":@"/root",
+                            @"nfs_version":@(SCNFSVersionLivePhotoSupport),
+diff --git a/SmartConnect/SCPlugins/SCPluginNFS/SCPluginNFS.m b/SmartConnect/SCPlugins/SCPluginNFS/SCPluginNFS.m
+--- a/SmartConnect/SCPlugins/SCPluginNFS/SCPluginNFS.m
++++ b/SmartConnect/SCPlugins/SCPluginNFS/SCPluginNFS.m
+@@ -50,7 +50,7 @@
+             if (!messageDic) return;
+             NSInteger type = [[messageDic sc_numberForKey:@"type"]integerValue];
+             if (type == 0) {
+-                [[SCNFSService shareInstance] addNFSService:deviceId message:data localip:localIp];
++                [[SCNFSService shareInstance] addNFSService:deviceId message:data localip:localIp remoteIp:remoteIp];
+             }else if (type == 1) {
+                 [[SCNFSClientService shareInstance] receiveMessage:data deviceId:deviceId serverIp:remoteIp];
+             }

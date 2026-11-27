@@ -1,0 +1,5 @@
+operation,source,receiver,bytes,sha256,match
+fixture,Mac generated PNG,local source,574633,b0b54bfa44f2ec78c6837ba163235744a2133e10f41b1a0b90e437d9bf1ab3af,True
+NFS read,HA2E6NPB Download,iPhone12 SC NFS cache,574633,b0b54bfa44f2ec78c6837ba163235744a2133e10f41b1a0b90e437d9bf1ab3af,True
+NFS read,iPhone12 Photos IMG_0002.PNG,HA2E6NPB NFS DocumentsProvider,574633,b0b54bfa44f2ec78c6837ba163235744a2133e10f41b1a0b90e437d9bf1ab3af,True
+NFS image preview,iPhone12 Photos IMG_0002.PNG,HA2E6NPB SC preview cache and Google Photos,574633,b0b54bfa44f2ec78c6837ba163235744a2133e10f41b1a0b90e437d9bf1ab3af,True

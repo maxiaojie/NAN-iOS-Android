@@ -1,0 +1,502 @@
+diff --git a/main/filestation/vault/src/main/java/com/lenovo/hec/vault/api/ShareHubOpManagerImpl.kt b/main/filestation/vault/src/main/java/com/lenovo/hec/vault/api/ShareHubOpManagerImpl.kt
+--- a/main/filestation/vault/src/main/java/com/lenovo/hec/vault/api/ShareHubOpManagerImpl.kt
++++ b/main/filestation/vault/src/main/java/com/lenovo/hec/vault/api/ShareHubOpManagerImpl.kt
+@@ -6,6 +6,9 @@
+ 
+ import android.content.ClipData
+ import android.content.Context
++import android.content.Intent
++import android.provider.DocumentsContract
++import androidx.core.content.FileProvider
+ import android.os.Environment
+ import android.util.Pair
+ import androidx.annotation.Keep
+@@ -43,14 +46,17 @@
+ import com.zui.continuity.board.util.LogUtils
+ import java.lang.ref.WeakReference
+ import java.io.File
++import java.io.IOException
+ import kotlinx.coroutines.CoroutineScope
+ import kotlinx.coroutines.CancellationException
+ import kotlinx.coroutines.Dispatchers
+ import kotlinx.coroutines.SupervisorJob
+ import kotlinx.coroutines.launch
++import kotlinx.coroutines.withContext
+ import kotlinx.coroutines.flow.filter
+ import kotlinx.coroutines.flow.first
+ import java.util.UUID
++import java.util.concurrent.TimeUnit
+ 
+ /**
+  * Implementation of IShareHubOpManager for FileStation
+@@ -334,7 +340,46 @@
+     override fun openIosPhoto(documentId: String, listener: OperationResultListener?) {
+         mScope.launch {
+             try {
+-                NFSHelper.getInstance().viewDocumentByID(context, documentId)
++                val helper = NFSHelper.getInstance()
++                val source = DocumentsContract.buildDocumentUri(
++                    com.lenovo.hec.lenovoextend.nfsclientlib.SelectFileProvider.AUTHORITY, documentId
++                )
++                val type = context.contentResolver.getType(source).orEmpty()
++                val ref = helper.resolveDocument(documentId)
++                if (ref?.ctx?.networkType == com.lenovo.hec.vault.data.Constants.NETWORK_TYPE_NAN &&
++                    type.startsWith("image/")) {
++                    // Some external viewers cannot decode an image through the
++                    // proxy descriptor. Finish the NFS read before handing off
++                    // a normal seekable file, keeping all I/O off the UI thread.
++                    val folder = File(context.cacheDir, "filestation_cache/nfs-preview")
++                    if (!folder.isDirectory && !folder.mkdirs()) throw IOException("Cannot create NFS preview cache")
++                    val cutoff = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(1)
++                    folder.listFiles()?.filter { it.isFile && it.lastModified() < cutoff }?.forEach { it.delete() }
++                    val suffix = "." + (android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(type) ?: "img")
++                    val cached = File.createTempFile("preview-", suffix, folder)
++                    var opened = false
++                    try {
++                        val expected = ref.ctx.stat(ref.relativePath)?.size
++                            ?: throw IOException("Cannot read NFS image attributes")
++                        val copied = context.contentResolver.openInputStream(source)?.use { input ->
++                            cached.outputStream().use { output -> input.copyTo(output) }
++                        } ?: throw IOException("Cannot open NFS image")
++                        if (copied != expected || copied <= 0) throw IOException("Incomplete NFS image read")
++                        val local = FileProvider.getUriForFile(
++                            context, com.lenovo.hec.vault.data.Constants.VAULT_AUTHORITY, cached
++                        )
++                        withContext(Dispatchers.Main) {
++                            context.startActivity(Intent(Intent.ACTION_VIEW).apply {
++                                setDataAndType(local, type)
++                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
++                            })
++                        }
++                        opened = true
++                        LogUtils.i(TAG, "NAN NFS image preview materialized: bytes=$copied")
++                    } finally { if (!opened) cached.delete() }
++                } else {
++                    helper.viewDocumentByID(context, documentId)
++                }
+                 listener?.onSuccess(listOf(documentId))
+             } catch (e: Exception) {
+                 LogUtils.e(TAG, "openIosPhoto failed: $e")
+diff --git a/main/filestation/nfsclientlib/src/main/java/com/lenovo/hec/lenovoextend/nfsclientlib/NfsContext.kt b/main/filestation/nfsclientlib/src/main/java/com/lenovo/hec/lenovoextend/nfsclientlib/NfsContext.kt
+--- a/main/filestation/nfsclientlib/src/main/java/com/lenovo/hec/lenovoextend/nfsclientlib/NfsContext.kt
++++ b/main/filestation/nfsclientlib/src/main/java/com/lenovo/hec/lenovoextend/nfsclientlib/NfsContext.kt
+@@ -61,7 +61,8 @@
+     private val protocolCapability: Long,
+     private val hasDedicatedDataChannel: Boolean,
+     private val bandwidthConnectionId: String?,
+-    val connectionGeneration: Long
++    val connectionGeneration: Long,
++    val networkType: Int
+ ) : Closeable, NfsBandwidthMonitor.Controller {
+ 
+     // The native holder owns separate control and data contexts. Keep control
+@@ -332,7 +333,7 @@
+             val context = try {
+                 NfsContext(
+                     ptr, cacheMntId, cacheOwnerToken, deviceId, nfsVersion, nfsCapability,
+-                    nfsDataPort > 0, connectionId, connectionGeneration
++                    nfsDataPort > 0, connectionId, connectionGeneration, networkType
+                 )
+             } catch (error: Throwable) {
+                 try {
+diff --git a/main/filestation/vault/src/main/java/androidx/core/content/NFSFileProvider.java b/main/filestation/vault/src/main/java/androidx/core/content/NFSFileProvider.java
+--- a/main/filestation/vault/src/main/java/androidx/core/content/NFSFileProvider.java
++++ b/main/filestation/vault/src/main/java/androidx/core/content/NFSFileProvider.java
+@@ -568,7 +568,7 @@
+     private static String getMimeTypeFromName(@NonNull String name) {
+         final int lastDot = name.lastIndexOf('.');
+         if (lastDot >= 0) {
+-            final String extension = name.substring(lastDot + 1);
++            final String extension = name.substring(lastDot + 1).toLowerCase(java.util.Locale.ROOT);
+             final String mime = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension);
+             if (mime != null) {
+                 return mime;
+diff --git a/main/filestation/nfsclientlib/src/main/java/com/lenovo/hec/lenovoextend/nfsclientlib/nfsmanager/NfsUriManager.kt b/main/filestation/nfsclientlib/src/main/java/com/lenovo/hec/lenovoextend/nfsclientlib/nfsmanager/NfsUriManager.kt
+--- a/main/filestation/nfsclientlib/src/main/java/com/lenovo/hec/lenovoextend/nfsclientlib/nfsmanager/NfsUriManager.kt
++++ b/main/filestation/nfsclientlib/src/main/java/com/lenovo/hec/lenovoextend/nfsclientlib/nfsmanager/NfsUriManager.kt
+@@ -123,7 +123,7 @@
+ 
+     private fun getMimeType(uri: String): String {
+         uri.run {
+-            val extension = substringAfterLast('.', "")
++            val extension = substringAfterLast('.', "").lowercase(java.util.Locale.ROOT)
+             val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
+             return if (mimeType.isNullOrEmpty()) "vnd.android.document/root" else mimeType
+         }
+diff --git a/main/filestation/nfsclientlib/src/main/java/com/lenovo/hec/lenovoextend/nfsclientlib/NfsServerAddress.kt b/main/filestation/nfsclientlib/src/main/java/com/lenovo/hec/lenovoextend/nfsclientlib/NfsServerAddress.kt
+new file mode 100644
+--- /dev/null
++++ b/main/filestation/nfsclientlib/src/main/java/com/lenovo/hec/lenovoextend/nfsclientlib/NfsServerAddress.kt
+@@ -0,0 +1,32 @@
++package com.lenovo.hec.lenovoextend.nfsclientlib
++
++/** Keeps a scoped IPv6 host separate from the exported filesystem path. */
++object NfsServerAddress {
++    fun format(host: String?, path: String?): String {
++        val address = host.orEmpty().removePrefix("[").removeSuffix("]")
++        return (if (address.contains(':')) "[$address]" else address) + ":" + path.orEmpty()
++    }
++
++    private fun separator(value: String): Int {
++        if (value.startsWith('[')) {
++            val end = value.indexOf("]:")
++            require(end > 0) { "Invalid bracketed NFS address" }
++            return end + 1
++        }
++        // Accept old unbracketed IPv6 mount keys whose export is an absolute path.
++        val absolutePath = value.indexOf(":/")
++        return if (absolutePath >= 0) absolutePath else value.indexOf(':')
++    }
++
++    fun host(value: String): String {
++        val split = separator(value)
++        require(split >= 0) { "Missing NFS export separator" }
++        return value.substring(0, split).removePrefix("[").removeSuffix("]")
++    }
++
++    fun exportPath(value: String): String {
++        val split = separator(value)
++        require(split >= 0) { "Missing NFS export separator" }
++        return value.substring(split + 1)
++    }
++}
+diff --git a/main/filestation/nfsclientlib/src/test/java/com/lenovo/hec/lenovoextend/nfsclientlib/NfsServerAddressTest.kt b/main/filestation/nfsclientlib/src/test/java/com/lenovo/hec/lenovoextend/nfsclientlib/NfsServerAddressTest.kt
+new file mode 100644
+--- /dev/null
++++ b/main/filestation/nfsclientlib/src/test/java/com/lenovo/hec/lenovoextend/nfsclientlib/NfsServerAddressTest.kt
+@@ -0,0 +1,35 @@
++package com.lenovo.hec.lenovoextend.nfsclientlib
++
++import org.junit.Assert.assertEquals
++import org.junit.Test
++
++class NfsServerAddressTest {
++    @Test fun scopedIpv6DoesNotBecomeFe80Hostname() {
++        val host = "fe80::1234:5678%aware_data0"
++        val value = NfsServerAddress.format(host, "/root")
++        assertEquals("[$host]:/root", value)
++        assertEquals(host, NfsServerAddress.host(value))
++        assertEquals("/root", NfsServerAddress.exportPath(value))
++    }
++
++    @Test fun ipv4KeysRemainCompatible() {
++        val value = NfsServerAddress.format("192.168.31.2", "/sdcard")
++        assertEquals("192.168.31.2:/sdcard", value)
++        assertEquals("192.168.31.2", NfsServerAddress.host(value))
++    }
++
++    @Test fun legacyIpv6AndColonsInFileNamesArePreserved() {
++        val value = "fe80::1234%aware_data0:/root/a:b"
++        assertEquals("fe80::1234%aware_data0", NfsServerAddress.host(value))
++        assertEquals("/root/a:b", NfsServerAddress.exportPath(value))
++    }
++
++    @Test fun deviceDocumentIdsKeepTheirExportPath() {
++        assertEquals("/root/a:b", NfsServerAddress.exportPath("device-id:/root/a:b"))
++    }
++
++    @Test(expected = IllegalArgumentException::class)
++    fun malformedBracketedHostIsRejected() {
++        NfsServerAddress.host("[fe80::1:/root")
++    }
++}
+diff --git a/main/filestation/nfsclientlib/src/main/java/com/lenovo/hec/lenovoextend/nfsclientlib/NfsClient.kt b/main/filestation/nfsclientlib/src/main/java/com/lenovo/hec/lenovoextend/nfsclientlib/NfsClient.kt
+--- a/main/filestation/nfsclientlib/src/main/java/com/lenovo/hec/lenovoextend/nfsclientlib/NfsClient.kt
++++ b/main/filestation/nfsclientlib/src/main/java/com/lenovo/hec/lenovoextend/nfsclientlib/NfsClient.kt
+@@ -370,7 +370,7 @@
+         connectionGeneration: Long
+     ) {
+         mPath = path
+-        mServerUri = "$mServerIp:$mPath"
++        mServerUri = NfsServerAddress.format(mServerIp, mPath)
+         mServerPort = port
+         mServerNFSPort = nfsPort
+         mServerNFSDataPort = nfsDataPort
+@@ -415,7 +415,7 @@
+ 
+     fun updateServerIp(ip: String) {
+         this.mServerIp = ip
+-        mServerUri = "$mServerIp:$mPath"
++        mServerUri = NfsServerAddress.format(mServerIp, mPath)
+     }
+ 
+     fun initRootName(deviceInfo: DeviceInfo?) {
+@@ -423,7 +423,7 @@
+         val serverUri = mServerUri ?: return
+         val devInfo = deviceInfo ?: return
+         val map = HashMap<String, DeviceInfo>()
+-        map[NfsDocumentId.forDevice(devId, serverUri.substringAfter(":"))] = devInfo
++        map[NfsDocumentId.forDevice(devId, NfsServerAddress.exportPath(serverUri))] = devInfo
+         NFSHelper.getInstance().setPath2DeviceMap(map)
+     }
+ 
+@@ -809,8 +809,8 @@
+                 }
+ 
+                 val nfsKey = NFSHelper.getInstance().getNfsKeyBy(mountServerUri, mountDeviceId)
+-                val server = mountServerUri.substringBefore(":")
+-                val exportPath = mountServerUri.substringAfter(":")
++                val server = NfsServerAddress.host(mountServerUri)
++                val exportPath = NfsServerAddress.exportPath(mountServerUri)
+                 try {
+                     // Close a previous context before nativeInit marks this mount active.
+                     // Closing it after a successful replacement would overwrite the
+@@ -825,7 +825,7 @@
+                         LogUtils.i(tag, "mount attempt superseded before native dial: serverUri=$mountServerUri, deviceId=$mountDeviceId")
+                         return@supervisorScope
+                     }
+-                    val localIpSnapshot = if (getDt2MultipathSessionSnapshot()) {
++                    val localIpSnapshot = if (mDt2Type != SOCKET_TYPE_SSL && getDt2MultipathSessionSnapshot()) {
+                         com.emc.ecs.nfsclient.network.NfsLocalIpCollector.collectFormatted()
+                     } else {
+                         null
+@@ -847,7 +847,7 @@
+                         wsLocalIp = wsLocalIpSnapshot,
+                         auxiNfsPorts = mAuxiNfsPorts,
+                         auxiNfsDataPorts = mAuxiNfsDataPorts,
+-                        dt2MultipathEnabled = getDt2MultipathSessionSnapshot(),
++                        dt2MultipathEnabled = mDt2Type != SOCKET_TYPE_SSL && getDt2MultipathSessionSnapshot(),
+                         localHost = connectionContext.localHost,
+                         localInterfaceName = connectionContext.localInterfaceName,
+                         networkType = connectionContext.networkType,
+diff --git a/main/filestation/nfsclientlib/src/main/java/com/lenovo/hec/lenovoextend/nfsclientlib/NFSHelper.kt b/main/filestation/nfsclientlib/src/main/java/com/lenovo/hec/lenovoextend/nfsclientlib/NFSHelper.kt
+--- a/main/filestation/nfsclientlib/src/main/java/com/lenovo/hec/lenovoextend/nfsclientlib/NFSHelper.kt
++++ b/main/filestation/nfsclientlib/src/main/java/com/lenovo/hec/lenovoextend/nfsclientlib/NFSHelper.kt
+@@ -114,8 +114,8 @@
+         // Use on-demand IO workers to avoid exhausting JNI local-ref tables.
+         CoroutineScope(Dispatchers.IO).launch(CoroutineName("异常处理") + exceptionHandler){
+             val job = async {
+-                val server = path.substringBefore(":")
+-                val exportPath = path.substringAfter(":")
++                val server = NfsServerAddress.host(path)
++                val exportPath = NfsServerAddress.exportPath(path)
+                 return@async NfsContext.mount(
+                     server = server,
+                     exportPath = exportPath,
+diff --git a/main/filestation/nfsclientlib/src/main/java/com/lenovo/hec/lenovoextend/nfsclientlib/SelectFileProvider.kt b/main/filestation/nfsclientlib/src/main/java/com/lenovo/hec/lenovoextend/nfsclientlib/SelectFileProvider.kt
+--- a/main/filestation/nfsclientlib/src/main/java/com/lenovo/hec/lenovoextend/nfsclientlib/SelectFileProvider.kt
++++ b/main/filestation/nfsclientlib/src/main/java/com/lenovo/hec/lenovoextend/nfsclientlib/SelectFileProvider.kt
+@@ -230,7 +230,7 @@
+         val lastModified = createFileMap[documentId]!!.createTime
+         val length = createFileMap[documentId]!!.size
+         val extension = name.substringAfterLast('.', "")
+-        val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension).toString()
++        val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension.lowercase(java.util.Locale.ROOT)).toString()
+             .ifEmpty { "*/*" }
+         LogUtils.d(tag, "ATEST includeCreateFileCache name:$name lastMod:$lastModified length:$length type:$mimeType")
+         cursor.newRow().let { row ->
+@@ -260,7 +260,7 @@
+                 val isDir = stat.isDir
+                 val mimeType = if (isDir) Document.MIME_TYPE_DIR else {
+                     val ext = name.substringAfterLast('.', "")
+-                    MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext)?.toString()?.ifEmpty { "*/*" } ?: "*/*"
++                    MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext.lowercase(java.util.Locale.ROOT))?.toString()?.ifEmpty { "*/*" } ?: "*/*"
+                 }
+                 cursor.newRow().let { row ->
+                     row.add(Document.COLUMN_DOCUMENT_ID, documentId)
+@@ -284,7 +284,7 @@
+                 if (createFileMap.contains(documentId)) {
+                     val cache = createFileMap[documentId]!!
+                     val ext = cache.name.substringAfterLast('.', "")
+-                    val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext)?.toString()?.ifEmpty { "*/*" } ?: "*/*"
++                    val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext.lowercase(java.util.Locale.ROOT))?.toString()?.ifEmpty { "*/*" } ?: "*/*"
+                     cursor.newRow().let { row ->
+                         row.add(Document.COLUMN_DOCUMENT_ID, documentId)
+                         row.add(Document.COLUMN_SIZE, cache.size)
+@@ -378,7 +378,7 @@
+                             }
+                             if (showStyle == NFSHelper.ShowStyle.STYLE_DEVICE) {
+                                 //same device different dir
+-                                val devicePath = serverUri.split(":")
++                                val devicePath = listOf(NfsServerAddress.host(serverUri), NfsServerAddress.exportPath(serverUri))
+                                 if (devicePath != null && devicePath.isNotEmpty()) {
+                                     if (nfsDeviceMap.contains(devicePath[0])) {
+                                         val list = nfsDeviceMap[devicePath[0]] as MutableSet
+@@ -454,7 +454,7 @@
+                     }
+                     val mimeType = if (entry.type == 4) Document.MIME_TYPE_DIR else {
+                         val ext = entry.name.substringAfterLast('.', "")
+-                        MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext)?.toString()?.ifEmpty { "*/*" } ?: "*/*"
++                        MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext.lowercase(java.util.Locale.ROOT))?.toString()?.ifEmpty { "*/*" } ?: "*/*"
+                     }
+                     cursor.newRow().let { row ->
+                         row.add(Document.COLUMN_DOCUMENT_ID, childDocId)
+diff --git a/main/filestation/nfsclientlib/src/main/java/com/lenovo/hec/lenovoextend/nfsclientlib/nfsmanager/NfsConnectionManager.kt b/main/filestation/nfsclientlib/src/main/java/com/lenovo/hec/lenovoextend/nfsclientlib/nfsmanager/NfsConnectionManager.kt
+--- a/main/filestation/nfsclientlib/src/main/java/com/lenovo/hec/lenovoextend/nfsclientlib/nfsmanager/NfsConnectionManager.kt
++++ b/main/filestation/nfsclientlib/src/main/java/com/lenovo/hec/lenovoextend/nfsclientlib/nfsmanager/NfsConnectionManager.kt
+@@ -4,6 +4,7 @@
+  */
+ package com.lenovo.hec.lenovoextend.nfsclientlib.nfsmanager
+ 
++import com.lenovo.hec.lenovoextend.nfsclientlib.NfsServerAddress
+ import com.lenovo.hec.lenovoextend.nfsclientlib.NFSHelper
+ import com.lenovo.hec.lenovoextend.nfsclientlib.NfsContext
+ import com.lenovo.hec.lenovoextend.nfsclientlib.NfsDocumentId
+@@ -55,8 +56,8 @@
+                     }
+                     val job = async {
+                         return@async try {
+-                            val server = path.substringBefore(":")
+-                            val exportPath = path.substringAfter(":")
++                            val server = NfsServerAddress.host(path)
++                            val exportPath = NfsServerAddress.exportPath(path)
+                             NfsContext.mount(
+                                 server = server,
+                                 exportPath = exportPath,
+@@ -229,7 +230,7 @@
+         val mountId = nfsInstanceMap[nfsKey]?.getMntId()
+         // Legacy mounts keep their transport URI as the document root.
+         return if (mountId != null && !NfsDocumentId.isDeviceDocumentId(mountId)) serverUri
+-        else NfsDocumentId.forDevice(getDeviceIdBy(nfsKey), serverUri.substringAfter(":"))
++        else NfsDocumentId.forDevice(getDeviceIdBy(nfsKey), NfsServerAddress.exportPath(serverUri))
+     }
+ 
+     fun getRelativePath(documentId: String, nfsKey: String): String? =
+diff --git a/main/filestation/nfsclientlib/src/main/cpp/libnfs/lib/socket.c b/main/filestation/nfsclientlib/src/main/cpp/libnfs/lib/socket.c
+--- a/main/filestation/nfsclientlib/src/main/cpp/libnfs/lib/socket.c
++++ b/main/filestation/nfsclientlib/src/main/cpp/libnfs/lib/socket.c
+@@ -2416,6 +2416,8 @@
+ 		((struct sockaddr_in6 *)&rpc->s)->sin6_port = htons(port);
+ 		((struct sockaddr_in6 *)&rpc->s)->sin6_addr =
+                         ((struct sockaddr_in6 *)(void *)(ai->ai_addr))->sin6_addr;
++        ((struct sockaddr_in6 *)&rpc->s)->sin6_scope_id =
++            ((struct sockaddr_in6 *)(void *)(ai->ai_addr))->sin6_scope_id;
+ #ifdef HAVE_SOCKADDR_LEN
+ 		((struct sockaddr_in6 *)&rpc->s)->sin6_len =
+                         sizeof(struct sockaddr_in6);
+diff --git a/main/filestation/nfsclientlib/src/main/cpp/libnfs/ssl/sslsocket.h b/main/filestation/nfsclientlib/src/main/cpp/libnfs/ssl/sslsocket.h
+--- a/main/filestation/nfsclientlib/src/main/cpp/libnfs/ssl/sslsocket.h
++++ b/main/filestation/nfsclientlib/src/main/cpp/libnfs/ssl/sslsocket.h
+@@ -5,6 +5,7 @@
+ #pragma once
+ 
+ #include <stdint.h>
++#include <netdb.h>
+ //ssl include
+ #include <openssl/err.h>
+ #include <openssl/bio.h>
+@@ -19,7 +20,8 @@
+ typedef struct CSSLSocket {
+     SSL_CTX* m_ctx;
+     SSL* m_ssl;
+-    char sz_ip[16];
++    // Scoped IPv6 addresses exceed the old 16-byte IPv4 buffer.
++    char sz_ip[NI_MAXHOST];
+     int n_port;
+     int* m_socket;
+     uint64_t bufferSize;
+diff --git a/main/filestation/nfsclientlib/src/main/cpp/libnfs/ssl/sslsocket.c b/main/filestation/nfsclientlib/src/main/cpp/libnfs/ssl/sslsocket.c
+--- a/main/filestation/nfsclientlib/src/main/cpp/libnfs/ssl/sslsocket.c
++++ b/main/filestation/nfsclientlib/src/main/cpp/libnfs/ssl/sslsocket.c
+@@ -157,6 +157,11 @@
+ uint32_t ssl_connect(CSSLSocket* sslsocket, int socket, const char* remoteIP,
+                      uint16_t remotePort, const char* expectedPeerFingerprint)
+ {
++    size_t remoteIpLength = remoteIP ? strnlen(remoteIP, sizeof(sslsocket->sz_ip)) : sizeof(sslsocket->sz_ip);
++    if (remoteIpLength >= sizeof(sslsocket->sz_ip)) {
++        NFS_LOGE("ssl_connect: missing or oversized peer address");
++        return 1;
++    }
+     NFS_LOGI("SSL_connect in, ip:%s,port:%d ",remoteIP,remotePort);
+ 
+     /* make SSL connection */
+@@ -224,7 +229,7 @@
+         NFS_LOGE("verify fp failed");
+         return 2;
+     }
+-    strcpy(sslsocket->sz_ip, remoteIP);
++    memcpy(sslsocket->sz_ip, remoteIP, remoteIpLength + 1);
+     sslsocket->n_port = remotePort;
+     return 0;
+ }
+diff --git a/main/filestation/vault/src/main/java/com/lenovo/hec/vault/data/Constants.kt b/main/filestation/vault/src/main/java/com/lenovo/hec/vault/data/Constants.kt
+--- a/main/filestation/vault/src/main/java/com/lenovo/hec/vault/data/Constants.kt
++++ b/main/filestation/vault/src/main/java/com/lenovo/hec/vault/data/Constants.kt
+@@ -23,6 +23,7 @@
+     const val DT2TYPE = "dt2type"
+     const val SOCKET_SSL = 2
+     const val SOCKET_DT2 = 3
++    const val NETWORK_TYPE_NAN = 10
+     const val NETWORK_TYPE_CB_WIFI = 8
+     const val NETWORK_TYPE_CB_MOBILE = 9
+     const val NETWORK_REMOTE_IP = "127.0.0.1"
+diff --git a/main/filestation/vault/src/main/java/com/lenovo/hec/vault/api/components/DeviceConnectManager.kt b/main/filestation/vault/src/main/java/com/lenovo/hec/vault/api/components/DeviceConnectManager.kt
+--- a/main/filestation/vault/src/main/java/com/lenovo/hec/vault/api/components/DeviceConnectManager.kt
++++ b/main/filestation/vault/src/main/java/com/lenovo/hec/vault/api/components/DeviceConnectManager.kt
+@@ -748,7 +748,7 @@
+             isRemote = true
+             LogUtils.i(TAG, "force to remote mode because remote ip is 127.0.0.1" )
+         }
+-        if (featuresuerplink && !isRemote) {
++        if (featuresuerplink && !isRemote && networkType != Constants.NETWORK_TYPE_NAN) {
+             jsonObject.put(Constants.DT2TYPE, Constants.SOCKET_DT2)
+             val freshWsLocalIp = fileStationR4Sdk?.getLocalConnectedIp(stationDevice.deviceId)
+             val clientWsLocalIp = if (!freshWsLocalIp.isNullOrEmpty()) {
+@@ -772,6 +772,10 @@
+             } else if (clientSessionMultipathEnabled) {
+                 LogUtils.e(TAG, "msqmp:failed to build TYPE_CLIENT clientIps, deviceId=${stationDevice.deviceId}, clientWsLocalIp=$clientWsLocalIp")
+             }
++        }
++        if (networkType == Constants.NETWORK_TYPE_NAN) {
++            jsonObject.put(Constants.DT2TYPE, Constants.SOCKET_SSL)
++            LogUtils.i(TAG, "NAN NFS handshake selects TCP/TLS; DT2 IPv4 multipath disabled")
+         }
+         LogUtils.i(TAG, "tryCounts: ${tryCounts}, networkType: $networkType, send handshake message: $jsonObject")
+         ProtocolMsgHandler.sendMessage(
+diff --git a/main/filestation/vault/src/main/java/com/lenovo/hec/vault/api/components/ProtocolMsgHandler.kt b/main/filestation/vault/src/main/java/com/lenovo/hec/vault/api/components/ProtocolMsgHandler.kt
+--- a/main/filestation/vault/src/main/java/com/lenovo/hec/vault/api/components/ProtocolMsgHandler.kt
++++ b/main/filestation/vault/src/main/java/com/lenovo/hec/vault/api/components/ProtocolMsgHandler.kt
+@@ -457,7 +457,8 @@
+         /*support only ssl and dt2 now*/
+         if(dt2type != Constants.SOCKET_DT2)
+             dt2type = Constants.SOCKET_SSL
+-        if(networkType == Constants.NETWORK_TYPE_CB_WIFI || networkType == Constants.NETWORK_TYPE_CB_MOBILE){
++        if(networkType == Constants.NETWORK_TYPE_CB_WIFI || networkType == Constants.NETWORK_TYPE_CB_MOBILE ||
++            networkType == Constants.NETWORK_TYPE_NAN){
+                 dt2type = Constants.SOCKET_SSL
+                 LogUtils.i(TAG, "Server can only use ssl socket for network cb")
+         }
+diff --git a/main/filestation/vault/src/main/java/com/lenovo/hec/vault/api/components/NFSManager.kt b/main/filestation/vault/src/main/java/com/lenovo/hec/vault/api/components/NFSManager.kt
+--- a/main/filestation/vault/src/main/java/com/lenovo/hec/vault/api/components/NFSManager.kt
++++ b/main/filestation/vault/src/main/java/com/lenovo/hec/vault/api/components/NFSManager.kt
+@@ -231,7 +231,8 @@
+             return false
+         }
+         val runtimeDt2MultipathEnabledForServer =
+-            BuildConfig.multiPathEnabled && NfsMultipathConfig.isRuntimeDt2MultipathEnabled()
++            dt2type == Constants.SOCKET_DT2 &&
++                BuildConfig.multiPathEnabled && NfsMultipathConfig.isRuntimeDt2MultipathEnabled()
+         var serverStarted = false
+         nfsServer.startNfsServer(
+             stationDevice.deviceId, stationDevice.localHost,
+@@ -478,7 +479,8 @@
+         if (statusBeforeHandshake != NfsClient.STATUS.MOUNT_SUCCESS) {
+             nfsClient.refreshLocalIpSnapshotIfChanged()
+         }
+-        val clientSessionMultipathEnabled = nfsClient.getDt2MultipathSessionSnapshot()
++        val clientSessionMultipathEnabled = networkType != Constants.NETWORK_TYPE_NAN &&
++            nfsClient.getDt2MultipathSessionSnapshot()
+ 
+         val path = message.optString(Constants.PATH)
+         val port = message.optInt(Constants.PORT)
+@@ -513,14 +515,18 @@
+         /*support only ssl and dt2 now*/
+         if (dt2type != Constants.SOCKET_DT2)
+             dt2type = Constants.SOCKET_SSL
+-        if (networkType == Constants.NETWORK_TYPE_CB_WIFI || networkType == Constants.NETWORK_TYPE_CB_MOBILE) {
++        if (networkType == Constants.NETWORK_TYPE_CB_WIFI || networkType == Constants.NETWORK_TYPE_CB_MOBILE ||
++            networkType == Constants.NETWORK_TYPE_NAN) {
+             dt2type = Constants.SOCKET_SSL
+             LogUtils.i(TAG, "client can only use ssl socket for network cb")
+         }
+         val nfsVersion = message.optInt(Constants.NFS_VERSION_KEY, 1)
+         val nfsCapability = message.optLong(Constants.NFS_SERVER_CAPABILITY_KEY, 0L)
+ 
+-        val negotiatedServerIp = if (message.has(Constants.IP)) {
++        // The peer scope (e.g. %nan0) belongs to its OS. Use our observed SC endpoint.
++        val negotiatedServerIp = if (networkType == Constants.NETWORK_TYPE_NAN) {
++            fileStationR4Sdk?.getRemoteConnectedIp(deviceId).orEmpty().ifEmpty { fileStation.connectedIp }
++        } else if (message.has(Constants.IP)) {
+             message.optString(Constants.IP).ifEmpty { fileStation.connectedIp }
+         } else fileStation.connectedIp
+         if (negotiatedServerIp == Constants.NETWORK_REMOTE_IP) {

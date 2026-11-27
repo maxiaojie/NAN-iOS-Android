@@ -719,3 +719,10 @@ a0807d7与iPhone12，在已有设备页交替点击连接，最初五轮（iPhon
 **分析/限制：** 现有native接收停顿超时5秒，iOS通过Network framework转发到loopback libiperf；尚未区分转发/缓冲/并发调度/底层原因，不归责固件。另观察NFS挂载与服务启动失败，文件业务未验收。iOS service8/19分别是CONNECT_SERVER/CONNECT_CLIENT；19不能单独判断为临时配对失败，以connType10/result1、认证、TCP和双端UI组合判断。本批实际都是iOS发布/Android订阅，发起端交替不代表NAN角色切换。
 
 **处理/记录：** 本地生成验证工程临时接入iperf，同一正式构建完成10轮；产品正常源码未改。保留每轮失败与原始JSON，不重试覆盖；收尾恢复普通SC验证构建。详见[逐轮结果、实现和剩余问题](SmartConnect-nan-reliability-2026-11-27.md)及[CSV](results/sc-nan-ha2e6npb-iphone12-2026-11-27.csv)。收尾实测状态以专项文档为准。
+
+
+## SC-20261127-02：NFS 经 NAN 的双端适配及 IPv6 原生崩溃修复
+
+SC控制WSS上线但NFS未适配：Android按首个冒号拆坏IPv6，握手仍选仅支持IPv4的DT2；iOS业务原生socket没有Network framework承载。NAN路径改为TCP/TLS，新增绑定SC主route的iOS转发，修正本地scope及native sockaddr转换。修复解析后发现TLS成功后16字节IPv4缓冲区被IPv6触发FORTIFY，扩大并校验长度；保留两次App崩溃证据，没有关闭保护或修改固件。另修正iOS启动参数异步所有权及指纹登记时机。
+
+Android完整APK及iOS签名构建通过，76项NFS回归单测通过，双端已安装。HA2E6NPB/iPhone12两端TLS挂载成功；iPhone读取平板PNG、Android经NFS文件接口读取iPhone测试照片均574633字节，两个接收副本SHA256与原件一致。未将挂载/缩略图当成完整数据验收。首次照片保存被权限拒绝，系统开启照片访问后完成反向验证；Android外部图片查看器的NFS虚拟描述符空白问题采用NAN专用完整读取缓存交接修复，18:53界面和哈希验证通过；列表即时刷新、两次SC冷启动连接失败等限制明确保留。后续测速遵照用户要求改用独立AwareBridge，不继续向SC接入iperf。见[原因、增量补丁、逐步验证与限制](SmartConnect-nfs-nan-fix-2026-11-27.md)及[文件校验CSV](results/sc-nan-nfs-files-2026-11-27.csv)。

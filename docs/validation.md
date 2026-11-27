@@ -376,3 +376,8 @@ HA2E6NPB同日补充：197458.2匹配字典已部署、哈希通过，cnss_diag�
 ### SmartConnect HA2E6NPB ↔ iPhone12：10次上线与性能（2026-11-27）
 
 Android保持STA，已有配对详情页双端各发起5次，10/10经NAN缓存验证、NDP和WSS认证并在双端在线；实际均为iOS发布/Android订阅。TCP4并行流/目标10秒：Android→iPhone10/10完成，接收平均22.67 Mbps；iPhone→Android仅1/10完成4.40 Mbps，其余9次接收超时，测速后SC控制TCP仍在。双向性能和NFS业务未通过。采用临时本地Network framework/loopback libiperf测量SC同一NDP，不能当成纯无线峰值或WSS业务速度。service19不能单独作为临时连接的判断依据，当前iOS定义其为CONNECT_CLIENT。[逐轮报告](SmartConnect-nan-reliability-2026-11-27.md)、[CSV](results/sc-nan-ha2e6npb-iphone12-2026-11-27.csv)。
+
+
+### SmartConnect NFS 经 NAN（2026-11-27）
+
+HA2E6NPB/iPhone12：TCP/TLS及iOS Network framework转发已接入，IPv6解析、scope、TLS地址缓冲区崩溃修复。双端NFS挂载通过；iPhone读取平板文件、Android读取iPhone测试照片，均574633字节，三个SHA256相同，随后Android相册打开iPhone图片亦正常显示，预览缓存再次校验一致。76项Android NFS回归测试通过，双端构建/安装通过。未验收任意写入/删除、长稳、扩展发布签名；新增照片列表即时刷新与SC冷启动失败仍保留。后续吞吐使用独立AwareBridge。[专项记录和增量Patch](SmartConnect-nfs-nan-fix-2026-11-27.md)。
